@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080b0b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>Sign in — Dorra House</title>
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <main class="entrance">
+    <section class="welcome" aria-labelledby="houseName">
+      <div class="brand"><span aria-hidden="true">✦</span><strong id="houseName">DORRA HOUSE</strong></div>
+      <div class="welcome-copy"><h1>Your place <br>in the House.</h1><p>The tables. The estate. Your next chapter. <br>Pick up where you left off, on any device.</p><div class="house-rule"></div><span>All money and purchases are simulated.</span></div>
+      <p class="welcome-footer">A world of play, built around you.</p>
+    </section>
+    <section class="account" aria-labelledby="formTitle">
+      <div class="account-inner">
+        <nav class="account-tabs" aria-label="Account access"><button type="button" id="signInTab" aria-pressed="true">Sign in</button><button type="button" id="signUpTab" aria-pressed="false">Create account</button></nav>
+        <h2 id="formTitle">Welcome back.</h2><p id="formCopy">Sign in to continue your Dorra House journey.</p>
+        <form id="accountForm">
+          <label id="usernameField" hidden>Username<input id="username" name="username" autocomplete="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}"><small>3–24 letters, numbers or underscores.</small></label>
+          <label id="emailField">Email<input id="email" name="email" type="email" autocomplete="email" required maxlength="254"></label>
+          <label id="passwordField">Password<span class="password-wrap"><input id="password" name="password" type="password" aria-label="Password" autocomplete="current-password" required minlength="8" maxlength="128"><button id="showPassword" type="button" aria-label="Show password" aria-pressed="false">Show</button></span></label>
+          <label id="repeatField" hidden>Confirm password<input id="repeatPassword" name="repeatPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128"></label>
+          <p id="accountMessage" class="message" role="status" aria-live="polite" hidden></p>
+          <button type="submit" id="submitAccount" class="primary">Sign in</button>
+        </form>
+        <button type="button" id="forgotPassword" class="text-button">Forgot your password?</button>
+        <button type="button" id="backToSignIn" class="text-button" hidden>Back to sign in</button>
+        <button type="button" id="resendConfirmation" class="text-button" hidden>Resend confirmation email</button>
+        <p class="account-note">Your progress saves automatically to your account.<br>One active gameplay session per account.</p>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="login.js"></script>
+</body>
+</html>

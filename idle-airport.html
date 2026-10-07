@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#b9e4e4">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'">
   <title>Dorra · Idle Airports</title>
   <link rel="stylesheet" href="idle-airport.css?v=20260906-2">
   <link rel="stylesheet" href="airport/dashboard.css?v=20260909-1">
+  <link rel="stylesheet" href="online-shell.css">
 </head>
 <body>
+  <script type="module" src="online-shell.js"></script>
   <main id="airportApp" class="airport-app" aria-busy="true">
     <section id="airportDashboard" class="airport-dashboard" hidden aria-labelledby="dashboardTitle">
       <div class="dashboard-shell">
@@ -28,7 +30,7 @@
     <canvas id="airportCanvas" tabindex="0" aria-label="Isometric airport. Drag to pan, scroll to zoom. Arrow keys pan, plus and minus zoom, zero resets the view. Use Build for keyboard-accessible building and gate controls."></canvas>
     <div class="scene-vignette" aria-hidden="true"></div>
     <section id="airportLoading" class="loading-screen" aria-live="polite"><div class="loading-plane">✈</div><p class="eyebrow">DORRA HOUSE PRESENTS</p><h1>Idle Airports</h1><p>Getting your airport ready for take-off…</p><span class="loading-track"><i></i></span></section>
-    <section id="airportFatal" class="fatal-screen" hidden><span class="fatal-symbol">✈</span><p class="eyebrow">OPERATIONS PAUSED</p><h1>Let’s get you connected</h1><p id="airportFatalCopy">Start the Dorra House local server, then reload this page.</p><div><button class="primary-button" data-action="reload">Try again</button><a href="index.html" data-return-house>Back to Dorra House</a></div></section>
+    <section id="airportFatal" class="fatal-screen" hidden><span class="fatal-symbol">✈</span><p class="eyebrow">OPERATIONS PAUSED</p><h1>Let’s get you connected</h1><p id="airportFatalCopy">Check your connection and sign in again, then reload this page.</p><div><button class="primary-button" data-action="reload">Try again</button><a href="index.html" data-return-house>Back to Dorra House</a></div></section>
     <div id="airportHud" class="airport-hud" hidden>
       <header class="top-hud">
         <a class="house-link" href="index.html" data-return-house aria-label="Save and return to Dorra House"><span class="house-monogram">D</span><span>DORRA <b>Idle Airports</b></span><i aria-hidden="true">↗</i></a>
@@ -52,7 +54,7 @@
       <nav class="camera-controls" aria-label="Airport view"><button data-camera="zoom-out" aria-label="Zoom out">−</button><button data-camera="reset" aria-label="Reset airport view"><span id="cameraZoom">100%</span></button><button data-camera="zoom-in" aria-label="Zoom in">+</button></nav>
       <div class="world-hint"><span>✦</span> Drag to explore · scroll to zoom · click a plot to build</div>
       <footer class="bottom-hud"><nav class="game-dock" aria-label="Airport management"><button class="dock-button" data-action="buildings"><span class="dock-icon" aria-hidden="true">▥</span><strong>Build</strong></button><button class="dock-button" data-action="fleet"><span class="dock-icon plane-dock-icon" aria-hidden="true">✈</span><strong>Aircraft</strong></button><button class="dock-button" data-action="research"><span class="dock-icon" aria-hidden="true">⚗</span><strong>Research</strong></button><button class="dock-button" data-action="dashboard"><span class="dock-icon" aria-hidden="true">◎</span><strong>Airports</strong></button><button class="dock-button" data-action="milestones"><span class="dock-icon" aria-hidden="true">★</span><strong>Milestones</strong><i id="milestoneDot" hidden></i></button></nav><button class="boost-button" data-action="boost"><span aria-hidden="true">ϟ</span><span>BOOST<strong>Supercharge your airport</strong></span><i aria-hidden="true">→</i></button></footer>
-      <div class="save-indicator" id="airportSaveStatus" role="status"><i></i> Saved locally</div>
+      <div class="save-indicator" id="airportSaveStatus" role="status"><i></i> Saved to cloud</div>
     </div>
     <div id="airportDialog" class="dialog-layer" hidden><div class="dialog-shade" data-action="close-dialog"></div><section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" tabindex="-1"><header class="dialog-header"><div><p id="dialogEyebrow" class="eyebrow">AIRPORT OPERATIONS</p><h2 id="dialogTitle">Airport</h2></div><button class="dialog-close" data-action="close-dialog" aria-label="Close dialog">×</button></header><div id="dialogBody" class="dialog-body"></div></section></div>
     <div id="airportToast" class="airport-toast" role="status" aria-live="polite"></div>

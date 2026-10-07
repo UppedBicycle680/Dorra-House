@@ -1,0 +1,3 @@
+project_id = "dorra-house"
+[functions.dorra-api]
+verify_jwt = true

@@ -1,0 +1,93 @@
+name: Deploy Alpha to GitHub Pages
+
+on:
+  push:
+    branches: [Alpha]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alpha-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Alpha
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Restore optimized artwork cache
+        uses: actions/cache@v4
+        with:
+          path: work/build-cache
+          key: ${{ runner.os }}-webp-q95-v1-${{ hashFiles('assets/**/*.png', 'airport/**/*.png') }}
+          restore-keys: |
+            ${{ runner.os }}-webp-q95-v1-
+      - name: Validate JavaScript
+        run: npm run check
+      - name: Verify server-approved gameplay
+        run: npm test
+      - name: Install Chromium for browser verification
+        run: npx playwright install --with-deps chromium
+      - name: Verify login and real cloud-save client
+        run: npm run test:browser
+      - name: Build static site and optimize original artwork
+        run: npm run build
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+  verify-live:
+    needs: deploy
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out live verification code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/check-online.mjs
+            online-config.js
+            package.json
+          sparse-checkout-cone-mode: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify public signup, saves and device takeover against Supabase
+        run: node scripts/check-online.mjs
+        env:
+          DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
+      - name: Preserve live validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-live-validation
+          path: work/live-check.json
+          retention-days: 7

@@ -4,17 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#080b0b">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
-  <title>Dorra House — Offline Casino</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>Dorra House</title>
   <link rel="stylesheet" href="styles.css?v=20260829-dev11">
   <link rel="stylesheet" href="mac-responsive.css?v=20260807-mac2">
+  <link rel="stylesheet" href="online-shell.css">
 </head>
 <body>
+  <script type="module" src="online-shell.js"></script>
   <div class="grain" aria-hidden="true"></div>
   <section id="arrivalScreen" class="arrival-screen" hidden aria-labelledby="arrivalTitle">
     <header class="arrival-header">
       <div class="arrival-brand"><span aria-hidden="true">✦</span><strong>DORRA HOUSE</strong></div>
-      <p>Your progress stays on this device</p>
+      <p>Your progress saves to your account</p>
     </header>
     <main class="arrival-main">
       <div class="arrival-intro">
@@ -448,7 +450,7 @@
       </section>
     </main>
 
-    <footer><div><span class="status-dot"></span> Play money · Offline</div><div id="history" class="history"><span>House ledger</span><em>No hands played yet</em></div><button id="homeBtn">All games</button></footer>
+    <footer><div><span class="status-dot"></span> Play money · Online Alpha</div><div id="history" class="history"><span>House ledger</span><em>No hands played yet</em></div><button id="homeBtn">All games</button></footer>
   </div>
 
   <dialog id="rulesDialog"><button class="dialog-close" aria-label="Close">×</button><p>Dorra House rules</p><h2 id="rulesTitle"></h2><div id="rulesText"></div><button class="primary dialog-ok">Understood</button></dialog>
@@ -518,7 +520,7 @@
       <button id="campaignDebriefClose" data-campaign-report-close>Return to command</button>
     </section>
   </div>
-  <div id="saveIndicator" class="save-indicator" role="status" aria-live="polite">Saved locally</div>
+  <div id="saveIndicator" class="save-indicator" role="status" aria-live="polite">Saved to cloud</div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="expansion-cars.js?v=20260806-motor2"></script>
   <script src="deepened-cars.js?v=20260806-motor3"></script>

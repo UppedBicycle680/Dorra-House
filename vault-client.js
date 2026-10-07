@@ -1,143 +1,80 @@
-// Shared page-side client for Dorra Vault v4. The worker remains the only
-// component with signing authority; pages only receive authenticated snapshots.
-const NativeWorker = Worker;
-const nativeStorageGet = Storage.prototype.getItem;
-const nativeStorageSet = Storage.prototype.setItem;
-const nativeStorageRemove = Storage.prototype.removeItem;
-const nativeRandomValues = crypto.getRandomValues.bind(crypto);
+import { supabase, requireAccount, signOut } from './auth-client.js';
+import { API_URL, SUPABASE_PUBLISHABLE_KEY } from './online-config.js';
 
-export const localGet = (key) => nativeStorageGet.call(localStorage, key);
-export const localSet = (key, value) => nativeStorageSet.call(localStorage, key, value);
-export const localRemove = (key) => nativeStorageRemove.call(localStorage, key);
-
-function sessionToken() {
-  return [...nativeRandomValues(new Uint8Array(32))]
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
-}
+// Local storage holds preferences and Auth tokens, never gameplay authority.
+export const localGet = key => localStorage.getItem(key);
+export const localSet = (key, value) => localStorage.setItem(key, value);
+export const localRemove = key => localStorage.removeItem(key);
 
 export async function createVaultClient(options = {}) {
-  const workerUrl = options.workerUrl || './save-worker.js?v=20260906-airports1';
-  const token = sessionToken();
-  const worker = new NativeWorker(workerUrl, { type: 'module' });
-  const pending = new Map();
-  let requestId = 0;
-  let revision = 1;
-  let closed = false;
-  let writeQueue = Promise.resolve();
-  let currentSnapshot = null, payoutSequence = 0, lastWriteError = null;
-
-  const adopt = (result) => {
-    if (!result?.mirror) return;
-    const envelope = JSON.parse(result.mirror);
-    currentSnapshot = JSON.parse(envelope.p);
-    revision = result.revision || envelope.r;
-    payoutSequence = currentSnapshot.airportBridge?.consumedSequence || 0;
-    localSet('dorra-vault-mirror', result.mirror);
-  };
-
+  await requireAccount();
+  const leaseId = crypto.randomUUID();
+  let snapshot, revision = 0, closed = false, blocked = false, lastError = null;
+  let queue = Promise.resolve();
   const notify = (status, error = null) => {
     document.documentElement.dataset.saveState = status;
     options.onStatus?.(status, error);
+    window.dispatchEvent(new CustomEvent('dorra-save-status', {detail:{status,error}}));
   };
-
-  const rejectPending = (error) => {
-    for (const request of pending.values()) request.reject(error);
-    pending.clear();
-  };
-
-  worker.onmessage = (event) => {
-    const request = pending.get(event.data?.id);
-    if (!request) return;
-    pending.delete(event.data.id);
-    adopt(event.data.ok ? event.data.result : event.data);
-    if (event.data.ok) request.resolve(event.data.result);
-    else { const error = new Error(event.data.error || 'Offline vault request failed'); error.code = event.data.code; request.reject(error); }
-  };
-  worker.onerror = (event) => rejectPending(new Error(event.message || 'Offline vault failed'));
-
-  const request = (type, payload = {}) => new Promise((resolve, reject) => {
-    if (closed) {
-      reject(new Error('Offline vault client is closed'));
-      return;
-    }
-    const id = ++requestId;
-    pending.set(id, { resolve, reject });
-    worker.postMessage({ id, type, token, payload });
-  });
-
-  let load;
-  try {
-    await request('initialize');
-    load = await request('load', { mirror: localGet('dorra-vault-mirror') });
-    revision = load.revision || 1;
-    if (load.mirror) localSet('dorra-vault-mirror', load.mirror);
-    for (const key of ['dorra-balance', 'dorra-history', 'dorra-stats', 'dorra-progress', 'dorra-reward-date']) {
-      localRemove(key);
-    }
-    indexedDB.deleteDatabase('dorra-local-vault');
-    notify('saved');
-  } catch (error) {
-    closed = true;
-    worker.terminate();
-    notify('error', error);
-    throw error;
+  function adopt(value) {
+    if (!value?.snapshot || !Number.isSafeInteger(value.revision)) throw new Error('The cloud returned an incomplete save.');
+    snapshot = structuredClone(value.snapshot); revision = value.revision; return value;
   }
-
-  const commit = (snapshot, reason = 'game') => {
-    const payload = structuredClone(snapshot);
-    const expectedPayoutSequence = payoutSequence;
-    notify('saving');
-    const operation = writeQueue.then(async () => {
-      const result = await request('commit', {
-        snapshot: payload,
-        reason: String(reason || 'game').slice(0, 32),
-        expectedRevision: revision,
-        expectedPayoutSequence
-      });
-      revision = result.revision;
-      localSet('dorra-vault-mirror', result.mirror);
-      notify('saved');
-      lastWriteError = null;
-      return result;
-    });
-    writeQueue = operation.catch((error) => {
-      lastWriteError = error;
-      notify('error', error);
-    });
-    return operation;
-  };
-
-  const airportOperation = (type, payload = {}) => {
-    const input = structuredClone(payload);
-    const operation = writeQueue.then(async () => {
-      notify('saving');
-      const result = await request(type, input);
-      lastWriteError = null;
-      notify('saved');
-      return result;
-    });
-    writeQueue = operation.catch(error => { lastWriteError = error; notify('error', error); });
-    return operation;
-  };
-
-  return Object.freeze({
-    get snapshot() { return structuredClone(currentSnapshot || load.snapshot); },
-    integrityIssue: Boolean(load.integrityIssue),
-    airportWarning: load.airportWarning || null,
-    commit,
-    airportLoad: () => airportOperation('airport-load'),
-    airportCommand: payload => airportOperation('airport-command', payload),
-    withdrawAirportCash: payload => airportOperation('airport-withdraw', payload),
-    flush: async () => { await writeQueue; if (lastWriteError) throw lastWriteError; },
-    getRevision: () => revision,
-    close() {
-      if (closed) return;
-      closed = true;
-      worker.terminate();
-      rejectPending(new Error('Offline vault client closed'));
+  async function request(body, retry = true) {
+    if (closed || blocked) throw new Error(blocked ? 'This gameplay session ended. Reload to continue on this device.' : 'Cloud save client closed.');
+    const {data:{session}} = await supabase.auth.getSession();
+    if (!session) { blocked = true; await requireAccount(); }
+    let response;
+    try {
+      response = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'application/json',apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`}, body:JSON.stringify(body), signal:AbortSignal.timeout(25000)});
+    } catch (cause) {
+      if (retry) return request(body, false);
+      throw new Error('Could not reach your cloud save. Check your connection and try again.', {cause});
     }
+    let value;
+    try { value = await response.json(); } catch { throw new Error('The cloud service returned an unreadable response.'); }
+    if (response.status === 401 && retry) {
+      const {error} = await supabase.auth.refreshSession();
+      if (!error) return request(body, false);
+    }
+    if (!response.ok) {
+      const error = new Error(value.error || 'Your action could not be saved.'); error.code = value.code;
+      if (['SESSION_REPLACED','AUTH_SESSION_ENDED','ACCOUNT_DISABLED'].includes(error.code)) {
+        blocked = true; document.documentElement.dataset.sessionState = 'ended';
+        window.dispatchEvent(new CustomEvent('dorra-session-ended', {detail:{error}}));
+      }
+      throw error;
+    }
+    return value;
+  }
+  notify('loading');
+  try { adopt(await request({scope:'session',action:'acquire',leaseId})); notify('saved'); }
+  catch (error) { notify('error', error); throw error; }
+  function dispatch(scope, action, args = {}) {
+    const input = structuredClone(args), requestId = input.requestId || crypto.randomUUID();
+    notify('saving');
+    const operation = queue.then(async () => {
+      try {
+        const value = adopt(await request({scope,action,args:input,leaseId,requestId,expectedRevision:revision}));
+        lastError = null; notify('saved'); return value;
+      } catch (error) { lastError = error; notify('error', error); throw error; }
+    });
+    queue = operation.catch(() => {}); return operation;
+  }
+  const airport = (action, args = {}) => dispatch('airport', action, args).then(value => ({...value.result,snapshot:value.snapshot,revision:value.revision,payoutSequence:0}));
+  const controls = document.querySelector('[data-online-account]');
+  if (controls) {
+    controls.hidden = false;
+    controls.querySelector('[data-online-username]').textContent = snapshot.progress?.profile?.name || 'Your account';
+    controls.querySelector('[data-online-signout]').onclick = async () => { try { await queue; await signOut(); } catch(error) { notify('error',error); } };
+  }
+  return Object.freeze({
+    get snapshot() { return structuredClone(snapshot); },
+    integrityIssue:false,airportWarning:null,dispatch,
+    commit:async () => { throw new Error('Browser save uploads are disabled. Use a server-approved gameplay action.'); },
+    airportLoad:() => airport('load'),airportCommand:payload => airport('command',payload),withdrawAirportCash:payload => airport('withdraw',payload),
+    flush:async () => { await queue; if(lastError)throw lastError; },getRevision:() => revision,
+    close() { closed = true; }
   });
 }
-
 export default createVaultClient;
