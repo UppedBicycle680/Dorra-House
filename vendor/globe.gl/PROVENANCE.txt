@@ -1,0 +1,14 @@
+Globe.gl 2.46.1
+
+Source package: https://registry.npmjs.org/globe.gl/-/globe.gl-2.46.1.tgz
+Upstream repository: https://github.com/vasturiano/globe.gl
+Vendored file: dist/globe.gl.min.js
+Published npm integrity:
+sha512-h+OvX52EBIPLtM0/2JkM+JZ9gPAhPJ4y3+hxUwD5Ey/O0Zk2ockuTiJ71bZbnNBGmNiIZzA5Vr3TMT0b3d35IQ==
+Vendored bundle SHA-256:
+2ab6767f47e2be0ac346cd7a5eb55d259ea3da06d479dc22f1820ddd698f496a
+
+This is the package's browser UMD build. Load it with a normal local script tag;
+it exposes the global `Globe` constructor and bundles its browser runtime.
+
+License: MIT. See LICENSE.txt in this directory.

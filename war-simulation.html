@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07100f">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>Dorra Strategic Command</title>
+  <link rel="stylesheet" href="styles.css?v=20260829-dev11">
+  <link rel="stylesheet" href="war-simulation.css?v=20260830-development12">
+</head>
+<body class="strategic-page">
+  <div class="strategic-app" id="strategicApp" aria-busy="true">
+    <header class="strategic-global-header">
+      <a class="strategic-brand" href="index.html" data-return-house aria-label="Return to Dorra House">
+        <strong>Dorra</strong><span>Strategic Command</span>
+      </a>
+      <div class="strategic-campaign-context" aria-label="Current campaign">
+        <strong id="strategicTurnStatus">Setup</strong>
+        <span id="strategicCountryStatus">Choose a nation</span>
+      </div>
+      <div id="strategicHeaderResources" class="strategic-header-resources" aria-label="Campaign resources"></div>
+      <div class="strategic-vault-summary">
+        <div><span>Cash</span><strong id="strategicBalance">$0</strong></div>
+        <p id="strategicSaveStatus" class="saved" role="status" aria-live="polite"><i></i> Saved</p>
+      </div>
+      <div class="strategic-header-actions">
+        <button type="button" data-campaign-help aria-label="Open how to play"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 1.8-2.5 2-2.5 3.7M12 17h.01"/></svg><span>Help</span></button>
+        <button type="button" class="strategic-alert-button" data-campaign-alerts aria-label="Open alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Alerts</span><b id="strategicAlertCount">0</b></button>
+        <button type="button" class="strategic-end-turn" data-campaign-end-turn-open disabled>End turn<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+    </header>
+
+    <section id="strategicLoading" class="strategic-loading" aria-live="polite">
+      <div class="strategic-loader" aria-hidden="true"><i></i><b></b></div>
+      <h1>Opening strategic command</h1>
+      <p>Connecting the campaign to your protected Dorra House save.</p>
+    </section>
+
+    <section id="strategicFatal" class="strategic-fatal" hidden aria-labelledby="strategicFatalTitle">
+      <div class="strategic-fatal-mark" aria-hidden="true">D</div>
+      <h1 id="strategicFatalTitle">Strategic command could not start</h1>
+      <p id="strategicFatalCopy">Close any other Dorra House tab, then reload this page.</p>
+      <div><button type="button" data-reload-page>Reload</button><a href="index.html" data-return-house>Return to Dorra House</a></div>
+    </section>
+
+    <main id="campaignPanel" class="strategic-workspace progression-panel campaign-panel" hidden></main>
+
+    <div id="campaignDebrief" class="campaign-debrief" hidden role="dialog" aria-modal="true" aria-labelledby="campaignDebriefTitle">
+      <div class="campaign-debrief-backdrop" data-campaign-report-close></div>
+      <section class="campaign-debrief-card">
+        <small id="campaignDebriefLabel">Operation report</small>
+        <h2 id="campaignDebriefTitle">Rights operation resolved</h2>
+        <div id="campaignDebriefBody"></div>
+        <button id="campaignDebriefClose" data-campaign-report-close>Return to command</button>
+      </section>
+    </div>
+
+    <div id="strategicToast" class="strategic-toast" role="status" aria-live="polite"></div>
+  </div>
+  <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
+  <script type="module" src="war-simulation.js?v=20260830-development12"></script>
+</body>
+</html>

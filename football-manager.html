@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071f3b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>Queensland Club Manager</title>
+  <link rel="stylesheet" href="vendor/club-journal/icons/tabler-icons.min.css?v=3.46.0">
+  <link rel="stylesheet" href="football-manager.css?v=20260906-1">
+</head>
+<body>
+  <div id="footballApp" class="football-app" aria-busy="true">
+    <section id="footballLoading" class="football-loading" aria-live="polite">
+      <div class="loading-ball" aria-hidden="true"></div>
+      <h1>Preparing club operations</h1>
+      <p>Loading your Queensland football world and protected local save.</p>
+    </section>
+
+    <section id="footballFatal" class="football-fatal" hidden aria-labelledby="footballFatalTitle">
+      <div class="football-fatal-mark" aria-hidden="true">Q</div>
+      <h1 id="footballFatalTitle">Club operations could not start</h1>
+      <p id="footballFatalCopy">Close any other Dorra House tab, then reload this page.</p>
+      <div><button type="button" data-reload-page>Reload</button><a href="index.html">Return to Dorra House</a></div>
+    </section>
+
+    <section id="clubOnboarding" class="club-onboarding" hidden aria-labelledby="onboardingTitle">
+      <header class="onboarding-header">
+        <a class="onboarding-exit" href="index.html" aria-label="Return to Dorra House">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          Dorra House
+        </a>
+        <div class="product-wordmark"><span>Q</span><strong>Queensland Club Manager</strong></div>
+        <p>Build both sides of the club.</p>
+      </header>
+
+      <main class="onboarding-main">
+        <div class="onboarding-intro">
+          <div>
+            <span id="onboardingStepLabel">Step 1 of 3</span>
+            <h1 id="onboardingTitle">Create your football club</h1>
+            <p id="onboardingLead">Choose the identity that will follow your senior and academy teams through Queensland football.</p>
+          </div>
+          <ol class="onboarding-progress" aria-label="Club setup progress">
+            <li class="active" data-step-indicator="1"><i>1</i><span>Identity</span></li>
+            <li data-step-indicator="2"><i>2</i><span>Location</span></li>
+            <li data-step-indicator="3"><i>3</i><span>Football plan</span></li>
+          </ol>
+        </div>
+
+        <form id="clubSetupForm" novalidate>
+          <section class="setup-step identity-step" data-setup-step="1">
+            <div class="identity-preview" aria-label="Club identity preview">
+              <div id="setupCrestPreview" class="club-crest crest-maroon" aria-hidden="true"><span>RC</span><i></i></div>
+              <strong id="setupNamePreview">River City FC</strong>
+              <small>Est. 2026 · Queensland</small>
+            </div>
+            <div class="setup-fields">
+              <label class="field full"><span>Club name</span><input id="clubNameInput" name="clubName" maxlength="36" value="River City FC" autocomplete="organization" required><small>Shown in fixtures, tables and news.</small></label>
+              <label class="field"><span>Short name</span><input id="clubShortNameInput" name="shortName" maxlength="14" value="River City" required></label>
+              <label class="field"><span>Crest initials</span><input id="clubInitialsInput" name="initials" maxlength="3" value="RC" required></label>
+              <fieldset class="crest-choices full">
+                <legend>Club colour palette <small>12 presets or choose any two colours</small></legend>
+                <button type="button" class="selected crest-choice maroon" data-crest-palette="maroon" aria-pressed="true"><i></i><span>Queensland maroon</span></button>
+                <button type="button" class="crest-choice blue" data-crest-palette="blue" aria-pressed="false"><i></i><span>Coastal blue</span></button>
+                <button type="button" class="crest-choice green" data-crest-palette="green" aria-pressed="false"><i></i><span>Field green</span></button>
+                <button type="button" class="crest-choice orange" data-crest-palette="orange" aria-pressed="false"><i></i><span>Range orange</span></button>
+                <button type="button" class="crest-choice purple" data-crest-palette="purple" aria-pressed="false"><i></i><span>Royal purple</span></button>
+                <button type="button" class="crest-choice black-gold" data-crest-palette="black-gold" aria-pressed="false"><i></i><span>Black and gold</span></button>
+                <button type="button" class="crest-choice sky-navy" data-crest-palette="sky-navy" aria-pressed="false"><i></i><span>Sky and navy</span></button>
+                <button type="button" class="crest-choice red-black" data-crest-palette="red-black" aria-pressed="false"><i></i><span>Red and black</span></button>
+                <button type="button" class="crest-choice teal" data-crest-palette="teal" aria-pressed="false"><i></i><span>Coastal teal</span></button>
+                <button type="button" class="crest-choice pink" data-crest-palette="pink" aria-pressed="false"><i></i><span>Rose pink</span></button>
+                <button type="button" class="crest-choice white-black" data-crest-palette="white-black" aria-pressed="false"><i></i><span>White and black</span></button>
+                <button type="button" class="crest-choice yellow-blue" data-crest-palette="yellow-blue" aria-pressed="false"><i></i><span>Sun and blue</span></button>
+              </fieldset>
+              <details class="crest-more-options full">
+                <summary><span><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> More crest options</span><small>Custom colours, shapes, emblems and uploads</small></summary>
+                <div class="crest-more-options-body">
+                  <fieldset class="custom-colour-builder full">
+                    <legend>Custom palette</legend>
+                    <label><span>Primary</span><input id="crestPrimaryColour" type="color" value="#8f1f3d"><b id="crestPrimaryHex">#8F1F3D</b></label>
+                    <label><span>Secondary</span><input id="crestSecondaryColour" type="color" value="#071f3b"><b id="crestSecondaryHex">#071F3B</b></label>
+                    <button type="button" data-use-custom-colours>Use custom colours</button>
+                  </fieldset>
+                  <fieldset class="crest-builder full">
+                    <legend>Crest shape <small>8 templates</small></legend>
+                    <div class="crest-template-grid" aria-label="Crest shape templates">
+                      <button type="button" class="selected" data-crest-shape="classic" aria-pressed="true"><i class="crest-swatch crest-shape-classic"></i><span>Classic</span></button>
+                      <button type="button" data-crest-shape="round" aria-pressed="false"><i class="crest-swatch crest-shape-round"></i><span>Round</span></button>
+                      <button type="button" data-crest-shape="hex" aria-pressed="false"><i class="crest-swatch crest-shape-hex"></i><span>Hex</span></button>
+                      <button type="button" data-crest-shape="diamond" aria-pressed="false"><i class="crest-swatch crest-shape-diamond"></i><span>Diamond</span></button>
+                      <button type="button" data-crest-shape="pennant" aria-pressed="false"><i class="crest-swatch crest-shape-pennant"></i><span>Pennant</span></button>
+                      <button type="button" data-crest-shape="fortress" aria-pressed="false"><i class="crest-swatch crest-shape-fortress"></i><span>Fortress</span></button>
+                      <button type="button" data-crest-shape="oval" aria-pressed="false"><i class="crest-swatch crest-shape-oval"></i><span>Oval</span></button>
+                      <button type="button" data-crest-shape="modern" aria-pressed="false"><i class="crest-swatch crest-shape-modern"></i><span>Modern</span></button>
+                    </div>
+                  </fieldset>
+                  <fieldset class="crest-builder full">
+                    <legend>Centre emblem <small>12 choices · 96 shape combinations</small></legend>
+                    <div class="crest-emblem-grid" aria-label="Crest centre emblems">
+                      <button type="button" class="selected" data-crest-symbol="initials" aria-pressed="true"><b>RC</b><span>Initials</span></button>
+                      <button type="button" data-crest-symbol="ball" aria-pressed="false"><b>⚽</b><span>Football</span></button>
+                      <button type="button" data-crest-symbol="star" aria-pressed="false"><b>★</b><span>Star</span></button>
+                      <button type="button" data-crest-symbol="crown" aria-pressed="false"><b>♛</b><span>Crown</span></button>
+                      <button type="button" data-crest-symbol="bolt" aria-pressed="false"><b>ϟ</b><span>Bolt</span></button>
+                      <button type="button" data-crest-symbol="mountain" aria-pressed="false"><b>▲</b><span>Mountain</span></button>
+                      <button type="button" data-crest-symbol="wave" aria-pressed="false"><b>≋</b><span>Wave</span></button>
+                      <button type="button" data-crest-symbol="sun" aria-pressed="false"><b>☀</b><span>Sun</span></button>
+                      <button type="button" data-crest-symbol="wings" aria-pressed="false"><b>◆</b><span>Wings</span></button>
+                      <button type="button" data-crest-symbol="torch" aria-pressed="false"><b>♠</b><span>Torch</span></button>
+                      <button type="button" data-crest-symbol="anchor" aria-pressed="false"><b>⚓</b><span>Anchor</span></button>
+                      <button type="button" data-crest-symbol="qld" aria-pressed="false"><b>Q</b><span>Queensland</span></button>
+                    </div>
+                  </fieldset>
+                  <div class="logo-upload full">
+                    <div><strong>Use your own crest</strong><small>Optional · square JPG, PNG or WebP, up to 4 MB</small></div>
+                    <label for="clubLogoInput">Upload image</label>
+                    <input id="clubLogoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <button id="removeClubLogo" type="button" hidden>Remove</button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <section class="setup-step location-step" data-setup-step="2" hidden>
+            <div class="location-map-panel">
+              <div class="location-map-copy"><h2>Choose your home base</h2><p>Central locations draw larger talent and wealth pools. Space is cheaper outside major city centres.</p></div>
+              <div id="locationGlobe" class="location-globe" aria-label="Interactive globe showing Queensland club locations"></div>
+              <p id="locationGlobeStatus" class="location-globe-status" role="status">Drag the globe or choose a location from the accessible list.</p>
+            </div>
+            <div class="location-browser">
+              <label class="field"><span>Queensland region</span><select id="regionSelect" name="region"></select></label>
+              <div id="locationList" class="location-list" role="radiogroup" aria-label="Available club locations"></div>
+              <aside id="locationDetail" class="location-detail" aria-live="polite"></aside>
+            </div>
+          </section>
+
+          <section class="setup-step plan-step" data-setup-step="3" hidden>
+            <div class="football-plan-fields">
+              <header><h2>Set the opening plan</h2><p>You can change these choices after the club begins.</p></header>
+              <label class="range-field">
+                <span><strong>Academy season fee</strong><output id="academyFeeOutput">$1,800</output></span>
+                <input id="academyFeeInput" name="academyFee" type="range" min="0" max="15000" step="100" value="1800">
+                <small>Choose any fee from free to $15,000. FQA 4's suggested market band remains $1,500–$2,000.</small>
+              </label>
+              <label class="range-field">
+                <span><strong>First-team weekly player budget</strong><output id="wageBudgetOutput">$2,500</output></span>
+                <input id="wageBudgetInput" name="wageBudget" type="range" min="500" max="12000" step="250" value="2500">
+                <small>Sets the recruitment ceiling, not an automatic expense.</small>
+              </label>
+              <div class="startup-funding-grid">
+                <label class="field"><span>Invest from Dorra balance</span><input id="dorraInvestmentInput" name="dorraInvestment" type="number" min="0" step="1000" value="0" inputmode="numeric"><small id="dorraBalanceHint">Available after the protected save opens.</small></label>
+                <label class="field"><span>Startup loan</span><input id="startupLoanInput" name="startupLoan" type="number" min="0" max="2000000" step="1000" value="0" inputmode="numeric"><small>Maximum $2,000,000 · creates a club liability.</small></label>
+              </div>
+              <div class="funding-check" id="startupFundingCheck" aria-live="polite">
+                <span><strong>Site + clearance</strong><b id="startupSiteCost">Choose a site</b></span>
+                <span><strong>Opening funds</strong><b id="startupFunds">$0</b></span>
+                <span><strong>Funding gap</strong><b id="startupFundingGap">—</b></span>
+              </div>
+              <fieldset class="style-choices">
+                <legend>Football identity</legend>
+                <label class="selected"><input type="radio" name="playingStyle" value="balanced" checked><span><strong>Balanced</strong><small>Flexible shape and manageable fatigue.</small></span></label>
+                <label><input type="radio" name="playingStyle" value="possession"><span><strong>Possession</strong><small>Technical growth with a patient build-up.</small></span></label>
+                <label><input type="radio" name="playingStyle" value="high-press"><span><strong>High press</strong><small>More chances, higher weekly fatigue.</small></span></label>
+                <label><input type="radio" name="playingStyle" value="direct"><span><strong>Direct</strong><small>Fast transitions and physical recruitment.</small></span></label>
+                <label><input type="radio" name="playingStyle" value="counterattack"><span><strong>Counter-attacking</strong><small>Compact defending with quick attacks into space.</small></span></label>
+                <label><input type="radio" name="playingStyle" value="low-block"><span><strong>Low block</strong><small>Protect the box and conserve energy without the ball.</small></span></label>
+              </fieldset>
+            </div>
+            <aside class="opening-summary">
+              <div id="summaryCrest" class="club-crest crest-maroon" aria-hidden="true"><span>RC</span><i></i></div>
+              <h2 id="summaryClubName">River City FC</h2>
+              <p id="summaryLocation">Choose a home location</p>
+              <dl>
+                <div><dt>Senior entry</dt><dd>FQPL 6</dd></div>
+                <div><dt>Academy entry</dt><dd>FQA 4</dd></div>
+                <div><dt>Academy status</dt><dd>Development Committed</dd></div>
+                <div><dt>Starting season</dt><dd>2026</dd></div>
+              </dl>
+            </aside>
+          </section>
+
+          <footer class="setup-actions">
+            <button id="setupBackBtn" type="button" class="secondary" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg> Back
+            </button>
+            <p id="setupValidation" role="alert"></p>
+            <button id="setupNextBtn" type="button" class="primary">Choose location <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            <button id="createClubBtn" type="submit" class="primary" hidden>Create club <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </footer>
+        </form>
+      </main>
+    </section>
+
+    <section id="clubWorkspace" class="club-workspace club-journal" hidden>
+      <header class="club-masthead">
+        <a class="club-masthead-brand" href="#footballContent" data-football-view="overview" aria-label="Open club overview">
+          <div id="sidebarCrest" class="club-crest small crest-maroon" aria-hidden="true"><span>RC</span><i></i></div>
+          <span><strong id="sidebarClubName">River City FC</strong><small>Queensland · 2026</small></span>
+        </a>
+        <div class="masthead-season">
+          <span class="topbar-season"><i class="ti ti-calendar" aria-hidden="true"></i> Season <b>2026</b></span>
+          <span class="topbar-week"><b id="topbarWeek">Week 1</b><small id="topbarDate">2–8 February 2026</small></span>
+        </div>
+        <span class="masthead-save"><i class="ti ti-cloud-check" aria-hidden="true"></i> <b>Saved</b></span>
+        <details class="club-utility">
+          <summary aria-label="Open club utility menu"><i class="ti ti-dots-vertical" aria-hidden="true"></i></summary>
+          <div>
+            <button type="button" data-football-view="settings"><i class="ti ti-settings" aria-hidden="true"></i><span>Settings</span></button>
+            <a href="index.html"><i class="ti ti-home-move" aria-hidden="true"></i><span>Dorra House</span></a>
+          </div>
+        </details>
+        <button id="simulateWeekBtn" type="button" class="simulate-week"><span>Continue week</span><i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+      </header>
+
+      <div id="mobileNavScrim" class="mobile-nav-scrim" hidden data-close-mobile-nav></div>
+      <aside id="clubSidebar" class="club-nav-shell" aria-label="Club navigation">
+        <nav id="clubDomainNavigation" class="club-domain-navigation" aria-label="Club areas">
+          <button type="button" class="active" data-football-domain="home" aria-current="page"><i class="ti ti-home" aria-hidden="true"></i><span>Home</span></button>
+          <button type="button" data-football-domain="team"><i class="ti ti-users-group" aria-hidden="true"></i><span>Team</span></button>
+          <button type="button" data-football-domain="matchday"><i class="ti ti-ball-football" aria-hidden="true"></i><span>Matchday</span></button>
+          <button type="button" data-football-domain="academy"><i class="ti ti-school" aria-hidden="true"></i><span>Academy</span></button>
+          <button type="button" data-football-domain="club"><i class="ti ti-building-stadium" aria-hidden="true"></i><span>Club</span></button>
+        </nav>
+        <button type="button" class="mobile-context-open mobile-nav-open" data-open-mobile-nav aria-expanded="false">
+          <span><small id="activeViewLabel">Home</small><strong id="activeViewTitle">Overview</strong></span>
+          <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </button>
+        <nav id="clubNavigation" class="club-context-navigation" aria-label="Current area pages">
+          <div data-football-context="home"><button type="button" class="active" data-football-view="overview" aria-current="page">Overview</button><button type="button" data-football-view="inbox">Inbox</button></div>
+          <div data-football-context="team" hidden><button type="button" data-football-view="first-team">Squads</button><button type="button" data-football-view="people">People</button><button type="button" data-football-view="recruitment">Recruitment</button><button type="button" data-football-view="scouting">Scouting</button></div>
+          <div data-football-context="matchday" hidden><button type="button" data-football-view="competitions">Competitions</button><button type="button" data-football-view="calendar">Calendar</button><button type="button" data-football-view="match-centre">Match Centre</button><button type="button" data-football-view="matchday-operations">Operations</button><button type="button" data-football-view="training">Training</button><button type="button" data-football-view="coach-desk">Coach Desk</button><button type="button" class="contextual-view-hook" data-football-view="fixtures" tabindex="-1">Fixtures</button></div>
+          <div data-football-context="academy" hidden><button type="button" data-football-view="academy">Academy</button><button type="button" data-football-view="fq-assessment">FQ Assessment</button></div>
+          <div data-football-context="club" hidden><button type="button" data-football-view="club-vision">Club Vision</button><button type="button" data-football-view="commercial">Commercial</button><button type="button" data-football-view="facilities">Facilities</button><button type="button" data-football-view="finances">Finances</button><button type="button" data-football-view="world">World</button><button type="button" data-football-view="history">History</button></div>
+        </nav>
+        <div class="sidebar-season" aria-hidden="true"><strong id="sidebarWeek">Week 1 of 22</strong><i><b id="sidebarSeasonProgress"></b></i></div>
+      </aside>
+
+      <div class="club-main">
+        <main id="footballContent" class="football-content" tabindex="-1"></main>
+      </div>
+
+      <nav class="club-mobile-domains" aria-label="Club areas">
+        <button type="button" class="active" data-football-domain="home" aria-current="page"><i class="ti ti-home" aria-hidden="true"></i><span>Home</span></button>
+        <button type="button" data-football-domain="team"><i class="ti ti-users-group" aria-hidden="true"></i><span>Team</span></button>
+        <button type="button" data-football-domain="matchday"><i class="ti ti-ball-football" aria-hidden="true"></i><span>Matchday</span></button>
+        <button type="button" data-football-domain="academy"><i class="ti ti-school" aria-hidden="true"></i><span>Academy</span></button>
+        <button type="button" data-football-domain="club"><i class="ti ti-building-stadium" aria-hidden="true"></i><span>Club</span></button>
+      </nav>
+    </section>
+
+    <div id="footballDialog" class="football-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="footballDialogTitle">
+      <button type="button" class="dialog-scrim" data-close-football-dialog aria-label="Close dialog"></button>
+      <section class="football-dialog-card">
+        <header><div><span id="footballDialogLabel">Match centre</span><h2 id="footballDialogTitle">Simulating fixture</h2></div><button type="button" data-close-football-dialog aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+        <div id="footballDialogBody"></div>
+      </section>
+    </div>
+
+    <div id="footballToast" class="football-toast" role="status" aria-live="polite"></div>
+    <div id="footballSaveStatus" class="football-save-status" role="status" aria-live="polite">Saved locally</div>
+  </div>
+  <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
+  <script type="module" src="football/football-ui.js?v=20260906-1"></script>
+</body>
+</html>

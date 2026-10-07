@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#b9e4e4">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>Dorra · Idle Airports</title>
+  <link rel="stylesheet" href="idle-airport.css?v=20260906-2">
+  <link rel="stylesheet" href="airport/dashboard.css?v=20260909-1">
+</head>
+<body>
+  <main id="airportApp" class="airport-app" aria-busy="true">
+    <section id="airportDashboard" class="airport-dashboard" hidden aria-labelledby="dashboardTitle">
+      <div class="dashboard-shell">
+        <header class="dashboard-header"><div class="dashboard-brand"><span aria-hidden="true">✈</span><div><small>DORRA</small><strong>Airport Sim</strong></div></div><a class="dashboard-home" href="index.html" data-return-house>Back to Dorra House ↗</a></header>
+        <div class="dashboard-heading"><div><h1 id="dashboardTitle" tabindex="-1">Your airports</h1><p>Choose a destination. Your airports keep earning while you explore.</p></div><span class="dashboard-live" data-dashboard-status role="status">Connecting…</span></div>
+        <dl class="dashboard-totals" aria-label="Airport network summary">
+          <div><dt>Estimated network income</dt><dd><span data-network-income>—</span> <small>/ hour</small></dd><p>Across all open airports</p></div>
+          <div><dt>Total airport cash</dt><dd data-network-cash>—</dd><p>Held separately at each airport</p></div>
+          <div><dt>Airports open</dt><dd data-network-count>—</dd><p>Your Queensland network</p></div>
+        </dl>
+        <div class="dashboard-list-heading"><h2>Choose an airport</h2><span>Queensland, Australia</span></div>
+        <div class="destination-grid" data-airport-cards></div>
+        <p class="dashboard-footnote">Income is estimated from current operations, including active boosts. Cash balances update as flights earn money.</p>
+      </div>
+    </section>
+    <canvas id="airportCanvas" tabindex="0" aria-label="Isometric airport. Drag to pan, scroll to zoom. Arrow keys pan, plus and minus zoom, zero resets the view. Use Build for keyboard-accessible building and gate controls."></canvas>
+    <div class="scene-vignette" aria-hidden="true"></div>
+    <section id="airportLoading" class="loading-screen" aria-live="polite"><div class="loading-plane">✈</div><p class="eyebrow">DORRA HOUSE PRESENTS</p><h1>Idle Airports</h1><p>Getting your airport ready for take-off…</p><span class="loading-track"><i></i></span></section>
+    <section id="airportFatal" class="fatal-screen" hidden><span class="fatal-symbol">✈</span><p class="eyebrow">OPERATIONS PAUSED</p><h1>Let’s get you connected</h1><p id="airportFatalCopy">Start the Dorra House local server, then reload this page.</p><div><button class="primary-button" data-action="reload">Try again</button><a href="index.html" data-return-house>Back to Dorra House</a></div></section>
+    <div id="airportHud" class="airport-hud" hidden>
+      <header class="top-hud">
+        <a class="house-link" href="index.html" data-return-house aria-label="Save and return to Dorra House"><span class="house-monogram">D</span><span>DORRA <b>Idle Airports</b></span><i aria-hidden="true">↗</i></a>
+        <div class="currency-cluster" aria-label="Airport currencies">
+          <button class="currency cash-currency" data-action="withdraw" aria-label="Airport cash and Dorra withdrawals"><span class="currency-icon cash-icon" aria-hidden="true">$</span><span><small>CASH</small><strong id="cashBalance">0</strong></span><i>＋</i></button>
+          <button class="currency diamond-currency" data-action="boost" aria-label="Plane diamonds and boosts"><span class="currency-icon diamond-icon" aria-hidden="true"><svg viewBox="0 0 42 42"><path d="M10 5h22l8 12-19 23L2 17Z" fill="#bd8afb"/><path d="m10 5 11 12L32 5M2 17h38M21 17v23" fill="none" stroke="#e2cafa" stroke-width="1" opacity=".65"/><path d="m21 9 2 3v7l10 5v3l-10-3v6l4 3v2l-6-2-6 2v-2l4-3v-6l-10 3v-3l10-5v-7Z" fill="#fff" stroke="#a277d3" stroke-width=".6" transform="rotate(-24 21 22)"/></svg></span><span><small>DIAMONDS</small><strong id="diamondBalance">0</strong></span><i>＋</i></button>
+          <button class="currency research-currency" data-action="research" aria-label="Research points and laboratory"><span class="currency-icon research-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M11 3h10M13 3v11L5 26c-1 2 0 3 2 3h18c2 0 3-1 2-3l-8-12V3M9 21h14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="24" r="1.4" fill="currentColor"/></svg></span><span><small>RESEARCH</small><strong id="researchBalance">0</strong></span></button>
+        </div>
+        <button class="round-button settings-button" data-action="help" aria-label="How to play and settings">?</button>
+      </header>
+      <section class="location-hud" aria-label="Current airport">
+        <div class="location-mark" aria-hidden="true">✈</div><button class="location-selector" data-action="network"><small id="airportRegion">QUEENSLAND, AUSTRALIA</small><strong><span id="airportName">Your airport</span><i aria-hidden="true">⌄</i></strong><span id="airportTier">Small regional · Level 1</span></button>
+        <div class="level-track"><i id="airportProgress"></i></div>
+        <div class="location-metrics"><span><i class="live-dot"></i><b id="airportRate">0</b><small> / min</small></span><span id="airportTraffic">Open for business</span></div>
+      </section>
+      <button class="network-shortcut" data-action="dashboard" aria-label="Back to airport dashboard"><span class="network-globe" aria-hidden="true">◉</span><span>YOUR AIRPORTS<strong>View dashboard</strong></span><i aria-hidden="true">→</i></button>
+      <div id="flightTicker" class="flight-ticker" aria-live="off"><span class="live-dot"></span><span>Airport operations are running</span></div>
+      <aside id="buildInspector" class="build-inspector" hidden aria-labelledby="inspectorTitle"></aside>
+      <div id="boostActive" class="active-boost" hidden></div>
+      <div class="scene-caption"><strong id="sceneLocation">Moreton Bay coastal airfield</strong><span>SCHEMATIC REDEVELOPMENT · RUNWAY LENGTHS COMPRESSED</span></div>
+      <nav class="camera-controls" aria-label="Airport view"><button data-camera="zoom-out" aria-label="Zoom out">−</button><button data-camera="reset" aria-label="Reset airport view"><span id="cameraZoom">100%</span></button><button data-camera="zoom-in" aria-label="Zoom in">+</button></nav>
+      <div class="world-hint"><span>✦</span> Drag to explore · scroll to zoom · click a plot to build</div>
+      <footer class="bottom-hud"><nav class="game-dock" aria-label="Airport management"><button class="dock-button" data-action="buildings"><span class="dock-icon" aria-hidden="true">▥</span><strong>Build</strong></button><button class="dock-button" data-action="fleet"><span class="dock-icon plane-dock-icon" aria-hidden="true">✈</span><strong>Aircraft</strong></button><button class="dock-button" data-action="research"><span class="dock-icon" aria-hidden="true">⚗</span><strong>Research</strong></button><button class="dock-button" data-action="dashboard"><span class="dock-icon" aria-hidden="true">◎</span><strong>Airports</strong></button><button class="dock-button" data-action="milestones"><span class="dock-icon" aria-hidden="true">★</span><strong>Milestones</strong><i id="milestoneDot" hidden></i></button></nav><button class="boost-button" data-action="boost"><span aria-hidden="true">ϟ</span><span>BOOST<strong>Supercharge your airport</strong></span><i aria-hidden="true">→</i></button></footer>
+      <div class="save-indicator" id="airportSaveStatus" role="status"><i></i> Saved locally</div>
+    </div>
+    <div id="airportDialog" class="dialog-layer" hidden><div class="dialog-shade" data-action="close-dialog"></div><section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" tabindex="-1"><header class="dialog-header"><div><p id="dialogEyebrow" class="eyebrow">AIRPORT OPERATIONS</p><h2 id="dialogTitle">Airport</h2></div><button class="dialog-close" data-action="close-dialog" aria-label="Close dialog">×</button></header><div id="dialogBody" class="dialog-body"></div></section></div>
+    <div id="airportToast" class="airport-toast" role="status" aria-live="polite"></div>
+  </main>
+  <script type="module" src="airport/ui.mjs?v=20260909-1"></script>
+</body>
+</html>

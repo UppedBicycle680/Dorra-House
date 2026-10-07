@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080b0b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>Dorra House — Offline Casino</title>
+  <link rel="stylesheet" href="styles.css?v=20260829-dev11">
+  <link rel="stylesheet" href="mac-responsive.css?v=20260807-mac2">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <section id="arrivalScreen" class="arrival-screen" hidden aria-labelledby="arrivalTitle">
+    <header class="arrival-header">
+      <div class="arrival-brand"><span aria-hidden="true">✦</span><strong>DORRA HOUSE</strong></div>
+      <p>Your progress stays on this device</p>
+    </header>
+    <main class="arrival-main">
+      <div class="arrival-intro">
+        <div><h1 id="arrivalTitle">How will you make your name?</h1><p>Choose your starting focus. Every path remains open, and you can change direction whenever you like.</p></div>
+        <ol class="arrival-steps" aria-label="Arrival progress"><li class="active"><i>1</i><span>Arrival<br>decision</span></li><li><i>2</i><span>House<br>orientation</span></li><li><i>3</i><span>Your first<br>steps</span></li></ol>
+      </div>
+      <div class="arrival-paths" role="radiogroup" aria-label="Choose your starting focus">
+        <button class="arrival-path path-player" data-arrival-path="player" role="radio" aria-checked="false">
+          <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="10" y="13" width="25" height="31" rx="3" transform="rotate(-10 10 13)"/><rect x="20" y="8" width="25" height="31" rx="3" transform="rotate(9 20 8)"/><path d="M28 18c-5 4-7 6-4 9 2 2 4 0 4 0s2 2 4 0c3-3 1-5-4-9Z"/></svg></i></span>
+          <span class="arrival-path-copy"><strong>At the Tables</strong><em>Master the games, climb the floors, and earn your reputation one hand at a time.</em><span><small>Casino games</small><small>Daily challenges</small><small>High-limit access</small></span></span>
+          <b class="arrival-check" aria-hidden="true">✓</b>
+        </button>
+        <button class="arrival-path path-owner selected" data-arrival-path="owner" role="radio" aria-checked="true">
+          <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M5 42h38M9 42V21l15-12 15 12v21M15 42V25h18v17M20 42V31h8v11M5 22 24 6l19 16"/></svg></i></span>
+          <span class="arrival-path-copy"><strong>Through the Estate</strong><em>Restore Dorra House, open new venues, and turn a quiet property into a thriving institution.</em><span><small>Venue upgrades</small><small>Offline income</small><small>House directors</small></span></span>
+          <b class="arrival-check" aria-hidden="true">✓</b>
+        </button>
+        <button class="arrival-path path-story" data-arrival-path="story" role="radio" aria-checked="false">
+          <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="18" cy="17" r="7"/><circle cx="32" cy="19" r="6"/><path d="M5 41c0-10 5-15 13-15s13 5 13 15M25 30c2-3 4-5 8-5 7 0 11 5 11 14"/></svg></i></span>
+          <span class="arrival-path-copy"><strong>In the House Story</strong><em>Meet the people behind Dorra House and decide what its next chapter will become.</em><span><small>8 chapters</small><small>VIP contracts</small><small>Legacy decisions</small></span></span>
+          <b class="arrival-check" aria-hidden="true">✓</b>
+        </button>
+      </div>
+      <footer class="arrival-action">
+        <p aria-live="polite">You are set to <strong id="arrivalSummary">Begin as a Business Owner</strong><span id="arrivalNextStep">Your first stop is the Casino Empire office.</span></p>
+        <button id="arrivalEnterBtn">Enter Dorra House <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></button>
+        <button id="arrivalSkipBtn">I’ll decide later</button>
+      </footer>
+    </main>
+  </section>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-action="lobby" aria-label="Dorra House home"><span class="sun-mark">✦</span><span>DORRA HOUSE</span></button>
+      <div class="games-menu">
+        <button class="games-menu-toggle" id="gamesMenuToggle" aria-expanded="false" aria-controls="gameTabs"><span>Games</span><i aria-hidden="true"></i></button>
+        <nav class="game-tabs" id="gameTabs" aria-label="Games">
+        <button class="tab" data-game="blackjack">Blackjack</button>
+        <button class="tab" data-game="roulette">Roulette</button>
+        <button class="tab" data-game="monte">Three Card Monte</button>
+        <button class="tab" data-game="memory">Memory Match</button>
+        <button class="tab" data-game="highlow">High–Low</button>
+        <button class="tab" data-game="dice">Lucky Dice</button>
+        <button class="tab" data-game="baccarat">Baccarat</button>
+        <button class="tab" data-game="poker">3 Card Poker</button>
+        <button class="tab" data-game="holdem">Hold'em</button>
+        <button class="tab" data-game="videopoker">Video Poker</button>
+        <button class="tab" data-game="sicbo">Sic Bo</button>
+        <button class="tab" data-game="slots">Slots</button>
+        <button class="tab" data-game="racing">Racing</button>
+        </nav>
+      </div>
+      <button class="level-chip" id="levelBtn"><span>Level</span><strong id="headerLevel">1</strong></button>
+      <button class="boutique-btn" id="boutiqueBtn">Boutique</button>
+      <button class="boutique-btn motor-btn" id="motorBtn">Motor Gallery</button>
+      <button class="dorraos-trigger" id="dorraOsBtn" hidden aria-label="Open DorraOS"><span>◆</span><small>Phone</small></button>
+      <button class="dorraos-trigger dorraos-mac-trigger" id="dorraMacBtn" hidden aria-label="Open Dorra OS on MacBook"><span>▰</span><small>Mac</small></button>
+      <div class="wallet"><span>Balance</span><strong id="balance">$1,000</strong></div>
+      <button class="profile-trigger" id="profileBtn" aria-label="Open profile and settings"><span id="headerAvatar">D</span><small>Profile</small></button>
+      <button class="icon-btn" id="soundBtn" aria-label="Toggle sound" title="Toggle sound">♪</button>
+      <button class="icon-btn" id="resetBtn" aria-label="Reset game" title="Reset balance">↻</button>
+    </header>
+
+    <main>
+      <section id="lobby" class="dashboard">
+        <div class="dashboard-main">
+          <div class="dashboard-intro">
+            <div><h1>Casino Dashboard</h1><p>Your tables, progress, and collection at a glance.</p><button class="explore-house-btn" id="exploreHouseBtn">Explore the Casino <span>→</span></button></div>
+            <div class="balance-panel"><div><span>Available balance</span><strong id="dashboardBalance">$1,000</strong><small>Play money only</small></div><div class="balance-actions"><button id="dailyRewardBtn">Claim $250</button><button id="dashboardBoutiqueBtn">Open boutique</button><button id="dashboardMotorBtn">Motor gallery</button><button id="dashboardOfficeBtn">Dorra Office</button></div></div>
+          </div>
+          <div class="dashboard-progress">
+            <div class="progress-copy"><span>Level Progress</span><strong>Level <b id="dashboardLevel">1</b> · <em id="dashboardLevelTitle">New Arrival</em></strong><small id="dashboardXpCopy">0 / 300 XP</small></div>
+            <div class="dashboard-xp-track" role="progressbar" aria-label="Level progress"><i id="dashboardXpFill"></i></div>
+          </div>
+          <section class="casino-tier-card" id="casinoTierCard" aria-live="polite"></section>
+          <div class="dashboard-overview">
+            <section class="objective-panel"><div class="panel-heading"><h2>Daily Objectives</h2><span id="objectiveReset">Local goals</span></div><div id="objectiveList" class="objective-list"></div></section>
+            <section class="collection-panel"><div class="panel-heading"><h2>Your Collection</h2><button id="collectionBoutiqueBtn">View boutique</button></div><div class="collection-stats"><div><span>Owned</span><strong id="dashboardOwned">0</strong></div><div><span>Equipped</span><strong id="dashboardEquipped">0</strong></div><div><span>Collection value</span><strong id="dashboardCollectionValue">$0</strong></div></div><div id="equippedPreview" class="equipped-preview">No items equipped yet.</div></section>
+          </div>
+          <a class="football-launch-card" href="football-manager.html" aria-label="Open Queensland Club Manager">
+            <span class="football-launch-pitch" aria-hidden="true"><i></i><b></b></span>
+            <span class="football-launch-copy"><small>New standalone game</small><strong>Queensland Club Manager</strong><em>Build an academy. Climb from FQPL 6. Take your club national.</em></span>
+            <span class="football-launch-action">Enter club HQ <b aria-hidden="true">→</b></span>
+          </a>
+          <a class="football-launch-card strategic-launch-card" href="war-simulation.html" aria-label="Open Dorra Strategic Command">
+            <span class="strategy-launch-map" aria-hidden="true"><i></i><b></b></span>
+            <span class="football-launch-copy"><small>Standalone world simulation</small><strong>Dorra Strategic Command</strong><em>Develop your nation, direct formations, and secure operating rights across the globe.</em></span>
+            <span class="football-launch-action">Enter command <b aria-hidden="true">→</b></span>
+          </a>
+          <a class="football-launch-card airport-launch-card" href="idle-airport.html" aria-label="Open Dorra Airports">
+            <span class="airport-launch-art" aria-hidden="true">✈</span>
+            <span class="football-launch-copy"><small>Australian idle airport builder</small><strong>Dorra Airports</strong><em>Start with a dirt strip. Build your way to Brisbane. Earn while you’re away.</em></span>
+            <span class="football-launch-action">Open your airport <b aria-hidden="true">→</b></span>
+          </a>
+          <div class="section-rule"><h2>Play a game</h2><i></i></div>
+          <div class="dashboard-games">
+            <button class="dashboard-game monte-game" data-game="monte"><span class="game-symbol">Q · ? · ?</span><span class="game-copy"><small>Track the queen</small><strong>Three Card Monte</strong><em>Follow the shuffle</em></span></button>
+            <button class="dashboard-game memory-game" data-game="memory"><span class="game-symbol">◆ ◇ ◆</span><span class="game-copy"><small>Find every pair</small><strong>Memory Match</strong><em>Test your memory</em></span></button>
+            <button class="dashboard-game blackjack-game" data-game="blackjack"><span class="game-symbol">A♠</span><span class="game-copy"><small>Classic 3:2 table</small><strong>Blackjack</strong><em>Continue playing</em></span></button>
+            <button class="dashboard-game roulette-game" data-game="roulette"><span class="game-symbol">◉</span><span class="game-copy"><small>Single zero wheel</small><strong>European Roulette</strong><em>Open table</em></span></button>
+            <button class="dashboard-game highlow-game" data-game="highlow"><span class="game-symbol">▲<br>▼</span><span class="game-copy"><small>Call the next card</small><strong>High–Low</strong><em>Play now</em></span></button>
+            <button class="dashboard-game dice-game" data-game="dice"><span class="game-symbol">⚄</span><span class="game-copy"><small>Call the total</small><strong>Lucky Dice</strong><em>Roll the dice</em></span></button>
+            <button class="dashboard-game baccarat-game" data-game="baccarat"><span class="game-symbol">8 · 9</span><span class="game-copy"><small>Player, banker, or tie</small><strong>Baccarat</strong><em>Open table</em></span></button>
+            <button class="dashboard-game poker-game" data-game="poker"><span class="game-symbol">Q♠ 7♥ 2♣</span><span class="game-copy"><small>Ante and play</small><strong>Three Card Poker</strong><em>Take a seat</em></span></button>
+            <button class="dashboard-game holdem-game" data-game="holdem"><span class="game-symbol">A♠ K♠</span><span class="game-copy"><small>Heads-up · flop, turn, river</small><strong>Texas Hold'em</strong><em>Join the table</em></span></button>
+            <button class="dashboard-game videopoker-game" data-game="videopoker"><span class="game-symbol">J♠ J♦</span><span class="game-copy"><small>Deal, hold, and draw</small><strong>Jacks or Better</strong><em>Play video poker</em></span></button>
+            <button class="dashboard-game sicbo-game" data-game="sicbo"><span class="game-symbol">⚂ ⚄ ⚀</span><span class="game-copy"><small>Three dice · transparent odds</small><strong>Sic Bo</strong><em>Choose a wager</em></span></button>
+            <button class="dashboard-game slots-game" data-game="slots"><span class="game-symbol">7 · 7 · 7</span><span class="game-copy"><small>Three reels · fixed paytable</small><strong>House Slots</strong><em>Spin the reels</em></span></button>
+            <button class="dashboard-game racing-game" data-game="racing"><span class="game-symbol">♞</span><span class="game-copy"><small>Six runners · fixed odds</small><strong>Dorra Downs</strong><em>Back a winner</em></span></button>
+          </div>
+        </div>
+        <aside class="house-record">
+          <h2>House record</h2>
+          <dl><div><dt>Sessions</dt><dd id="statSessions">0</dd></div><div><dt>Wins</dt><dd id="statWins">0</dd></div><div><dt>Win rate</dt><dd id="statWinRate">—</dd></div><div><dt>Best game</dt><dd id="statBestGame">—</dd></div></dl>
+          <div class="activity-head"><h3>Recent activity</h3><span>Local ledger</span></div>
+          <ol id="dashboardActivity" class="activity-list"><li class="empty-activity">Play a game to begin your record.</li></ol>
+        </aside>
+      </section>
+
+      <section id="houseMap" class="house-hub" hidden aria-labelledby="houseMapTitle">
+        <header class="house-hub-heading">
+          <div><small>Casino directory</small><h1 id="houseMapTitle">Explore the Casino</h1><p>Discover the gaming floor, bars, galleries, and members-only venues.</p></div>
+          <button class="room-back" data-house-home>Back to dashboard</button>
+        </header>
+        <section class="interactive-casino" aria-labelledby="interactiveCasinoTitle">
+          <div class="interactive-casino-heading"><div><small>Interactive directory</small><h2 id="interactiveCasinoTitle">Choose your casino floor</h2></div><p>Climb through Dorra House as your membership level grows.</p></div>
+          <div class="casino-building" id="casinoBuilding"><img src="assets/rooms/dorra-interactive-floors-v1.png" alt="Cutaway view of four increasingly premium Dorra House casino floors"><div id="casinoFloorButtons" class="casino-floor-buttons"></div></div>
+        </section>
+        <div class="house-map-layout">
+          <div class="house-elevation">
+            <img src="assets/rooms/casino-directory.png" alt="Grand casino atrium connecting its gaming and entertainment venues">
+            <div class="house-elevation-copy"><small>Casino directory</small><strong id="houseOpenCount">2 venues open</strong></div>
+          </div>
+          <aside class="house-status-panel">
+            <span>Casino access</span><strong>Level <b id="houseLevel">1</b></strong><p id="houseNextUnlock">The Skyline Bar opens at Level 2.</p>
+            <div class="room-progress"><i id="houseProgressFill"></i></div>
+          </aside>
+        </div>
+        <div id="houseRoomGrid" class="house-room-grid" aria-label="Casino venues"></div>
+      </section>
+
+      <section id="rooftopRoom" class="room-view rooftop-room" hidden aria-labelledby="rooftopTitle">
+        <header class="room-hero rooftop-hero">
+          <div class="room-hero-copy"><small>Level 2 · Casino nightlife</small><h1 id="rooftopTitle">Skyline Bar</h1><p>Collect your casino credit, keep a streak alive, and complete tonight's objectives above the gaming floor.</p><button class="room-back" data-house-map>View casino directory</button></div>
+        </header>
+        <div class="room-content-grid">
+          <section class="room-panel reward-panel"><div class="panel-heading"><div><small>Member credit</small><h2>Tonight's tab</h2></div><span id="rooftopStreak">0 day streak</span></div><div class="reward-amount"><span>Daily play-money credit</span><strong id="rooftopRewardAmount">$250</strong><p>Available once per local day. Emergency refills remain available when your balance runs out.</p></div><button id="rooftopRewardBtn">Claim credit</button></section>
+          <section class="room-panel"><div class="panel-heading"><div><small>Resets locally each day</small><h2>Skyline objectives</h2></div><span id="rooftopObjectiveDate">Tonight</span></div><div id="rooftopObjectives" class="objective-list"></div><p class="objective-reward-note">Complete all three to earn a $300 casino bonus.</p></section>
+        </div>
+      </section>
+
+      <section id="trophyRoom" class="room-view trophy-room" hidden aria-labelledby="trophyTitle">
+        <header class="room-hero trophy-hero">
+          <div class="room-hero-copy"><small>Level 3 · Casino legacy</small><h1 id="trophyTitle">Hall of Fame</h1><p>Your defining hands, collection milestones, and casino reputation—preserved permanently.</p><button class="room-back" data-house-map>View casino directory</button></div>
+        </header>
+        <div class="trophy-summary">
+          <div><span>Unlocked</span><strong id="trophyUnlocked">0 / 12</strong></div><div><span>Rounds played</span><strong id="trophyRounds">0</strong></div><div><span>House wins</span><strong id="trophyWins">0</strong></div><div><span>Collection value</span><strong id="trophyValue">$0</strong></div>
+        </div>
+        <div id="achievementGrid" class="achievement-grid"></div>
+      </section>
+
+      <section id="progressionHub" class="progression-hub" hidden aria-labelledby="progressionTitle">
+        <header class="progression-hero">
+          <img src="assets/progression/dorra-legacy-office.png" alt="Dorra House directors planning the casino estate from a rooftop office" loading="lazy" decoding="async">
+          <div class="progression-hero-shade"></div>
+          <div class="progression-hero-copy"><small id="progressionEyebrow">Casino Empire</small><h1 id="progressionTitle">Run the house. Build the legacy.</h1><p id="progressionLead">Develop venues, grow your income, and expand Dorra House.</p><button class="room-back" id="progressionBackBtn">Back to dashboard</button></div>
+        </header>
+        <div class="progression-status" aria-label="Dorra progression overview">
+          <div><span>Empire income</span><strong id="empireIncomeRate">$0 / hour</strong></div>
+          <div><span>Estate investment</span><strong id="empireValue">$0</strong></div>
+          <div><span>VIP standing</span><strong id="vipStanding">Prospect</strong></div>
+          <div><span>Story progress</span><strong id="storyProgress">0 / 8</strong></div>
+        </div>
+        <nav class="progression-tabs" aria-label="Dorra Office sections" role="tablist">
+          <button id="empireTab" class="active" data-progression-tab="empire" role="tab" aria-controls="empirePanel" aria-selected="true">Casino Empire</button>
+          <a class="progression-external" href="war-simulation.html">Strategic Command <b aria-hidden="true">↗</b></a>
+          <button id="contractsTab" data-progression-tab="contracts" role="tab" aria-controls="contractsPanel" aria-selected="false">VIP Contracts <b id="contractBadge">0</b></button>
+          <button id="storyTab" data-progression-tab="story" role="tab" aria-controls="storyPanel" aria-selected="false">Story Mode</button>
+          <button id="officeTab" data-progression-tab="office" role="tab" aria-controls="officePanel" aria-selected="false">Office Ledger</button>
+        </nav>
+        <section id="empirePanel" class="progression-panel" role="tabpanel" aria-labelledby="empireTab"></section>
+        <section id="campaignPanel" class="progression-panel campaign-panel" hidden aria-hidden="true"></section>
+        <section id="contractsPanel" class="progression-panel" role="tabpanel" aria-labelledby="contractsTab" hidden></section>
+        <section id="storyPanel" class="progression-panel" role="tabpanel" aria-labelledby="storyTab" hidden></section>
+        <section id="officePanel" class="progression-panel" role="tabpanel" aria-labelledby="officeTab" hidden></section>
+      </section>
+
+      <section id="boutique" class="boutique-view" hidden>
+        <div class="boutique-level">
+          <span>Level</span><strong id="boutiqueLevel">1</strong><h1 id="levelTitle">New Arrival</h1>
+          <div class="xp-copy"><span id="xpLabel">0 / 300 XP</span><span id="nextLevelLabel">Next: Card Player</span></div>
+          <div class="xp-track"><i id="xpFill"></i></div>
+          <p>Complete rounds to earn XP. Wins and higher wagers earn a little more.</p>
+          <button id="backToDashboard">Back to casino</button>
+        </div>
+        <div class="boutique-catalog">
+          <div class="boutique-heading"><div><p>Fictional collectibles · Play money only</p><h1>Boutique</h1></div><span id="collectionCount">0 owned</span></div>
+          <div class="shop-toolbar"><input id="shopSearch" type="search" placeholder="Search boutique" aria-label="Search boutique"><select id="shopCategory" aria-label="Filter boutique category"><option value="all">All categories</option><option value="tech">Phones</option><option value="computer">MacBooks</option><option value="table">Table themes</option><option value="cards">Card backs</option><option value="chips">Chips</option><option value="avatar">Avatars</option><option value="decor">Decor</option><option value="style">Style</option><option value="vehicle">Vehicles</option></select></div>
+          <div id="shopItems" class="shop-items"></div>
+        </div>
+      </section>
+
+      <section id="motorGallery" class="motor-gallery" hidden>
+        <header class="motor-heading"><div><h1>Motor Atrium</h1><p>Configure real marques with play money in this unofficial fan-made simulation.</p></div><div><span>PLAY MONEY ONLY</span><button id="motorBackBtn">Back to casino</button></div></header>
+        <div class="motor-catalog-tools"><label><span>Find a vehicle</span><input id="motorSearch" type="search" placeholder="Search model or marque" autocomplete="off"></label><p><strong id="motorModelTotal">24</strong> models across <strong id="motorBrandTotal">6</strong> marques</p></div>
+        <nav id="brandSelector" class="brand-selector" aria-label="Vehicle brands"></nav>
+        <div class="brand-section-heading"><div><small id="brandVehicleCount">4 vehicles</small><h2 id="brandSectionTitle">Porsche Collection</h2></div><p id="brandSectionCopy">Sports cars, grand tourers, electric performance, and SUVs.</p></div>
+        <nav id="carSelector" class="car-selector" aria-label="Vehicle models"></nav>
+        <div class="car-config-layout">
+          <section class="car-showcase">
+            <div class="car-title"><div><small id="carBrand">Porsche</small><h2 id="carName">911</h2></div><span id="carOwnedStatus">Not owned</span></div>
+            <div class="car-image-frame"><img id="carHero" src="assets/cars/porsche-911.png" alt="Porsche 911 exterior"><span>Exterior image · front three-quarter view</span></div>
+            <div class="trim-spec-row"><div><span>Model tier · changes exterior preview</span><div id="carTrims" class="car-trims"></div></div><dl id="carSpecs" class="car-specs"></dl></div>
+          </section>
+          <aside class="upgrade-panel">
+            <div class="upgrade-tabs" role="tablist"><button class="active" data-upgrade-tab="performance">Performance</button><button data-upgrade-tab="exterior">Exterior</button><button data-upgrade-tab="interior">Interior</button></div>
+            <div id="upgradeOptions" class="upgrade-options"></div>
+            <div class="car-total"><div><span>Australian-market configuration · excludes on-road costs</span><strong id="carPrice">$280,000</strong></div><button id="buyCarBtn">Purchase configuration</button></div>
+            <p class="fan-note">Unofficial fan-made simulation. Manufacturer names and badges identify the represented vehicles; no affiliation or endorsement is implied.</p>
+          </aside>
+        </div>
+        <section class="my-garage"><div><h2>My Garage</h2><span id="garageCount">0 / 6 owned</span></div><div id="garageItems" class="garage-items"></div></section>
+      </section>
+
+      <div id="configurator" class="configurator" hidden role="dialog" aria-modal="true" aria-labelledby="configTitle">
+        <div class="config-backdrop" data-close-config></div>
+        <section class="config-panel">
+          <button class="config-close" data-close-config aria-label="Close configurator">×</button>
+          <div class="phone-stage">
+            <div class="phone-view-switch" role="group" aria-label="Phone view"><button type="button" class="active" data-phone-side="back">Back</button><button type="button" data-phone-side="front">Front</button></div>
+            <div id="phonePreview" class="phone-preview finish-mist-blue show-back">
+              <div class="phone-face phone-back"><div class="phone-camera"><i></i><i></i><i></i><b></b><em></em></div><span class="phone-logo" aria-label="Apple logo"><i></i></span><span id="phoneEngraving" class="phone-engraving"></span></div>
+              <div class="phone-face phone-front"><div class="phone-screen wallpaper-emerald"><span class="dynamic-island"></span><span id="phoneMonogram">D</span><small>9:41</small></div></div>
+            </div>
+            <p id="phoneViewLabel">Back view · finish and engraving</p>
+          </div>
+          <form id="iphoneForm" class="config-form">
+            <div><small id="phoneGenerationLabel">Premium collectible</small><h1 id="configTitle">Configure iPhone 17</h1><p id="phoneIntro">Choose a model, finish, storage, case, engraving, and wallpaper.</p></div>
+            <fieldset><legend>Model</legend><div id="modelOptions" class="choice-row model-options"></div></fieldset>
+            <div id="phoneSpecs" class="phone-specs" aria-live="polite"></div>
+            <fieldset><legend>Finish</legend><div id="finishOptions" class="swatch-options"></div></fieldset>
+            <fieldset><legend>Storage</legend><div id="storageOptions" class="choice-row"></div></fieldset>
+            <fieldset><legend>Case</legend><div class="choice-row"><label><input type="radio" name="case" value="None" checked><span>None</span></label><label><input type="radio" name="case" value="Clear"><span>Clear <b>+$80</b></span></label><label><input type="radio" name="case" value="Silicone"><span>Silicone <b>+$120</b></span></label></div></fieldset>
+            <label class="engraving-field"><span>Engraving <b id="engravingCount">0 / 20</b></span><input id="engravingInput" maxlength="20" placeholder="Dorra House Member"></label>
+            <fieldset><legend>Wallpaper</legend><div class="choice-row wallpaper-options"><label><input type="radio" name="wallpaper" value="Emerald" checked><span>Emerald</span></label><label><input type="radio" name="wallpaper" value="Oxblood"><span>Oxblood</span></label><label><input type="radio" name="wallpaper" value="Midnight"><span>Midnight</span></label><label><input type="radio" name="wallpaper" value="Ivory"><span>Ivory</span></label></div></fieldset>
+            <div class="config-total"><div><span>Price · play money only</span><strong id="configPrice">$1,399</strong></div><button type="submit" id="configPurchase">Purchase configuration</button></div>
+          </form>
+        </section>
+      </div>
+
+      <div id="macConfigurator" class="mac-configurator" hidden role="dialog" aria-modal="true" aria-labelledby="macConfigTitle">
+        <div class="config-backdrop" data-close-mac></div>
+        <section class="mac-config-panel">
+          <button class="config-close" data-close-mac aria-label="Close MacBook configurator">×</button>
+          <div class="mac-stage">
+            <div id="macPreview" class="mac-preview finish-space-grey">
+              <div class="mac-lid"><div class="mac-screen wallpaper-emerald"><div class="mac-menubar"><span>◆ Dorra OS</span><time>9:41</time></div><div class="mac-wallpaper-mark">D</div><div class="mac-dock"><i>$</i><i>♠</i><i>◆</i><i>↗</i><i>⚙</i></div></div><span class="mac-notch"></span></div>
+              <div class="mac-base"><div class="mac-speaker mac-speaker-left" aria-hidden="true"></div><div class="mac-keyboard" aria-hidden="true"><div class="mac-touchbar"></div></div><div class="mac-speaker mac-speaker-right" aria-hidden="true"></div><div class="mac-trackpad"></div></div>
+            </div>
+            <p>Open view · live Dorra OS display preview</p>
+          </div>
+          <form id="macbookForm" class="mac-config-form">
+            <header><small id="macGenerationLabel">Apple silicon · 2026</small><h1 id="macConfigTitle">Configure MacBook</h1><p>Select every genuine size and chip option offered in this generation.</p></header>
+            <fieldset><legend>Model</legend><div id="macModelOptions" class="mac-model-options"></div></fieldset>
+            <fieldset><legend>Chip configuration</legend><div id="macChipOptions" class="mac-chip-options"></div></fieldset>
+            <div id="macSpecs" class="mac-specs" aria-live="polite"></div>
+            <fieldset><legend>Finish</legend><div id="macFinishOptions" class="swatch-options"></div></fieldset>
+            <fieldset><legend>Memory</legend><div id="macMemoryOptions" class="choice-row"></div></fieldset>
+            <fieldset><legend>Storage</legend><div id="macStorageOptions" class="choice-row"></div></fieldset>
+            <fieldset id="macDisplayField"><legend>Display glass</legend><div id="macDisplayOptions" class="choice-row"></div></fieldset>
+            <fieldset><legend>Power adapter</legend><div id="macPowerOptions" class="choice-row"></div></fieldset>
+            <fieldset><legend>Wallpaper</legend><div class="choice-row wallpaper-options"><label><input type="radio" name="macWallpaper" value="Emerald" checked><span>Emerald</span></label><label><input type="radio" name="macWallpaper" value="Oxblood"><span>Oxblood</span></label><label><input type="radio" name="macWallpaper" value="Midnight"><span>Midnight</span></label><label><input type="radio" name="macWallpaper" value="Ivory"><span>Ivory</span></label></div></fieldset>
+            <div class="config-total"><div><span>Price · play money only</span><strong id="macConfigPrice">$1,499</strong></div><button type="submit" id="macConfigPurchase">Purchase configuration</button></div>
+          </form>
+        </section>
+      </div>
+
+      <section id="game-blackjack" class="game-view" aria-labelledby="blackjack-title">
+        <div class="table-head"><div><p>Table No. 01</p><h1 id="blackjack-title">Blackjack</h1></div><button class="rules-btn" data-rules="blackjack">Rules +</button></div>
+        <div class="felt blackjack-felt">
+          <div class="hand-zone dealer-zone"><span class="zone-label">Dealer <b id="dealerScore"></b></span><div class="cards" id="dealerCards"></div></div>
+          <div class="table-inscription">BLACKJACK PAYS 3 TO 2 <i>Dealer stands on all 17</i></div>
+          <div class="hand-zone player-zone"><span class="zone-label">Your hand <b id="playerScore"></b></span><div class="cards" id="playerCards"></div></div>
+          <div class="round-message" id="bjMessage" role="status" aria-live="polite">Place your bet and deal.</div>
+        </div>
+        <div class="control-deck">
+          <div class="bet-stack"><span>Bet</span><strong id="bjBet">$25</strong></div>
+          <div class="chips" data-target="bjBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="bj">Clear</button></div>
+          <div class="actions"><button class="primary" id="dealBtn">Deal</button><button id="hitBtn" disabled>Hit</button><button id="standBtn" disabled>Stand</button><button id="doubleBtn" disabled>Double</button></div>
+        </div>
+      </section>
+
+      <section id="game-roulette" class="game-view" aria-labelledby="roulette-title">
+        <div class="table-head"><div><p>Table No. 02</p><h1 id="roulette-title">European Roulette</h1></div><button class="rules-btn" data-rules="roulette">Rules +</button></div>
+        <div class="roulette-layout">
+          <div class="wheel-wrap">
+            <div class="wheel-stage" aria-label="European roulette wheel">
+              <div class="wheel-pointer" aria-hidden="true"></div>
+              <div class="wheel-race" aria-hidden="true"></div>
+              <div class="wheel-deflectors" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="wheel" id="wheel"><div class="wheel-pockets"></div><div class="wheel-center"><span>D</span><i></i></div></div>
+              <div class="ball-track" id="ballTrack"><div class="wheel-ball"></div></div>
+            </div>
+            <div class="roulette-kicker">Single zero · European wheel</div>
+            <div class="roulette-result" id="rouletteResult" role="status" aria-live="polite">Place a wager</div>
+          </div>
+          <div class="roulette-board" id="rouletteBoard"></div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="rouletteBet">$25</strong></div><div class="chips" data-target="rouletteBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="roulette">Clear</button></div><div class="actions"><button class="primary" id="spinBtn">Spin wheel</button></div></div>
+      </section>
+
+      <section id="game-monte" class="game-view" aria-labelledby="monte-title">
+        <div class="table-head"><div><p>Lower Floor · Skill Table</p><h1 id="monte-title">Three Card Monte</h1></div><button class="rules-btn" data-rules="monte">Rules +</button></div>
+        <div class="felt skill-felt"><div class="skill-status" id="monteMessage">Watch where the queen begins.</div><div class="monte-cards" id="monteCards"></div></div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="monteBet">$25</strong></div><div class="chips" data-target="monteBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="monte">Clear</button></div><div class="actions"><button class="primary" id="monteStartBtn">Start shuffle</button></div></div>
+      </section>
+
+      <section id="game-memory" class="game-view" aria-labelledby="memory-title">
+        <div class="table-head"><div><p>Lower Floor · Skill Table</p><h1 id="memory-title">Memory Match</h1></div><button class="rules-btn" data-rules="memory">Rules +</button></div>
+        <div class="memory-layout"><div class="skill-status" id="memoryMessage">Match all six pairs before your misses run out.</div><div class="memory-grid" id="memoryGrid"></div></div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="memoryBet">$25</strong></div><div class="chips" data-target="memoryBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="memory">Clear</button></div><div class="actions"><button class="primary" id="memoryStartBtn">Deal board</button></div></div>
+      </section>
+
+      <section id="game-highlow" class="game-view" aria-labelledby="highlow-title">
+        <div class="table-head"><div><p>Table No. 03</p><h1 id="highlow-title">High–Low</h1></div><button class="rules-btn" data-rules="highlow">Rules +</button></div>
+        <div class="felt highlow-felt"><div class="predict-card" id="highlowCard"></div><div class="versus">Will the next card be...</div><div class="prediction"><button id="lowerBtn">Lower</button><button id="higherBtn">Higher</button></div><div class="round-message" id="highlowMessage" role="status" aria-live="polite">Make your prediction.</div></div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="highlowBet">$25</strong></div><div class="chips" data-target="highlowBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="highlow">Clear</button></div></div>
+      </section>
+
+      <section id="game-dice" class="game-view" aria-labelledby="dice-title">
+        <div class="table-head"><div><p>Table No. 04</p><h1 id="dice-title">Lucky Dice</h1></div><button class="rules-btn" data-rules="dice">Rules +</button></div>
+        <div class="felt dice-felt"><div class="dice-pair"><div class="die" id="die1">⚀</div><div class="die" id="die2">⚀</div></div><div class="dice-choices"><button data-dicebet="low">Low <small>2–6 · 2×</small></button><button data-dicebet="seven">Lucky 7 <small>5×</small></button><button data-dicebet="high">High <small>8–12 · 2×</small></button></div><div class="round-message" id="diceMessage" role="status" aria-live="polite">Choose a range, then roll.</div></div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="diceBet">$25</strong></div><div class="chips" data-target="diceBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="dice">Clear</button></div><div class="actions"><button class="primary" id="rollBtn" disabled>Roll dice</button></div></div>
+      </section>
+
+      <section id="game-baccarat" class="game-view" aria-labelledby="baccarat-title">
+        <div class="table-head"><div><p>Table No. 05</p><h1 id="baccarat-title">Baccarat</h1></div><button class="rules-btn" data-rules="baccarat">Rules +</button></div>
+        <div class="felt baccarat-felt">
+          <div class="baccarat-hand"><span>Player <b id="baccaratPlayerScore"></b></span><div class="cards" id="baccaratPlayerCards"></div></div>
+          <div class="baccarat-monogram">D</div>
+          <div class="baccarat-hand"><span>Banker <b id="baccaratBankerScore"></b></span><div class="cards" id="baccaratBankerCards"></div></div>
+          <div class="baccarat-choices"><button data-baccarat="player">Player <small>Pays 1:1</small></button><button data-baccarat="tie">Tie <small>Pays 8:1</small></button><button data-baccarat="banker">Banker <small>Pays 0.95:1</small></button></div>
+          <div class="round-message" id="baccaratMessage" role="status" aria-live="polite">Choose player, banker, or tie.</div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="baccaratBet">$25</strong></div><div class="chips" data-target="baccaratBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="baccarat">Clear</button></div><div class="actions"><button class="primary" id="baccaratDealBtn" disabled>Deal</button></div></div>
+      </section>
+
+      <section id="game-poker" class="game-view" aria-labelledby="poker-title">
+        <div class="table-head"><div><p>Table No. 06</p><h1 id="poker-title">Three Card Poker</h1></div><button class="rules-btn" data-rules="poker">Rules +</button></div>
+        <div class="felt poker-felt">
+          <div class="hand-zone dealer-zone"><span class="zone-label">Dealer <b id="pokerDealerRank"></b></span><div class="cards" id="pokerDealerCards"></div></div>
+          <div class="poker-mark">ANTE · PLAY</div>
+          <div class="hand-zone player-zone"><span class="zone-label">Your hand <b id="pokerPlayerRank"></b></span><div class="cards" id="pokerPlayerCards"></div></div>
+          <div class="round-message" id="pokerMessage" role="status" aria-live="polite">Place an ante to receive three cards.</div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Ante</span><strong id="pokerBet">$25</strong></div><div class="chips" data-target="pokerBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="poker">Clear</button></div><div class="actions"><button class="primary" id="pokerDealBtn">Deal</button><button id="pokerPlayBtn" disabled>Play</button><button id="pokerFoldBtn" disabled>Fold</button></div></div>
+      </section>
+
+      <section id="game-holdem" class="game-view" aria-labelledby="holdem-title">
+        <div class="table-head"><div><p>Table No. 06B</p><h1 id="holdem-title">Texas Hold'em</h1></div><button class="rules-btn" data-rules="holdem">Rules +</button></div>
+        <div class="felt holdem-felt">
+          <div class="holdem-opponent"><span class="zone-label">House <b id="holdemDealerRank"></b></span><div class="cards" id="holdemDealerCards"></div></div>
+          <div class="holdem-board"><span>Community cards</span><div class="cards" id="holdemBoardCards"></div></div>
+          <div class="holdem-player"><span class="zone-label">Your hand <b id="holdemPlayerRank"></b></span><div class="cards" id="holdemPlayerCards"></div></div>
+          <div class="round-message" id="holdemMessage" role="status" aria-live="polite">Post the ante to deal.</div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Ante</span><strong id="holdemBet">$25</strong></div><div class="chips" data-target="holdemBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="holdem">Clear</button></div><div class="actions"><button class="primary" id="holdemDealBtn">Deal</button><button id="holdemCallBtn" disabled>Call</button><button id="holdemFoldBtn" disabled>Fold</button></div></div>
+      </section>
+
+      <section id="game-videopoker" class="game-view" aria-labelledby="videopoker-title">
+        <div class="table-head"><div><p>Table No. 07</p><h1 id="videopoker-title">Jacks or Better</h1></div><button class="rules-btn" data-rules="videopoker">Rules +</button></div>
+        <div class="video-poker-layout">
+          <aside class="paytable"><h2>Paytable</h2><dl><div><dt>Royal flush</dt><dd>250×</dd></div><div><dt>Straight flush</dt><dd>50×</dd></div><div><dt>Four of a kind</dt><dd>25×</dd></div><div><dt>Full house</dt><dd>9×</dd></div><div><dt>Flush</dt><dd>6×</dd></div><div><dt>Straight</dt><dd>4×</dd></div><div><dt>Three of a kind</dt><dd>3×</dd></div><div><dt>Two pair</dt><dd>2×</dd></div><div><dt>Jacks or better</dt><dd>1×</dd></div></dl></aside>
+          <div class="video-poker-table"><div class="vp-cards" id="videoPokerCards"><div class="vp-placeholder">Deal five cards to begin.</div></div><div class="round-message" id="videoPokerMessage" role="status" aria-live="polite">Place your bet and deal.</div></div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="videopokerBet">$25</strong></div><div class="chips" data-target="videopokerBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="videopoker">Clear</button></div><div class="actions"><button class="primary" id="videoPokerDealBtn">Deal</button><button id="videoPokerDrawBtn" disabled>Draw</button></div></div>
+      </section>
+
+      <section id="game-sicbo" class="game-view" aria-labelledby="sicbo-title">
+        <div class="table-head"><div><p>Table No. 08</p><h1 id="sicbo-title">Sic Bo</h1></div><button class="rules-btn" data-rules="sicbo">Rules +</button></div>
+        <div class="sicbo-layout">
+          <div class="sicbo-bowl"><div class="sicbo-dice"><div class="die" id="sicDie1">⚀</div><div class="die" id="sicDie2">⚀</div><div class="die" id="sicDie3">⚀</div></div><div class="sicbo-result" id="sicboMessage" role="status" aria-live="polite">Choose one wager below.</div></div>
+          <div class="sicbo-board" id="sicboBoard">
+            <button data-sicbet="low">Low <small>4–10 · 1:1</small></button><button data-sicbet="high">High <small>11–17 · 1:1</small></button><button data-sicbet="odd">Odd <small>1:1</small></button><button data-sicbet="even">Even <small>1:1</small></button><button data-sicbet="triple">Any triple <small>30:1</small></button>
+            <div class="total-bets" id="sicboTotals"></div>
+          </div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="sicboBet">$25</strong></div><div class="chips" data-target="sicboBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="sicbo">Clear</button></div><div class="actions"><button class="primary" id="sicboRollBtn" disabled>Roll dice</button></div></div>
+      </section>
+
+      <section id="game-slots" class="game-view" aria-labelledby="slots-title">
+        <div class="table-head"><div><p>Machine No. 09</p><h1 id="slots-title">House Slots</h1></div><button class="rules-btn" data-rules="slots">Rules +</button></div>
+        <div class="slot-variants" id="slotVariants" aria-label="Choose a slot machine">
+          <button class="selected" data-slot-machine="classic" aria-pressed="true"><span class="machine-icon">7</span><strong>House Classic</strong><small>3 reels · balanced</small></button>
+          <button data-slot-machine="neon" aria-pressed="false"><img src="assets/slots/neon/lightning.png" alt=""><strong>Neon Fortune</strong><small>4 reels · high energy</small></button>
+          <button data-slot-machine="pharaoh" aria-pressed="false"><img src="assets/slots/pharaoh/scarab.png" alt=""><strong>Pharaoh's Fortune</strong><small>5 reels · rare riches</small></button>
+          <button data-slot-machine="ocean" aria-pressed="false"><img src="assets/slots/ocean/pearl.png" alt=""><strong>Ocean Crown</strong><small>6 reels · royal jackpots</small></button>
+        </div>
+        <div class="slots-layout">
+          <aside class="slots-paytable" aria-label="Slots paytable">
+            <span id="slotVolatility">Balanced volatility</span><h2 id="slotPaytableTitle">House Classic</h2>
+            <dl id="slotPaytable"></dl>
+            <small>Returns include wager · all other combinations pay 0×</small>
+          </aside>
+          <div class="slot-machine">
+            <div class="slot-lights" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="slot-crown" aria-hidden="true"><span>✦</span>DORRA<span>✦</span></div>
+            <div class="slot-reels" id="slotReels" aria-label="Slot machine reels">
+              <div class="slot-reel" id="slotReel1"><img src="assets/slots/seven.png" alt="Seven"></div><div class="slot-reel" id="slotReel2"><img src="assets/slots/bar.png" alt="BAR"></div><div class="slot-reel" id="slotReel3"><img src="assets/slots/cherry.png" alt="Cherries"></div>
+            </div>
+            <div class="slot-payline" aria-hidden="true"></div>
+            <div class="slots-message" id="slotsMessage" role="status" aria-live="polite">Choose your wager and spin.</div>
+          </div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Bet</span><strong id="slotsBet">$25</strong></div><div class="chips" data-target="slotsBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="slots">Clear</button></div><div class="actions slot-actions"><button class="primary" id="slotsSpinBtn">Spin reels</button><div class="auto-spin-menu" id="autoSpinMenu" hidden><button id="slotsAutoBtn" aria-expanded="false">Auto spin</button><div id="autoSpinChoices" hidden></div></div></div></div>
+      </section>
+
+      <section id="game-racing" class="game-view" aria-labelledby="racing-title">
+        <div class="table-head"><div><p>Race No. 10 · Dorra Downs</p><h1 id="racing-title">Horse Racing</h1></div><button class="rules-btn" data-rules="racing">Rules +</button></div>
+        <div class="race-layout">
+          <aside class="race-market"><span>Win market · Decimal odds</span><h2>Choose a runner</h2><div id="raceRunners" class="race-runners"></div><div id="raceTicket" class="race-ticket"><small>Your bet slip</small><strong>No runner selected</strong><span>Select a horse to see your possible return.</span></div><small>Fixed odds · returns include wager</small></aside>
+          <div class="racecourse">
+            <div class="race-sky"><div><span>DORRA DOWNS</span><i>Race 10 · 1,600 metres</i></div><div class="race-distance"><small id="raceStage">At the gates</small><strong id="raceDistance">1,600m</strong></div></div>
+            <div class="race-progress" aria-label="Race progress"><i id="raceProgress"></i><span>START</span><span>800m</span><span>400m</span><span>FINISH</span></div>
+            <div id="raceTrack" class="race-track" aria-label="Horse race track"></div>
+            <div class="starting-gate" id="startingGate" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+            <div class="race-message" id="raceMessage" role="status" aria-live="polite">Select a runner to place your win bet.</div>
+            <div id="raceResults" class="race-results" role="dialog" aria-modal="true" aria-labelledby="raceWinner" hidden><div><small>Official result</small><h2 id="raceWinner"></h2><ol id="raceOrder"></ol><button id="raceAgainBtn">Race again</button></div></div>
+          </div>
+        </div>
+        <div class="control-deck"><div class="bet-stack"><span>Win bet</span><strong id="racingBet">$25</strong></div><div class="chips" data-target="racingBet"><button data-chip="5">5</button><button class="red" data-chip="25">25</button><button class="green" data-chip="50">50</button><button class="gold" data-chip="100">100</button><button data-clear="racing">Clear</button></div><div class="actions"><button class="primary" id="raceStartBtn" disabled>Start race</button></div></div>
+      </section>
+    </main>
+
+    <footer><div><span class="status-dot"></span> Play money · Offline</div><div id="history" class="history"><span>House ledger</span><em>No hands played yet</em></div><button id="homeBtn">All games</button></footer>
+  </div>
+
+  <dialog id="rulesDialog"><button class="dialog-close" aria-label="Close">×</button><p>Dorra House rules</p><h2 id="rulesTitle"></h2><div id="rulesText"></div><button class="primary dialog-ok">Understood</button></dialog>
+  <div id="dorraOs" class="dorraos" hidden role="dialog" aria-modal="true" aria-labelledby="dorraOsTitle">
+    <div class="dorraos-backdrop" data-close-dorraos></div>
+    <section class="dorraos-device" id="dorraOsDevice">
+      <button class="dorraos-close" data-close-dorraos aria-label="Close DorraOS">×</button>
+      <div class="dorraos-screen" id="dorraOsScreen">
+        <header class="dorraos-status"><time id="dorraOsTime">9:41</time><span id="dorraOsDeviceName">DorraOS</span><span>● 100%</span></header>
+        <div class="dorraos-island" aria-hidden="true"></div>
+        <main class="dorraos-content">
+          <section class="dorraos-home" id="dorraOsHome">
+            <div class="dorraos-greeting"><small id="dorraOsDate">Dorra House</small><h1 id="dorraOsTitle">Good evening.</h1><p id="dorraOsBalance">$0 available</p></div>
+            <div class="dorraos-app-grid">
+              <button data-os-app="wallet"><i class="os-icon os-wallet">$</i><span>Wallet</span></button>
+              <button data-os-app="casino"><i class="os-icon os-casino">♠</i><span>Casino</span></button>
+              <button data-os-app="garage"><i class="os-icon os-garage">◆</i><span>Garage</span></button>
+              <button data-os-app="messages"><i class="os-icon os-messages">•••</i><span>Messages</span></button>
+              <button data-os-app="markets" data-installed-app="markets" hidden><i class="os-icon os-markets">↗</i><span>Markets Pro</span></button>
+              <button data-os-app="pocket" data-installed-app="pocket" hidden><i class="os-icon os-pocket">¢</i><span>Pocket</span></button>
+              <button data-os-app="appstore"><i class="os-icon os-appstore">A</i><span>App Store</span></button>
+              <button data-os-app="bloomberg" data-installed-app="bloomberg" hidden><i class="os-icon os-bloomberg">BI</i><span>Bloomberg</span></button>
+              <button data-os-app="perks"><i class="os-icon os-perks">✦</i><span>Upgrades</span></button>
+              <button data-os-app="settings"><i class="os-icon os-settings">⚙</i><span>Settings</span></button>
+            </div>
+          </section>
+          <section class="dorraos-app" id="dorraOsApp" hidden>
+            <header><button id="dorraOsBack" aria-label="Return to DorraOS home">‹</button><div><small>DorraOS</small><h2 id="dorraOsAppTitle">Wallet</h2></div></header>
+            <div id="dorraOsAppBody" class="dorraos-app-body"></div>
+          </section>
+        </main>
+        <div class="dorraos-home-indicator" aria-hidden="true"></div>
+      </div>
+    </section>
+  </div>
+  <div id="profilePanel" class="profile-modal" hidden role="dialog" aria-modal="true" aria-labelledby="profilePanelTitle">
+    <div class="profile-backdrop" data-close-profile></div>
+    <section class="profile-panel">
+      <button class="profile-close" data-close-profile aria-label="Close profile">×</button>
+      <aside class="profile-sidebar">
+        <div id="profileHeroAvatar" class="profile-avatar avatar-classic tone-emerald"><span>D</span><i>◆</i></div>
+        <small>Dorra House member</small><h1 id="profilePanelTitle">Your Profile</h1><p id="profileSidebarName">House Guest</p>
+        <nav aria-label="Profile sections"><button class="active" data-profile-tab="profile">Profile</button><button data-profile-tab="avatar">Edit profile</button><button data-profile-tab="settings">Settings</button></nav>
+      </aside>
+      <main class="profile-content">
+        <section id="profileTab" class="profile-tab"></section>
+        <section id="avatarTab" class="profile-tab" hidden></section>
+        <section id="settingsTab" class="profile-tab" hidden></section>
+      </main>
+    </section>
+  </div>
+  <div id="storyDialogue" class="story-dialogue-modal" hidden role="dialog" aria-modal="true" aria-labelledby="storyDialogueSpeaker">
+    <div class="story-dialogue-backdrop" data-dialogue-close></div>
+    <section class="story-dialogue-card">
+      <small id="storyDialogueLabel">Dorra House · Private conversation</small>
+      <h2 id="storyDialogueSpeaker">Celeste Vale</h2>
+      <p id="storyDialogueLine" aria-live="polite"></p>
+      <div><span id="storyDialogueProgress">1 / 1</span><button id="storyDialogueNext">Continue</button></div>
+    </section>
+  </div>
+  <div id="campaignDebrief" class="campaign-debrief" hidden role="dialog" aria-modal="true" aria-labelledby="campaignDebriefTitle">
+    <div class="campaign-debrief-backdrop" data-campaign-report-close></div>
+    <section class="campaign-debrief-card">
+      <small id="campaignDebriefLabel">Operation report</small>
+      <h2 id="campaignDebriefTitle">Rights operation resolved</h2>
+      <div id="campaignDebriefBody"></div>
+      <button id="campaignDebriefClose" data-campaign-report-close>Return to command</button>
+    </section>
+  </div>
+  <div id="saveIndicator" class="save-indicator" role="status" aria-live="polite">Saved locally</div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="expansion-cars.js?v=20260806-motor2"></script>
+  <script src="deepened-cars.js?v=20260806-motor3"></script>
+  <script src="vehicle-visual-matrices.js?v=20260806-matrix2"></script>
+  <script src="vehicle-visual-matrices-v2-europe.js?v=20260807-imagegen1"></script>
+  <script src="vehicle-visual-matrices-v2-exotics.js?v=20260807-imagegen1"></script>
+  <script src="vehicle-visual-matrices-v2-modern.js?v=20260807-imagegen1"></script>
+  <script src="vehicle-visual-matrices-v2-audi.js?v=20260807-imagegen1"></script>
+  <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
+  <script type="module" src="app.js?v=20260826-footballtokens1"></script>
+</body>
+</html>

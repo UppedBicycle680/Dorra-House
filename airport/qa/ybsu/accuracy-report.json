@@ -1,0 +1,11 @@
+{
+  "edgeMismatches": [],
+  "routeMismatches": [],
+  "gearMismatches": [],
+  "conservativeBodyMismatches": [],
+  "wheelContacts": 7928832,
+  "aircraftStandRoutes": 144,
+  "passed": true,
+  "contactToleranceMetres": 0.125,
+  "fullFleet": true
+}

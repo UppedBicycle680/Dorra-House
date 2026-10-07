@@ -1,0 +1,192 @@
+{
+  "sources": {
+    "aircraft-models.mjs": "6910a13f02d0e7228f5af0fbd5245f9f418eccf6f8b7423775632029bbdb9bee",
+    "aircraft-fidelity.mjs": "6ad40119c504d449995026ea44549d8f87ddb46475ba487b32c16add721a90a0",
+    "aircraft-raster.mjs": "3efd5f2ac2bf70aa6889da422a1e4f6a675c09861b9dda5de018f697780da4d3",
+    "aircraft-propellers.mjs": "add0fc16133204de051a601b37dd88d05e6f70cb8b2cdce1878e88280574a89b"
+  },
+  "camera": {
+    "heading": -0.36,
+    "reducedMotion": true,
+    "width": 720,
+    "height": 420
+  },
+  "aircraft": [
+    {
+      "id": "c172",
+      "width": 720,
+      "height": 420,
+      "bytes": 48967,
+      "sha256": "52edf54156daf4768634527c31df74ce53752e24bd2d3d001091bce4a8a9f7c4",
+      "paintedPixels": 40706
+    },
+    {
+      "id": "caravan",
+      "width": 720,
+      "height": 420,
+      "bytes": 49944,
+      "sha256": "b66a4f6fbefe193236f8087d0b241b30952acb281223fa9967b173353cac7abb",
+      "paintedPixels": 38032
+    },
+    {
+      "id": "king-air",
+      "width": 720,
+      "height": 420,
+      "bytes": 59019,
+      "sha256": "61ea24984345f2bba7148698054759f0cddf69fa5383529eed74ea1f52bbbfea",
+      "paintedPixels": 40310
+    },
+    {
+      "id": "atr42",
+      "width": 720,
+      "height": 420,
+      "bytes": 60938,
+      "sha256": "231a356cf0441953ab7b0a393663594461543fafdeeac455cdefece157fa1dd6",
+      "paintedPixels": 48407
+    },
+    {
+      "id": "atr72",
+      "width": 720,
+      "height": 420,
+      "bytes": 61282,
+      "sha256": "eb2291ae7e9a9fa1ff03bb660bf36d738fbd1e38446c8e93e779f342ed94a2af",
+      "paintedPixels": 45917
+    },
+    {
+      "id": "q400",
+      "width": 720,
+      "height": 420,
+      "bytes": 58317,
+      "sha256": "6dcef9adfdcaf7c7a07591c992176207da2e434400efec3f6c6c5c063a3ad107",
+      "paintedPixels": 37259
+    },
+    {
+      "id": "e175",
+      "width": 720,
+      "height": 420,
+      "bytes": 57650,
+      "sha256": "b1682169334493ba84cdf2763a61d7104adaf62874f6b579e14a40865af1729a",
+      "paintedPixels": 41622
+    },
+    {
+      "id": "b717",
+      "width": 720,
+      "height": 420,
+      "bytes": 51362,
+      "sha256": "a3b9688222e4a61bafa9f093ba68d30d7f329478e422e1cb0188484bece18e11",
+      "paintedPixels": 37190
+    },
+    {
+      "id": "a220",
+      "width": 720,
+      "height": 420,
+      "bytes": 56670,
+      "sha256": "10500c994a5eeff71fd45fae60c9edb93f6b3b2cc0435d19eb3b0346c3b47991",
+      "paintedPixels": 40499
+    },
+    {
+      "id": "e195",
+      "width": 720,
+      "height": 420,
+      "bytes": 43208,
+      "sha256": "ebbdfb137833d37cd6cbcde5292279ce2d3abb732dfd40b7edbf2c2b15495a17",
+      "paintedPixels": 32268
+    },
+    {
+      "id": "b737",
+      "width": 720,
+      "height": 420,
+      "bytes": 57851,
+      "sha256": "2d2ffc76fbec51656751742f601a0a338ec474154f4a91e0aa1e064dc4deb37c",
+      "paintedPixels": 41746
+    },
+    {
+      "id": "a320",
+      "width": 720,
+      "height": 420,
+      "bytes": 65490,
+      "sha256": "0db0bc34c5ac2f99a7c1982692ea5015c2517688da6cbe10bb49f3dbe01f101a",
+      "paintedPixels": 48901
+    },
+    {
+      "id": "a321",
+      "width": 720,
+      "height": 420,
+      "bytes": 59660,
+      "sha256": "41b0cd47437f1a5b97aa3b665eb7d27ebbdaa24fefea062260cebb5ad24db6e0",
+      "paintedPixels": 39386
+    },
+    {
+      "id": "b757",
+      "width": 720,
+      "height": 420,
+      "bytes": 57160,
+      "sha256": "6482755edb4c0e9455646df4c46165e6282df0a31b4e56db0bbd183ac8fc7a55",
+      "paintedPixels": 40123
+    },
+    {
+      "id": "b767",
+      "width": 720,
+      "height": 420,
+      "bytes": 55831,
+      "sha256": "b424478f034945c9b16ec865e6b27a0ab8310fa12439cbec64ccaf9f7c91d91e",
+      "paintedPixels": 43982
+    },
+    {
+      "id": "a330",
+      "width": 720,
+      "height": 420,
+      "bytes": 61071,
+      "sha256": "0b512ad897b6d0e4ee147461536e6abe799afda2464e121e99fed293b0f6fe0a",
+      "paintedPixels": 39928
+    },
+    {
+      "id": "b777",
+      "width": 720,
+      "height": 420,
+      "bytes": 60508,
+      "sha256": "b0626cf94e510d53cc6a8763e69334e7229920bd1b94194070bdaa5e26064654",
+      "paintedPixels": 39120
+    },
+    {
+      "id": "a350",
+      "width": 720,
+      "height": 420,
+      "bytes": 57381,
+      "sha256": "4d32930d0a4e3417060654cfe9e8e8cce2e024261ed59c382157cd567598ec15",
+      "paintedPixels": 36738
+    },
+    {
+      "id": "b747",
+      "width": 720,
+      "height": 420,
+      "bytes": 66099,
+      "sha256": "8a8498f6f0d804f798a29c17234f37ec7ec9ba8e68623bd2763f0b3c88cf4b17",
+      "paintedPixels": 41713
+    },
+    {
+      "id": "a380",
+      "width": 720,
+      "height": 420,
+      "bytes": 71948,
+      "sha256": "701d5831bcdce4bccd9daa0a4734d8879d68e94dfe22e7c926331aedfb565ead",
+      "paintedPixels": 50514
+    },
+    {
+      "id": "c5",
+      "width": 720,
+      "height": 420,
+      "bytes": 59328,
+      "sha256": "21accc0edb1c70ee443a24dbba57c93886da5c9f9c4f62a5ccbb22628305e924",
+      "paintedPixels": 41126
+    },
+    {
+      "id": "an225",
+      "width": 720,
+      "height": 420,
+      "bytes": 64345,
+      "sha256": "1a8c73a0f5846cafda7401068d1ec75fc36674a75accef0f0d1c58458b3e17e5",
+      "paintedPixels": 47514
+    }
+  ]
+}

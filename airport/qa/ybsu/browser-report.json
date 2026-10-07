@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "width": 1440,
+      "height": 900,
+      "stands": 8,
+      "taxiways": 31
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "stands": 8,
+      "taxiways": 31
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "stands": 8,
+      "taxiways": 31
+    }
+  ],
+  "checks": [
+    "page identity",
+    "nonblank canvas",
+    "no error overlay",
+    "console health",
+    "all eight stand selections",
+    "zoom/reset",
+    "eight runway stages"
+  ],
+  "diagnostics": []
+}

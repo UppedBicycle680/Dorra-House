@@ -1,0 +1,21 @@
+Natural Earth 1:110m Admin-0 Countries, version 5.1.1
+
+Upstream data:
+https://github.com/nvkelso/natural-earth-vector/blob/v5.1.1/geojson/ne_110m_admin_0_countries.geojson
+Upstream file SHA-256:
+6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f
+
+Natural Earth terms:
+https://www.naturalearthdata.com/about/terms-of-use/
+
+Natural Earth releases its raster and vector map data into the public domain.
+Attribution is not required. Their suggested short credit is:
+
+Made with Natural Earth.
+
+This local derivative retains all 177 country geometries and only these source
+properties: ADMIN, NAME, NAME_LONG, ADM0_A3, ISO_A2, ISO_A3, CONTINENT,
+REGION_UN, SUBREGION, LABEL_X, LABEL_Y, and NE_ID. Non-rendering metadata was
+removed to reduce the static download from 838,726 to 290,463 bytes.
+Local derivative SHA-256:
+916e14025e4273e4ca56d7796b45a16e60a38589c1cd0966b6f6817ff572a2f5
