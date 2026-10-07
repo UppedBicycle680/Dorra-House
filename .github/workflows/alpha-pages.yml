@@ -103,6 +103,7 @@ jobs:
     needs: deploy
     if: needs.deploy.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Check out live verification code
         uses: actions/checkout@v4
@@ -110,21 +111,52 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             scripts/check-online.mjs
+            scripts/check-live-browser.mjs
             online-config.js
             package.json
+            package-lock.json
           sparse-checkout-cone-mode: false
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
+      - name: Install browser verification dependencies
+        run: npm ci --ignore-scripts
+      - name: Select Chromium for live browser verification
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          for chromium_command in google-chrome google-chrome-stable chromium chromium-browser; do
+            if chromium_path="$(command -v "$chromium_command")"; then
+              echo "DORRA_CHROMIUM_PATH=$chromium_path" >> "$GITHUB_ENV"
+              "$chromium_path" --version
+              exit 0
+            fi
+          done
+          npx playwright install --only-shell chromium
       - name: Verify public signup, saves and device takeover against Supabase
         run: node scripts/check-online.mjs
         env:
           DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
+      - name: Verify published signup, gameplay and cross-device saves in real browsers
+        run: node scripts/check-live-browser.mjs
+        env:
+          DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
+          DORRA_BROWSER_SCREENSHOTS: '1'
       - name: Preserve live validation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: alpha-live-validation
           path: work/live-check.json
+          retention-days: 7
+      - name: Preserve live browser validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-live-browser-validation
+          path: |
+            work/live-browser-report.json
+            work/live-browser-house-*.png
           retention-days: 7
