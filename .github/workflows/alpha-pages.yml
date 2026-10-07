@@ -83,7 +83,7 @@ jobs:
         with:
           path: dist
   deploy:
-    needs: build
+    needs: [build, verify-backend]
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -101,7 +101,7 @@ jobs:
         uses: actions/deploy-pages@v4
   verify-live:
     needs: deploy
-    if: always()
+    if: needs.deploy.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Check out live verification code
