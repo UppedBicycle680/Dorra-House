@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.117.2';
-import {validateBody,commandDigest,UUID,fail} from './protocol.mjs';
+import {validateBody,commandDigest,maxRequestBytes,readBoundedBody,UUID,fail} from './protocol.mjs';
 import {initializeHouse} from './house-progression.mjs';
 import {reduceHouse} from './house.mjs';
 import {reduceAirport} from './airport.mjs';
@@ -25,9 +25,9 @@ Deno.serve(async req=>{
   try{
     if(!req.headers.get('Content-Type')?.startsWith('application/json'))fail('Use an application/json gameplay command.','CONTENT_TYPE',415);
     if(Number(req.headers.get('Content-Length')||0)>420000)fail('The action payload is too large.','PAYLOAD_TOO_LARGE',413);
-    const text=await req.text();const inputBytes=new TextEncoder().encode(text).byteLength;if(inputBytes>420000)fail('The action payload is too large.','PAYLOAD_TOO_LARGE',413);
+    const text=await readBoundedBody(req);const inputBytes=new TextEncoder().encode(text).byteLength;
     let body;try{body=validateBody(JSON.parse(text));}catch(error){if(error instanceof SyntaxError)fail('Invalid JSON gameplay command.');throw error;}
-    if(inputBytes>32768&&!(body.scope==='house'&&body.action==='profile-save'))fail('The action payload is too large.','PAYLOAD_TOO_LARGE',413);
+    if(inputBytes>maxRequestBytes(body))fail('The action payload is too large.','PAYLOAD_TOO_LARGE',413);
     const authorization=req.headers.get('Authorization')||'';if(!authorization.startsWith('Bearer '))fail('Sign in to play.','UNAUTHORIZED',401);
     const token=authorization.slice(7);const {data:{user},error}=await admin.auth.getUser(token);
     if(error||!user)fail('Your sign-in expired. Sign in to continue.','UNAUTHORIZED',401);
