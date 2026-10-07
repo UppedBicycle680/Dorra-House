@@ -10,9 +10,35 @@ permissions:
 
 concurrency:
   group: alpha-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
+  verify-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out backend verification code
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            scripts/check-online.mjs
+            online-config.js
+            package.json
+          sparse-checkout-cone-mode: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify live authentication and cloud saves for every mode
+        run: node scripts/check-online.mjs
+      - name: Preserve backend validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-backend-validation
+          path: work/live-check.json
+          retention-days: 7
   build:
     runs-on: ubuntu-latest
     steps:
@@ -36,8 +62,18 @@ jobs:
         run: npm run check
       - name: Verify server-approved gameplay
         run: npm test
-      - name: Install Chromium for browser verification
-        run: npx playwright install --with-deps chromium
+      - name: Select Chromium for browser verification
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          for chromium_command in google-chrome google-chrome-stable chromium chromium-browser; do
+            if chromium_path="$(command -v "$chromium_command")"; then
+              echo "DORRA_CHROMIUM_PATH=$chromium_path" >> "$GITHUB_ENV"
+              "$chromium_path" --version
+              exit 0
+            fi
+          done
+          npx playwright install --only-shell chromium
       - name: Verify login and real cloud-save client
         run: npm run test:browser
       - name: Build static site and optimize original artwork
@@ -71,6 +107,7 @@ jobs:
       - name: Check out live verification code
         uses: actions/checkout@v4
         with:
+          filter: blob:none
           sparse-checkout: |
             scripts/check-online.mjs
             online-config.js

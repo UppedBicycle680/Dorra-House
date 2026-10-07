@@ -71,6 +71,14 @@ export async function checkOnline(fetchImpl = fetch) {
   }
   try {
     const settings = requireSuccess(await http('Auth settings', `${SUPABASE_URL}/auth/v1/settings`), 'Auth settings');
+    stage = 'Browser API access';
+    const preflight = await fetchImpl(API_URL, {method:'OPTIONS',headers:{Origin:ORIGIN,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization, apikey, content-type'},signal:AbortSignal.timeout(30000)});
+    assert([200,204].includes(preflight.status), 'Browser preflight was rejected.');
+    assert.equal(preflight.headers.get('access-control-allow-origin'),ORIGIN,'Browser API access does not allow the published site.');
+    const allowedHeaders=(preflight.headers.get('access-control-allow-headers')||'').toLowerCase();
+    assert(['authorization','apikey','content-type'].every(header=>allowedHeaders.includes(header)),'Browser API access does not allow the save-client headers.');
+    passed('Unauthenticated browser preflight permits the hosted save client');
+    stage = 'Auth configuration';
     if (settings.mailer_autoconfirm !== true) {
       throw new Error('Email confirmation is enabled or could not be verified. In the Supabase dashboard, open Authentication > Providers > Email and turn Confirm email off for this Alpha smoke test. No signup or email was attempted.');
     }
