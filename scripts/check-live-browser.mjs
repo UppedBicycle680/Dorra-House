@@ -64,6 +64,14 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     pending.catch(() => {});
     return pending;
   }
+  async function accountSession(page) {
+    return page.evaluate(async () => {
+      const {supabase} = await import(new URL('auth-client.js', location.href).href);
+      const {data, error} = await supabase.auth.getSession();
+      if (error || !data.session) return null;
+      return {id: data.session.user?.id, username: data.session.user?.user_metadata?.username, accessToken: data.session.access_token};
+    });
+  }
   async function newPage(context) {
     const page = await context.newPage();
     page.setDefaultTimeout(TIMEOUT);
@@ -110,11 +118,11 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await desktop.locator('#submitAccount').click();
     const signupResponse = await signupPending;
     ensure(signupResponse.ok());
-    const signup = await signupResponse.json();
-    if (typeof signup.access_token === 'string') tokens.add(signup.access_token);
-    if (UUID.test(signup.user?.id || '')) report.account = {id: signup.user.id, username};
-    ensure(report.account && signup.user?.user_metadata?.username === username);
     await desktop.waitForURL(new URL('index.html', site).href, {waitUntil: 'domcontentloaded', timeout: TIMEOUT});
+    const signup = await accountSession(desktop);
+    if (typeof signup?.accessToken === 'string') tokens.add(signup.accessToken);
+    if (UUID.test(signup?.id || '')) report.account = {id: signup.id, username};
+    ensure(report.account && signup.username === username);
     const initialHouse = await outcome(firstHousePending);
     ensure(initialHouse.snapshot.balance === 1000);
     await visible(desktop, '#arrivalScreen');
@@ -146,7 +154,7 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     passed('Daily reward updates the protected wallet and renders Saved online');
 
     stage = 'Mobile password login and cloud restoration';
-    const mobileContext = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'UTC', reducedMotion: 'reduce'});
+    const mobileContext = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Australia/Sydney', reducedMotion: 'reduce'});
     const mobile = await newPage(mobileContext);
     await mobile.goto(new URL('login.html', site).href, {waitUntil: 'domcontentloaded'});
     await mobile.waitForFunction(() => typeof document.querySelector('#accountForm')?.onsubmit === 'function', null, {timeout: TIMEOUT});
@@ -156,10 +164,10 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await mobile.locator('#submitAccount').click();
     const loginResponse = await loginPending;
     ensure(loginResponse.ok());
-    const login = await loginResponse.json();
-    if (typeof login.access_token === 'string') tokens.add(login.access_token);
-    ensure(login.user?.id === report.account.id);
     await mobile.waitForURL(new URL('index.html', site).href, {waitUntil: 'domcontentloaded', timeout: TIMEOUT});
+    const login = await accountSession(mobile);
+    if (typeof login?.accessToken === 'string') tokens.add(login.accessToken);
+    ensure(login?.id === report.account.id && login.username === username);
     const restoredHouse = await outcome(secondHousePending);
     ensure(restoredHouse.snapshot.balance === savedBalance && restoredHouse.snapshot.progress?.rewardDate === rewardDate && restoredHouse.snapshot.progress?.arrival?.complete === true);
     await exactText(mobile, '#balance', '$1,250');
@@ -170,7 +178,7 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await exactText(mobile, '[data-online-username]', username);
     await saved(mobile);
     await screenshot(mobile, 'live-browser-house-mobile.png');
-    passed('A fresh mobile browser signs in and restores the wallet, reward and arrival progress');
+    passed('A fresh mobile browser in another timezone restores the wallet, reward and arrival progress');
 
     stage = 'Old-device rejection';
     ensure(await desktop.locator('#soundBtn').isEnabled());

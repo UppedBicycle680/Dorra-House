@@ -20,7 +20,7 @@ Password recovery is implemented using Supabase’s email recovery flow. Without
 
 ## Save authority and device sessions
 
-Each page acquires a new gameplay lease. Opening another tab or device takes over; the previous lease is rejected on its next request. Protected data lives in a private schema with RLS and no browser grants. Server-controlled `role` and `disabled` profile fields prepare future administration; editable user metadata never authorizes administrator actions.
+Each page acquires a new gameplay lease. Opening another tab or device takes over; the previous lease is rejected on its next request. Daily rewards and objectives use the server's UTC day from the initial browser render, so moving between device timezones keeps their display consistent. Protected data lives in a private schema with RLS and no browser grants. Server-controlled `role` and `disabled` profile fields prepare future administration; editable user metadata never authorizes administrator actions.
 
 An accepted command updates the shared wallet and all relevant mode state atomically. Revision checks prevent competing saves from overwriting one another. Request identifiers and bound command hashes prevent immediate retries from repeating a payout or withdrawal. A bounded replay window and bounded histories limit storage. Large replay results use lossless gzip internally so a retried airport view or match response retains its original data without duplicate rewards. Requests are limited to 180 accepted actions per account per minute and 32 KiB of input, with bounded exceptions for profile pictures and club-crest uploads.
 
