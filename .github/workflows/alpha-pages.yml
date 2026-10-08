@@ -3,6 +3,12 @@ name: Deploy Alpha to GitHub Pages
 on:
   push:
     branches: [Alpha]
+    paths-ignore:
+      - scripts/check-online.mjs
+      - scripts/check-live-browser.mjs
+      - ONLINE-ALPHA.md
+      - README.md
+      - .github/workflows/alpha-validation.yml
   workflow_dispatch:
 
 permissions:
