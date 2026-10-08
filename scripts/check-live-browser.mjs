@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const TIMEOUT = 90000;
 const ensure = condition => { if (!condition) throw new Error('Live browser verification failed.'); };
 const ASSET_PATHS = new Map(['login.html', 'login.js', 'login.css', 'auth-client.js', 'online-config.js', 'vendor/supabase/supabase.js',
-  'index.html', 'app.js', 'vault-client.js', 'online-shell.js', 'online-shell.css', 'styles.css', 'progression-engine.js', 'campaign-engine.js',
+  'index.html', 'app.js', 'vault-client.js', 'online-shell.js', 'online-shell.css', 'styles.css', 'arrival.css', 'progression-engine.js', 'campaign-engine.js',
   'idle-airport.html', 'airport/ui.mjs', 'football-manager.html', 'football/football-ui.js', 'war-simulation.html', 'war-simulation.js', 'campaign-controller.js']
   .map(asset => [`/Dorra-House/${asset}`, asset]));
 const AUTH_ACTIONS = new Set(['signup', 'token', 'user', 'logout', 'recover', 'resend']);
@@ -309,6 +309,24 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     stage = 'First House JavaScript health';
     ensure(javascriptErrors.length === 0);
     passed('Real published email/password/username signup opens the desktop House');
+
+    stage = 'Launch viewport fit';
+    await desktop.evaluate(() => document.fonts.ready);
+    for (const [width, height] of [[1440, 900], [1366, 768], [1280, 720], [1024, 768], [1280, 600]]) {
+      await desktop.setViewportSize({width, height});
+      await desktop.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      ensure(await desktop.locator('#arrivalScreen').evaluate(element => {
+        const action = document.querySelector('#arrivalEnterBtn').getBoundingClientRect();
+        return element.scrollHeight <= element.clientHeight + 1 && element.scrollWidth <= element.clientWidth + 1 && action.bottom <= innerHeight;
+      }));
+    }
+    await desktop.setViewportSize({width: 1440, height: 900});
+    await screenshot(desktop, 'live-browser-house-launch-desktop.png');
+    await desktop.setViewportSize({width: 390, height: 844});
+    ensure(await desktop.locator('#arrivalScreen').evaluate(element => element.scrollWidth <= element.clientWidth + 1));
+    await screenshot(desktop, 'live-browser-house-launch-mobile.png');
+    await desktop.setViewportSize({width: 1440, height: 1000});
+    passed('Launch choices and actions fit five desktop viewports without scrolling; mobile has no horizontal overflow');
 
     stage = 'Arrival autosave';
     const arrival = await perform(desktop, 'house', 'arrival', () => desktop.locator('#arrivalSkipBtn').click());

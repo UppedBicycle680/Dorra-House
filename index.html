@@ -9,41 +9,44 @@
   <link rel="stylesheet" href="styles.css?v=20260829-dev11">
   <link rel="stylesheet" href="mac-responsive.css?v=20260807-mac2">
   <link rel="stylesheet" href="online-shell.css">
+  <link rel="stylesheet" href="arrival.css">
 </head>
 <body>
   <script type="module" src="online-shell.js"></script>
   <div class="grain" aria-hidden="true"></div>
-  <section id="arrivalScreen" class="arrival-screen" hidden aria-labelledby="arrivalTitle">
+  <section id="arrivalScreen" class="arrival-screen" hidden role="dialog" aria-modal="true" aria-labelledby="arrivalTitle" aria-describedby="arrivalDescription">
     <header class="arrival-header">
       <div class="arrival-brand"><span aria-hidden="true">✦</span><strong>DORRA HOUSE</strong></div>
-      <p>Your progress saves to your account</p>
+      <p><span aria-hidden="true">✓</span> Your journey is saved online</p>
     </header>
     <main class="arrival-main">
       <div class="arrival-intro">
-        <div><h1 id="arrivalTitle">How will you make your name?</h1><p>Choose your starting focus. Every path remains open, and you can change direction whenever you like.</p></div>
-        <ol class="arrival-steps" aria-label="Arrival progress"><li class="active"><i>1</i><span>Arrival<br>decision</span></li><li><i>2</i><span>House<br>orientation</span></li><li><i>3</i><span>Your first<br>steps</span></li></ol>
+        <div><span class="arrival-eyebrow">A world of your own</span><h1 id="arrivalTitle">Make yourself at home.</h1><p id="arrivalDescription">Choose where your story begins. Every path stays open.</p></div>
+        <p class="arrival-step"><span>01</span> Choose your path</p>
       </div>
       <div class="arrival-paths" role="radiogroup" aria-label="Choose your starting focus">
         <button class="arrival-path path-player" data-arrival-path="player" role="radio" aria-checked="false">
           <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="10" y="13" width="25" height="31" rx="3" transform="rotate(-10 10 13)"/><rect x="20" y="8" width="25" height="31" rx="3" transform="rotate(9 20 8)"/><path d="M28 18c-5 4-7 6-4 9 2 2 4 0 4 0s2 2 4 0c3-3 1-5-4-9Z"/></svg></i></span>
-          <span class="arrival-path-copy"><strong>At the Tables</strong><em>Master the games, climb the floors, and earn your reputation one hand at a time.</em><span><small>Table games</small><small>Daily challenges</small><small>High-limit access</small></span></span>
+          <span class="arrival-path-copy"><span class="arrival-path-kicker">01 · Play your hand</span><strong>At the Tables</strong><em>Find your favourite game and make your name, one hand at a time.</em><span class="arrival-features"><small>Table games</small><small>Daily challenges</small><small>High-limit access</small></span></span>
           <b class="arrival-check" aria-hidden="true">✓</b>
         </button>
         <button class="arrival-path path-owner selected" data-arrival-path="owner" role="radio" aria-checked="true">
           <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M5 42h38M9 42V21l15-12 15 12v21M15 42V25h18v17M20 42V31h8v11M5 22 24 6l19 16"/></svg></i></span>
-          <span class="arrival-path-copy"><strong>Through the Estate</strong><em>Restore Dorra House, open new venues, and turn a quiet property into a thriving institution.</em><span><small>Venue upgrades</small><small>Offline income</small><small>House directors</small></span></span>
+          <span class="arrival-path-copy"><span class="arrival-path-kicker">02 · Build your legacy</span><strong>Through the Estate</strong><em>Open your first venue. Grow a quiet estate into a thriving House.</em><span class="arrival-features"><small>Venue upgrades</small><small>Offline income</small><small>House directors</small></span></span>
           <b class="arrival-check" aria-hidden="true">✓</b>
         </button>
         <button class="arrival-path path-story" data-arrival-path="story" role="radio" aria-checked="false">
           <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="18" cy="17" r="7"/><circle cx="32" cy="19" r="6"/><path d="M5 41c0-10 5-15 13-15s13 5 13 15M25 30c2-3 4-5 8-5 7 0 11 5 11 14"/></svg></i></span>
-          <span class="arrival-path-copy"><strong>In the House Story</strong><em>Meet the people behind Dorra House and decide what its next chapter will become.</em><span><small>8 chapters</small><small>VIP contracts</small><small>Legacy decisions</small></span></span>
+          <span class="arrival-path-copy"><span class="arrival-path-kicker">03 · Shape the next chapter</span><strong>In the House Story</strong><em>Meet the people behind the House. Decide what happens next.</em><span class="arrival-features"><small>8 chapters</small><small>VIP contracts</small><small>Legacy decisions</small></span></span>
           <b class="arrival-check" aria-hidden="true">✓</b>
         </button>
       </div>
       <footer class="arrival-action">
-        <p aria-live="polite">You are set to <strong id="arrivalSummary">Begin as a Business Owner</strong><span id="arrivalNextStep">Your first stop is the House Empire office.</span></p>
+        <p aria-live="polite">Your starting path<strong id="arrivalSummary">Through the Estate</strong><span id="arrivalNextStep">A one-time Founder’s Advance makes the Terrace your first opening.</span></p>
+        <div class="arrival-action-buttons">
         <button id="arrivalEnterBtn">Enter Dorra House <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></button>
         <button id="arrivalSkipBtn">I’ll decide later</button>
+        </div>
       </footer>
     </main>
   </section>
