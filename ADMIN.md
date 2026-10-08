@@ -15,7 +15,7 @@ owner and no seeded staff accounts.
    using your trusted project access. The script refuses to replace an owner.
 3. Sign in to the panel with the same account and enter the privately delivered
    access code. You can also redeem the code in the game's Codes interface.
-4. Open **Admin → Staff management**, select an existing player, and use
+4. Open **Owner → Staff management**, select an existing player, and use
    **Change staff role** to approve an administrator or moderator. Each change
    requires a reason, preview and confirmation.
 
@@ -79,7 +79,7 @@ and raw JSON editing are unavailable. Reasons, revision checks, previews and
 atomic audit records also apply to these changes.
 
 **Set password** requires the exact current username, a reason and preview,
-then a new 12�128 character password. Supabase stores password hashes; no role
+then a new 12–128 character password. Supabase stores password hashes; no role
 can retrieve an existing password. The owner may reveal and privately share
 the new chosen password before confirming. The panel clears it before sending
 and never stores it. Successful changes revoke all target Auth sessions and
@@ -93,7 +93,7 @@ within 90 seconds and whose current gameplay lease and Auth session remain
 valid. Heartbeats run every 10 seconds and do not count as gameplay activity.
 Use Refresh to update the list.
 
-**Messages** accepts plain text and an active window of 10�3600 seconds.
+**Messages** accepts plain text and an active window of 10–3600 seconds.
 Messages target one player or a snapshot of everyone online at publication.
 Recipients receive messages on their next heartbeat, can dismiss them, and
 the popup closes at expiry. Hidden tabs and expired messages do not display
