@@ -36,17 +36,17 @@ function fields(saved){
  const f=p.footballManager;
  if(f?.club){num('Football','Football tokens','snapshot',['progress','footballManager','footballTokens'],0,MAX_FOOTBALL_TOKENS);
   add('Football','Club name','snapshot',['progress','footballManager','club','name'],'text',{maxLength:48});
-  num('Football','Club reputation','snapshot',['progress','footballManager','club','reputation'],1,100);
+  num('Football','Club reputation','snapshot',['progress','footballManager','club','reputation'],0,100);
   num('Football','Governance','snapshot',['progress','footballManager','club','governance'],0,100);
-  num('Football','Club cash','snapshot',['progress','footballManager','finance','cash'],0,9_000_000_000_000);
-  num('Football','Weekly first-team budget','snapshot',['progress','footballManager','finance','weeklyFirstTeamBudget'],0,9_000_000_000_000);
+  num('Football','Club cash','snapshot',['progress','footballManager','finance','cash'],-1_000_000_000,MAX_BALANCE);
+  num('Football','Weekly first-team budget','snapshot',['progress','footballManager','finance','weeklyFirstTeamBudget'],0,MAX_BALANCE);
   for(const squad of ['first','u23','academy'])for(const key of ['morale','fatigue','familiarity'])num('Football',squad+' '+key,'snapshot',['progress','footballManager',squad,key],0,100);
-  for(const squad of ['first','u23','academy'])for(const player of f.squads?.[squad]?.players||[])for(const [key,min,max]of [['rating',1,99],['potential',player.rating,99],['morale',0,100],['fatigue',0,100],['injuryWeeks',0,80]])num('Football',squad+' · '+player.name+' · '+key,'snapshot',['progress','footballManager','squads',squad,'players',f.squads[squad].players.indexOf(player),key],min,key==='rating'?Math.min(max,player.potential):max);
+  for(const squad of ['first','u23','academy'])for(const player of f.squads?.[squad]?.players||[])for(const [key,min,max]of [['rating',1,99],['potential',player.rating,99],['morale',0,100],['fatigue',0,100],...(squad==='first'?[]:[['injuryWeeks',0,80]])])num('Football',squad+' · '+player.name+' · '+key,'snapshot',['progress','footballManager','squads',squad,'players',f.squads[squad].players.indexOf(player),key],min,key==='rating'?Math.min(max,player.potential):max);
  }
  if(c){num('Airport','Diamonds','privateState',['airport','diamonds'],0,MAX_DIAMONDS);
   choice('Airport','Selected airport','privateState',['airport','selectedAirportId'],Object.keys(c.airports).map(id=>({value:id,label:id})));
   for(const [id,airport]of Object.entries(c.airports)){num('Airport',id+' cash','privateState',['airport','airports',id,'cash'],0,MAX_CURRENCY);num('Airport',id+' research','privateState',['airport','airports',id,'research'],0,MAX_CURRENCY);
-   const projection=projectCareer({...c,selectedAirportId:id},Date.now(),{compact:true}).airports.find(a=>a.id===id);
+   const projection=projectCareer({...c,selectedAirportId:id},Date.now(),{compact:true}).selectedAirport;
    for(const building of projection?.buildings||[])if(building.level>0&&building.quote.available)num('Airport',id+' · '+building.name,'privateState',['airport','airports',id,'buildings',building.key],building.level,building.maxLevel);
   }
  }
