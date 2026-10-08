@@ -80,7 +80,7 @@ async function publish(relative) {
           await sharp(bytes, {animated: true}).webp({quality: 95, alphaQuality: 100, effort: 4}).toFile(optimized);
           return optimized;
         } catch (cause) {
-          const fallback = knownArtworkFallbacks.get(relative);
+          const fallback = knownArtworkFallbacks.get(relative.split(path.sep).join('/'));
           if (!fallback) throw cause;
           const substitute = await readFile(path.join(root, fallback));
           const fallbackKey = createHash('sha256').update(bytes).update(substitute).digest('hex');

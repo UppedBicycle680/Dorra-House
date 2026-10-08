@@ -2,6 +2,8 @@
 
 A browser game world hosted on GitHub Pages, with Supabase email/password accounts, usernames and automatic cloud saves. Multiplayer, leaderboards and an administrator UI are deferred.
 
+The login page follows the Dorra House minimal Figma design, including its local Manrope font, original icons, focus/hover/loading states and reduced-motion support. Players sign in with email and password; the unique Dorra House username is collected only when creating a profile. Existing confirmation, recovery and cloud-save sessions remain connected to the same Supabase project.
+
 The original House, casino tables, collecting, estate, football, Strategic Command and Airports interfaces remain. Browser clients send decisions; the Supabase `dorra-api` Edge Function computes protected outcomes and commits a player’s save. Whole browser saves are never accepted.
 
 ## Run and build
