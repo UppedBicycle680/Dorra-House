@@ -7,7 +7,7 @@ let mode = 'signin', busy = false, redirecting = false;
 
 function destination() {
   const next = new URLSearchParams(location.search).get('next');
-  return siteURL(['index.html', 'football-manager.html', 'war-simulation.html', 'idle-airport.html'].includes(next) ? next : 'index.html');
+  return siteURL(['index.html', 'football-manager.html', 'war-simulation.html', 'idle-airport.html', 'admin.html'].includes(next) ? next : 'index.html');
 }
 function message(text, error = false) {
   const element = $('#accountMessage');
