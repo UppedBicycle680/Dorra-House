@@ -36,7 +36,7 @@ export async function serveSource(route, harness = null) {
   }
   const file = path.resolve(root, relative);
   if (!file.startsWith(root + path.sep)) throw new Error('Invalid static path');
-  const contentType = {'.js': 'text/javascript', '.mjs': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.json': 'application/json'}[path.extname(file)] || 'application/octet-stream';
+  const contentType = {'.js': 'text/javascript', '.mjs': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2'}[path.extname(file)] || 'application/octet-stream';
   try {
     await route.fulfill({status: 200, contentType, body: await fs.readFile(file)});
   } catch (error) {
