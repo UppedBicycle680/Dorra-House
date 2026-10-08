@@ -24,4 +24,4 @@ The build publishes `dist/` only. It keeps original artwork in the repository an
 
 The `Alpha` branch runs `.github/workflows/alpha-pages.yml`, which checks the code, runs regression tests, builds the site and deploys the artifact to GitHub Pages. Enable Actions deployment in the repository’s Pages settings if initial automatic configuration is unavailable. If GitHub creates the `github-pages` environment with branch restrictions, allow the `Alpha` branch.
 
-The intended address is https://uppedbicycle680.github.io/Dorra-House/ . See [ONLINE-ALPHA.md](ONLINE-ALPHA.md) for Supabase configuration, validation and operating limits.
+Enable **Enforce HTTPS** in Settings → Pages. The intended address is https://uppedbicycle680.github.io/Dorra-House/ . See [ONLINE-ALPHA.md](ONLINE-ALPHA.md) for Supabase configuration, validation and operating limits.
