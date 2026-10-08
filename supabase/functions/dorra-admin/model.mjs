@@ -2,6 +2,7 @@ import {MAX_BALANCE, MAX_FOOTBALL_TOKENS, applyDeveloperMoneyChange, applyDevelo
 import {awardXP} from '../dorra-api/house-progression.mjs';
 import {shop,macbookFamilies} from '../dorra-api/house-catalog.mjs';
 import {MAX_CURRENCY, MAX_DIAMONDS} from '../dorra-api/shared/airport/engine.mjs';
+import {editSaveField} from './save-controls.mjs';
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export function fail(message, code='INVALID_INPUT', status=400) { throw Object.assign(new Error(message), {code,status}); }
@@ -18,10 +19,10 @@ export function integer(value,min,max,label='Value') {
   return value;
 }
 export function validate(input) {
-  object(input,['operation','args','requestId','previewId']);
-  const reads=['status','unlock','lock','dashboard','players','player','reports','report','activity','staff','preview','commit'];
+  object(input,['operation','args','requestId','previewId','newPassword']);
+  const reads=['status','unlock','lock','dashboard','players','player','reports','report','activity','staff','online','announcements','pulse','dismiss','preview','commit'];
   if(!reads.includes(input.operation)) fail('Unknown operation.');
-  object(input.args||{},['search','status','offset','period','targetId','reportId','kind','code','action','reason','value','amount','direction','sessions','wins','level','airportId','unlockId','enabled','duration','confirmation','title','evidence','resolution','role','flagId']);
+  object(input.args||{},['search','status','offset','period','targetId','reportId','kind','code','action','reason','value','amount','direction','sessions','wins','level','airportId','unlockId','enabled','duration','confirmation','title','evidence','resolution','role','flagId','fieldId','saveRevision','message','audience','leaseId','visible','messageId']);
   const args=input.args||{};
   if(args.search!==undefined && (typeof args.search!=='string'||args.search.length>80)) fail('Search must contain at most 80 characters.');
   if(args.offset!==undefined) integer(args.offset,0,10000,'Page offset');
@@ -31,8 +32,12 @@ export function validate(input) {
   if(input.operation==='preview') {
     if(!UUID.test(args.targetId||'')) fail('Choose a player.');
     text(args.reason,'Reason');
-    if(!['money','xp','stats','football-tokens','airport-cash','airport-research','airport-diamonds','level','unlock','warn','suspend','lift','ban','report-create','report-resolve','flag','flag-resolve','staff-role','revoke-access'].includes(args.action)) fail('Choose a supported action.');
+    if(!['money','xp','stats','football-tokens','airport-cash','airport-research','airport-diamonds','level','unlock','warn','suspend','lift','ban','report-create','report-resolve','flag','flag-resolve','staff-role','revoke-access','save-field','announcement','password-set'].includes(args.action)) fail('Choose a supported action.');
   }
+  if(input.operation==='preview'&&args.action==='save-field'){text(args.fieldId,'Save control',300);integer(args.saveRevision,0,Number.MAX_SAFE_INTEGER,'Save revision');}
+  if(input.operation==='pulse'&&(!UUID.test(args.leaseId||'')||typeof args.visible!=='boolean'))fail('Use a current gameplay session.');
+  if(input.operation==='dismiss'&&!UUID.test(args.messageId||''))fail('Choose a valid message.');
+  if(input.newPassword!==undefined&&(input.operation!=='commit'||typeof input.newPassword!=='string'||input.newPassword.length<12||input.newPassword.length>128||/[\u0000-\u001f]/.test(input.newPassword)))fail('The new password must contain 12–128 characters.');
   if(input.operation==='commit' && (!UUID.test(input.previewId||'')||!UUID.test(input.requestId||''))) fail('Preview the change before confirming.');
   return {...input,args};
 }
@@ -55,10 +60,23 @@ export function prepareChange(saved,args,actor,now=Date.now()) {
   const privileged=['money','xp','stats','football-tokens','airport-cash','airport-research','airport-diamonds','level','unlock','lift','ban'];
   if(privileged.includes(action)&&actor.role!=='admin') fail('This action requires administrator permission.','PERMISSION_DENIED',403);
   if(['staff-role','revoke-access'].includes(action)&&!actor.owner) fail('Only the House owner can manage staff access.','PERMISSION_DENIED',403);
+  if(['save-field','announcement','password-set'].includes(action)&&(!actor.owner||actor.role!=='admin'))fail('Only the House owner can perform this action.','PERMISSION_DENIED',403);
   const change=(label,before,after)=>changes.push({label,before,after});
   const p=snapshot?.progress;
   if(privileged.slice(0,9).includes(action)&&!snapshot) fail('This player has no cloud save. Ask them to enter the House first.','SAVE_REQUIRED',409);
-  if(action==='money') {
+  if(action==='save-field') {
+    if(!snapshot)fail('This player must enter the House first.','SAVE_REQUIRED',409);
+    let edited;try{edited=editSaveField(saved,args);}catch(error){fail(error.message);}
+    Object.assign(snapshot,edited.snapshot);Object.assign(privateState,edited.privateState);changes.push(...edited.changes);
+  } else if(action==='announcement') {
+    text(args.title,'Message title',100);text(args.message,'Message',1000);integer(args.duration,10,3600,'Display duration');
+    if(!['player','online'].includes(args.audience))fail('Choose one player or everyone online.');
+    change('Audience',null,args.audience==='online'?'Everyone online at publication':saved.profile.username);
+    change('Message',null,args.title+' — '+args.message);change('Active window',null,args.duration+' seconds');
+  } else if(action==='password-set') {
+    if(args.confirmation!==saved.profile.username)fail('Type the player’s exact username to confirm the password change.');
+    change('Password','Not readable','New password set by owner');change('Existing sessions','Signed-in sessions','All terminated');
+  } else if(action==='money') {
     integer(args.amount,1,MAX_BALANCE,'Amount');
     if(!['add','remove'].includes(args.direction)) fail('Choose add or remove.');
     const result=applyDeveloperMoneyChange(snapshot.balance,args.amount,args.direction);
@@ -111,6 +129,6 @@ export function prepareChange(saved,args,actor,now=Date.now()) {
     if(!['player','moderator','admin'].includes(args.role))fail('Choose a supported staff role.');change('Role',saved.profile.role,args.role);
   } else if(action==='revoke-access') change('Panel grants','Existing grants','Revoked');
   if(saved.profile.owner && ['ban','suspend','staff-role'].includes(action)) fail('Owner status must be managed through trusted Supabase setup.','OWNER_PROTECTED',403);
-  return {snapshot,privateState,changes,args,resource:privileged.slice(0,9).includes(action)};
+  return {snapshot,privateState,changes,args,resource:privileged.slice(0,9).includes(action)||action==='save-field'};
 }
 export const unlockCatalog=()=>shop.filter(item=>!item.configurable&&!macbookFamilies[item.id]).map(({id,name,level})=>({id,name,level:level||1}));
