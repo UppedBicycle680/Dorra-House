@@ -151,11 +151,13 @@ export async function checkOnline(fetchImpl = fetch) {
 
     stage = 'Second-device restoration and session replacement';
     const oldDevice = current, savedSnapshot = JSON.stringify(current.snapshot);
-    const second = requireSuccess(await http('Second password login', `${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST', body: {email, password}
-    }), 'Second password login');
-    assert.equal(second.user?.id, report.account.id, 'Second device signed into another account.');
-    current = {...session(second, 'Second password login'), lease: randomUUID(), revision: 0};
+    const second = requireSuccess(await http('Username password login', `${SUPABASE_URL}/functions/v1/dorra-login`, {
+      method: 'POST', body: {username: username.toLowerCase(), password}
+    }), 'Username password login');
+    current = {...session(second, 'Username password login'), lease: randomUUID(), revision: 0};
+    const signedInUser = requireSuccess(await http('Username login identity', `${SUPABASE_URL}/auth/v1/user`, {token: current.token}), 'Username login identity');
+    assert.equal(signedInUser.id, report.account.id, 'Username sign-in returned another account.');
+    passed('Case-insensitive username/password login returns a valid Supabase session');
     const restored = saved(requireSuccess(await api({scope: 'session', action: 'acquire', leaseId: current.lease}), 'Second-device acquire'), 'Second-device acquire');
     assert.equal(restored.revision, oldDevice.revision + 1, 'Second-device acquire did not invalidate the prior revision.');
     assert(JSON.stringify(restored.snapshot) === savedSnapshot, 'Second-device restore changed the cloud save.');

@@ -12,6 +12,27 @@ Apply committed database migrations before deploying `supabase/functions/dorra-a
 
 Email/password authentication must be enabled. Public signups require a unique username (3–24 letters, numbers or underscores).
 
+The Figma login accepts a username (case-insensitive) or an existing email address.
+Username sign-in calls `dorra-login`, which resolves the private profile's user ID,
+looks up its current email through the server-only Auth admin API, and verifies the
+password with Supabase Auth. The browser stores the returned session through the
+existing Auth client, so token refresh and gameplay leases use the same account.
+No username-to-email lookup is exposed to browsers. Recovery and confirmation
+resends continue to use email.
+
+Before publishing this login, apply `20261008014539_username_login.sql` and deploy
+`supabase/functions/dorra-login` with `verify_jwt = false`. This endpoint must accept
+requests before a user has a JWT; the handler authenticates the supplied password.
+Keep `dorra-api` JWT verification enabled. The new lookup RPC is `SECURITY INVOKER`
+and executable only by `service_role`. Private RLS-protected attempt counters limit
+requests to 10 per username, 30 per hashed IP and 100 globally per minute; counters
+older than ten minutes are removed during later attempts. The IP bucket is defense
+in depth; the global and username limits also apply if an IP header is spoofed.
+
+The login UI uses local Manrope font files and the original Figma SVG assets, with
+a one-time staggered entrance and a static reduced-motion layout. Pending and
+success states follow actual Auth responses rather than prototype delays.
+
 For the requested Alpha without a mail provider, turn off **Confirm email** in Authentication → Sign In / Providers → Email. The frontend also supports confirmation if it is enabled later, but public email delivery needs a configured SMTP provider. Supabase’s built-in email sender has delivery restrictions and is unsuitable for unrestricted public registration.
 
 Set the Auth Site URL to `https://uppedbicycle680.github.io/Dorra-House/` and allow redirects to `https://uppedbicycle680.github.io/Dorra-House/login.html*`. For development, also allow `http://localhost:4173/Dorra-House/login.html*`.
