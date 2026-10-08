@@ -1,3 +1,87 @@
+# Dorra House estate workspace design QA
+
+final result: passed
+
+Selected direction: option 1, Estate Workspace. Source: editable Figma desktop
+29:19 and mobile 29:20 in TUbK2IFNYYRcH8lCX57e5L. Local implementation:
+http://localhost:4173/Dorra-House/index.html, signed-in first owner, Week 1,
+$5,000, zero operating venues, no collected income.
+
+## Comparison evidence
+
+Source and rendered implementation were placed together in the same comparison
+input, then inspected. Evidence directory on the implementation host:
+C:/Users/masonz28/.codex/visualizations/2026/10/08/01a11a62-d17b-71d1-9a27-4a12352a10c3/
+
+- estate-qa-desktop-final-comparison.png: Figma left, application right;
+  both 1440×900 at 1×. No desktop scrollbar; document width/height 1440×900.
+- estate-qa-detail-comparison.png: enlarged source/application next-move copy,
+  investment facts, and primary control, inspected for readable detail.
+- estate-qa-mobile-final-comparison.png: source/application full content,
+  normalized to equal 390px width. Browser CSS viewport 390×844; scrollbar
+  leaves 374px raster content width. Figma 390×1790, browser 374×2028 at 1×.
+  Extra mobile height reflects real account/save and Strategic Command controls.
+
+## Iterations and resolved findings
+
+The initial mobile comparison was blocked by P2 mid-word wrapping of Objectives
+in Figma after shared text styles replaced its compact instance font size.
+Restored 11px Manrope on mobile navigation instances and recaptured the source.
+The final combined comparison shows the full label; the implementation also
+keeps the label intact. No remaining P0/P1/P2 visual differences.
+
+Development checks also resolved inherited absolute income-bank positioning,
+fixed corner account/save overlays, oversized shared text styles, and excess
+vertical spacing. The account/save nodes now flow inside the sidebar. The first
+owner overview fits 1440×900, 1366×768, and 1280×720 without scrolling. The mobile
+Games chevron previously escaped its narrow cell; mobile now uses a readable
+10px Manrope label and omits that decorative chevron. All tested sections have
+scrollWidth equal to clientWidth.
+
+## Required fidelity surfaces
+
+- Fonts/typography: Manrope interface text and Cormorant Garamond headings and
+  numeric summaries. No clipped or mid-word labels in the implementation.
+  Compact laptop typography preserves hierarchy and readable controls.
+- Spacing/layout: compact header and sidebar, four summary values, asymmetric
+  next-move/income-bank columns, then roadmap. Mobile stacks cards naturally.
+  Core opening/collection/week controls stay visible on desktop. Expanded
+  analytics and detailed management content may scroll intentionally.
+- Colors/tokens: dark emerald, ivory, muted supporting text, restrained gold,
+  emerald active state and primary action. Minor surface differences between
+  existing Launch tokens in Figma and estate CSS are acceptable P3 polish.
+- Image quality: same generated Terrace photograph in source and implementation;
+  natural panoramic desktop and tighter mobile crops, sharp and unobstructed.
+  The image is photography only; navigation, copy and controls are native.
+- Copy/content: honest first-owner zero state, actual $5,000 cost and $60/hour
+  base output. Live trading projection remains separately labeled. Bank
+  collection and week closure are separate; no invented graph or mechanics.
+- Icons: reusable official Tabler components/font, consistent outline family.
+  Native global header retains profile/sound/reset controls and its current
+  brand mark. These functional additions to the simplified Figma header are
+  expected; native sidebar also retains the contract count and account controls.
+- Interaction/accessibility: semantic buttons/navigation, current-section state,
+  image alt text, visible keyboard outline, Enter activation, reduced motion,
+  disabled/locked states. Tab from Overview reaches Portfolio and Enter opens it.
+
+## Functional evidence
+
+All seven sections and locked Grand Valet details opened at desktop/mobile sizes.
+Story, VIP Contracts, Office Ledger, and Back to dashboard remained reachable.
+With a disposable Supabase profile: Terrace opening changed $5,000 to $0 and
+created one operating Level 1 venue; collecting its opening advance credited
+$100; closing Week 1 credited $4,032 net, yielding $4,132 and Week 2. Reload
+restored those values and the venue. Hiring Guest service debited $1,200 and
+saved one assigned staff member. No new runtime errors followed the corrected
+renderer. Existing engine/server tests plus the new projected-loss regression
+test passed (75 total); JavaScript check passed (188 modules), build passed.
+
+Implementation checklist: source and rendered comparisons opened; focused
+controls inspected; responsive and keyboard checks completed; real cloud actions
+and reload verified; artwork provenance documented in ESTATE-DESIGN.md.
+
+---
+
 # Dorra House admin design QA
 
 final result: passed
