@@ -94,7 +94,14 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     const page = await context.newPage();
     page.setDefaultTimeout(TIMEOUT);
     page.setDefaultNavigationTimeout(TIMEOUT);
-    page.on('pageerror', () => javascriptErrors.push(true));
+    page.on('pageerror', error => {
+      const text = error.message || '';
+      javascriptErrors.push(/crypto\.randomUUID/.test(text) ? 'RANDOM_UUID_UNAVAILABLE'
+        : /before initialization/.test(text) ? 'TEMPORAL_DEAD_ZONE'
+        : /not defined/.test(text) ? 'UNDEFINED_IDENTIFIER'
+        : /dynamically imported module/.test(text) ? 'MODULE_FETCH_FAILED'
+        : /lock|NavigatorLockAcquireTimeout/i.test(text) ? 'AUTH_LOCK_ERROR' : 'OTHER');
+    });
     page.on('request', request => {
       if (!request.url().startsWith(SUPABASE_URL + '/')) return;
       const authorization = request.headers().authorization || '';
@@ -164,9 +171,12 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
   }
   async function failureDiagnostics() {
     debug.javascriptErrorCount = javascriptErrors.length;
+    debug.javascriptErrorKinds = [...new Set(javascriptErrors)];
     if (!activePage) return;
     try {
-      const pathname = new URL(activePage.url()).pathname;
+      const currentURL = new URL(activePage.url()), pathname = currentURL.pathname;
+      debug.browserRouting = {protocol: currentURL.protocol === 'https:' ? 'https' : currentURL.protocol === 'http:' ? 'http' : 'other',
+        expectedOrigin: currentURL.origin === ORIGIN, hasSearch: !!currentURL.search, hasHash: !!currentURL.hash};
       debug.currentPathname = ASSET_PATHS.has(pathname) || ['/', '/Dorra-House/'].includes(pathname) ? pathname : 'other';
       debug.loginState = await activePage.evaluate(() => {
         const form = document.querySelector('#accountForm'), message = document.querySelector('#accountMessage')?.textContent || '';
@@ -180,7 +190,8 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
           : /password|credentials/i.test(message) ? 'credentials-error' : 'other';
         let stored = null;
         try { stored = JSON.parse(localStorage.getItem('dorra-online-auth') || 'null'); } catch {}
-        return {formPresent: !!form, formValid: form ? form.checkValidity() : null,
+        return {secureContext: window.isSecureContext, randomUUIDAvailable: typeof crypto.randomUUID === 'function',
+          formPresent: !!form, formValid: form ? form.checkValidity() : null,
           submitDisabled: document.querySelector('#submitAccount')?.disabled ?? null, messageKind,
           storedAuthPresent: !!stored, storedAccessTokenPresent: typeof stored?.access_token === 'string', storedUserPresent: !!stored?.user};
       });
@@ -211,6 +222,15 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     const settingsResponse = await fetchImpl(`${SUPABASE_URL}/auth/v1/settings`, {headers: {apikey: SUPABASE_PUBLISHABLE_KEY, Origin: ORIGIN}, signal: AbortSignal.timeout(30000)});
     ensure(settingsResponse.ok && (await settingsResponse.json()).mailer_autoconfirm === true);
     passed('Email auto-confirm verified before any browser signup');
+
+    stage = 'Published HTTPS routing';
+    const routingResponse = await fetchImpl(new URL('login.html', site), {method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(30000)});
+    const routed = new URL(routingResponse.url);
+    debug.publishedRouting = {status: routingResponse.status, protocol: routed.protocol === 'https:' ? 'https' : routed.protocol === 'http:' ? 'http' : 'other',
+      expectedOrigin: routed.origin === ORIGIN, pathname: ASSET_PATHS.has(routed.pathname) ? routed.pathname : 'other'};
+    try { await routingResponse.body?.cancel(); } catch {}
+    ensure(routingResponse.ok && routed.protocol === 'https:' && routed.origin === ORIGIN);
+    passed('Published signup routing remains on the authorized HTTPS origin');
 
     stage = 'Browser startup';
     browser = await launchImpl();
