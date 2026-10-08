@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - scripts/check-online.mjs
       - scripts/check-live-browser.mjs
+      - scripts/ensure-pages-https.mjs
       - ONLINE-ALPHA.md
       - README.md
       - .github/workflows/alpha-validation.yml
@@ -110,6 +111,9 @@ jobs:
     if: needs.deploy.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    permissions:
+      contents: read
+      pages: write
     steps:
       - name: Check out live verification code
         uses: actions/checkout@v4
@@ -118,10 +122,15 @@ jobs:
           sparse-checkout: |
             scripts/check-online.mjs
             scripts/check-live-browser.mjs
+            scripts/ensure-pages-https.mjs
             online-config.js
             package.json
             package-lock.json
           sparse-checkout-cone-mode: false
+      - name: Ensure GitHub Pages enforces HTTPS
+        run: node scripts/ensure-pages-https.mjs
+        env:
+          DORRA_GITHUB_TOKEN: ${{ github.token }}
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -165,4 +174,6 @@ jobs:
           path: |
             work/live-browser-report.json
             work/live-browser-house-*.png
+            work/live-browser-failure.png
+            work/pages-https-report.json
           retention-days: 7
