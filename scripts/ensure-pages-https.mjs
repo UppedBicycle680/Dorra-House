@@ -12,7 +12,7 @@ const ROOT = new URL('../', import.meta.url);
 export async function ensurePagesHttps({token = process.env.DORRA_GITHUB_TOKEN,
   repository = process.env.GITHUB_REPOSITORY, fetchImpl = fetch} = {}) {
   const report = {ok: false, repository: REPOSITORY, startedAt: new Date().toISOString(),
-    outcome: 'CONFIGURATION_ERROR', requests: [], httpsEnforced: null, certificateState: null};
+    outcome: 'CONFIGURATION_ERROR', requests: [], httpsEnforced: null, certificateState: null, pageConfiguration: null};
   const fail = outcome => { report.outcome = outcome; throw new Error(outcome); };
   const request = async (method, body) => {
     const response = await fetchImpl(ENDPOINT, {method, redirect: 'error', signal: AbortSignal.timeout(30000),
@@ -30,12 +30,16 @@ export async function ensurePagesHttps({token = process.env.DORRA_GITHUB_TOKEN,
   const read = async () => {
     const page = await request('GET');
     const address = new URL(page.html_url);
-    if (page.cname || address.hostname !== SITE.hostname || address.pathname !== SITE.pathname
-        || !['http:', 'https:'].includes(address.protocol) || address.username || address.password
-        || address.search || address.hash) fail('UNEXPECTED_PAGES_CONFIGURATION');
+    report.pageConfiguration = {hasCustomDomain: !!page.cname, protocol: ['http:', 'https:'].includes(address.protocol) ? address.protocol : 'other',
+      expectedHostname: address.hostname === SITE.hostname,
+      pathname: /^\/[A-Za-z0-9_-]{0,100}\/?$/.test(address.pathname) ? address.pathname : 'other',
+      hasSearch: !!address.search, hasHash: !!address.hash};
     report.httpsEnforced = page.https_enforced === true;
     const state = page.https_certificate?.state;
     report.certificateState = typeof state === 'string' && /^[a-z_]{1,64}$/.test(state) ? state : null;
+    if (page.cname || address.hostname !== SITE.hostname || address.pathname.replace(/\/$/, '') !== SITE.pathname.replace(/\/$/, '')
+        || !['http:', 'https:'].includes(address.protocol) || address.username || address.password
+        || address.search || address.hash) fail('UNEXPECTED_PAGES_CONFIGURATION');
     return page;
   };
   try {
