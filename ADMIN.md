@@ -26,14 +26,17 @@ storage. The browser retains the existing Supabase Auth session only.
 
 ## Access and roles
 
-- Grants last exactly 30 minutes from redemption, bound to the verified account
-  and Auth session. Requests and polling never extend them.
+- Owner grants have no panel countdown. Other staff grants last exactly 30
+  minutes from redemption. Both are bound to the verified account, Auth session
+  and current shared code. Requests and polling never extend a timed grant.
 - Lock panel, sign-out, account disabling, suspension, ban, role removal, owner
   revocation, deleted Auth sessions and code rotation invalidate access.
 - Moderators create/resolve reports, record/resolve manual flags, warn and
   suspend for 24 hours, 7 days or 30 days. Administrators also change resources
   and progression, lift suspensions and permanently ban players.
-- Only the owner assigns staff roles and revokes all panel grants for an account.
+- Only the owner assigns staff roles, revokes grants, sets new passwords, edits
+  structured save controls across all six modes, sees online players and sends
+  temporary messages. Ordinary administrators retain their resource controls.
 - Public and authenticated browser roles have no private-table grants and
   cannot execute storage or administrative RPCs. The Edge Function verifies
   JWTs with Auth, and the database repeats account/session/role/grant checks.
@@ -67,6 +70,35 @@ Airport edits preserve private RNG and increment the existing career revision.
 Suspension expiry uses database time; every gameplay acquire/read/commit checks
 the same account gate. Suspension expiry automatically releases gameplay.
 
+## Owner controls
+
+Player profiles include a **Save game** tab with bounded controls for House,
+Estate, Story, Football, Airport and Strategic Command. Existing clubs, careers,
+venues and facilities are required; arbitrary snapshots, private outcome data
+and raw JSON editing are unavailable. Reasons, revision checks, previews and
+atomic audit records also apply to these changes.
+
+**Set password** requires the exact current username, a reason and preview,
+then a new 12–128 character password. Supabase stores password hashes; no role
+can retrieve an existing password. The owner may reveal and privately share
+the new chosen password before confirming. The panel clears it before sending
+and never stores it. Successful changes revoke all target Auth sessions and
+panel grants. A server-only keyed HMAC binds retries to the same chosen password;
+failed requests use a durable claim and may be retried with that password.
+Hosted Auth session revocation uses a private routine with an empty search path
+and server-only execution; browser roles cannot access Auth session tables.
+
+**Online players** lists visible game tabs whose authenticated heartbeat is
+within 90 seconds and whose current gameplay lease and Auth session remain
+valid. Heartbeats run every 10 seconds and do not count as gameplay activity.
+Use Refresh to update the list.
+
+**Messages** accepts plain text and an active window of 10–3600 seconds.
+Messages target one player or a snapshot of everyone online at publication.
+Recipients receive messages on their next heartbeat, can dismiss them, and
+the popup closes at expiry. Hidden tabs and expired messages do not display
+popups. Message text is rendered literally.
+
 ## Metrics and history
 
 - Active players: distinct accounts with an accepted gameplay command commit in
@@ -88,7 +120,8 @@ tokens or complete private snapshots are returned by admin operations.
 ## Verification
 
 Run `npm test`, `npm run check`, `npm run test:browser`, and `npm run build`.
-Run `tests/admin-database.sql` in the trusted SQL editor for rollback-only
+Run `tests/owner-database.sql` (before designating a production owner) and
+`tests/admin-database.sql` in the trusted SQL editor for rollback-only
 database fixtures. It leaves no fixture accounts, grants, reports or saves.
 `scripts/check-admin-live.mjs` verifies published assets, redirects and anonymous
 API denial without credentials. Browser fixture metrics exist only in tests.

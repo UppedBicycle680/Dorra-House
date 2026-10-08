@@ -168,3 +168,13 @@ resource deltas are required by the production brief. No P0/P1/P2 issue remains.
 - [x] 1440×1024 and 1280×800 layout, scrolling and readable contrast.
 - [x] Required browser, gameplay and database verification.
 - [x] Owner setup and backend dependencies documented separately from UI.
+
+## Owner extension verification
+
+Owner access has no panel countdown and remains account/session/code-bound.
+Browser checks cover owner-only routes, password preview/clearing, non-owner
+restrictions, message escaping, dismissal and expiry. Live Supabase checks cover
+all six structured save domains, stale revisions, online presence, individual
+and online-audience messages, password changes, replay and session revocation.
+The full suite passes 79 unit tests and 17 browser tests. Production metrics
+continue to exclude heartbeats and all administrative changes.

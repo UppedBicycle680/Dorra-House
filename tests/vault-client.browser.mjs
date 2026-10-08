@@ -46,6 +46,7 @@ test('real cloud client queues intents, replays lost responses and revokes the o
         if (url.pathname === '/auth/v1/logout') return route.fulfill({status: 204, headers: responseHeaders, body: ''});
         throw new Error('Unexpected Auth transport ' + url.pathname);
       }
+      if(url.pathname==='/functions/v1/dorra-admin'){const input=request.postDataJSON();assert.equal(input.operation,'pulse');assert.equal(input.args.leaseId,saved.leaseId);return reply({messages:[],serverNow:new Date().toISOString()});}
       assert.equal(url.pathname, '/functions/v1/dorra-api');
       assert.equal(request.method(), 'POST');
       assert.equal(request.headers().authorization, 'Bearer ' + token);

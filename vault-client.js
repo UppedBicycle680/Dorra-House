@@ -1,5 +1,6 @@
 import { supabase, requireAccount, signOut } from './auth-client.js';
 import { API_URL, SUPABASE_PUBLISHABLE_KEY } from './online-config.js';
+import {startPlayerPulse} from './player-notices.js';
 
 // Local storage holds preferences and Auth tokens, never gameplay authority.
 export const localGet = key => localStorage.getItem(key);
@@ -50,6 +51,7 @@ export async function createVaultClient(options = {}) {
   notify('loading');
   try { adopt(await request({scope:'session',action:'acquire',leaseId})); notify('saved'); }
   catch (error) { notify('error', error); throw error; }
+  const stopPulse=startPlayerPulse({leaseId,onEnded:error=>{blocked=true;notify('error',error);window.dispatchEvent(new CustomEvent('dorra-session-ended',{detail:{error}}));}});
   function dispatch(scope, action, args = {}) {
     const input = structuredClone(args), requestId = input.requestId || crypto.randomUUID();
     notify('saving');
@@ -74,7 +76,7 @@ export async function createVaultClient(options = {}) {
     commit:async () => { throw new Error('Browser save uploads are disabled. Use a server-approved gameplay action.'); },
     airportLoad:() => airport('load'),airportCommand:payload => airport('command',payload),withdrawAirportCash:payload => airport('withdraw',payload),
     flush:async () => { await queue; if(lastError)throw lastError; },getRevision:() => revision,
-    close() { closed = true; }
+    close() { closed = true; stopPulse(); }
   });
 }
 export default createVaultClient;
