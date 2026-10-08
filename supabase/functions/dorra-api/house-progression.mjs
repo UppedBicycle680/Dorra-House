@@ -264,7 +264,7 @@ export async function reduceHouseProgression(snapshot, privateState, action, arg
       e.lifetimeEarned += amount;
       e.lastClaimAt = now;
       credit(snapshot, amount);
-      recordOfficeTransaction(snapshot, 'income', amount, 'Casino Empire collection', now);
+      recordOfficeTransaction(snapshot, 'income', amount, 'House Empire collection', now);
       result = {amount, message: `$${amount} Empire income collected.`};
     } else if (action === 'estate-upgrade') {
       const {venue, entry: existing} = venueFor(args, p), entry = existing || {level: 0, purchasedAt: 0, manager: false, focus: 'balanced'};
@@ -346,7 +346,7 @@ export async function reduceHouseProgression(snapshot, privateState, action, arg
       const operation = advanceEmpireWeek(p);
       demand(operation.ok, operation.reason || 'The business week cannot close.');
       snapshot.balance = Math.min(MAX_BALANCE, Math.max(0, snapshot.balance + operation.cashflow));
-      recordOfficeTransaction(snapshot, 'trading', operation.cashflow, `Casino Empire · Week ${e.week === 1 ? 52 : e.week - 1}`, now);
+      recordOfficeTransaction(snapshot, 'trading', operation.cashflow, `House Empire · Week ${e.week === 1 ? 52 : e.week - 1}`, now);
       result = {cashflow: operation.cashflow, event: operation.event, message: `Week closed: $${operation.cashflow} net.${operation.event ? ' A business decision is waiting.' : ''}`};
     } else if (action === 'estate-headquarters-upgrade') {
       const upgradeId = identifier(args, 'upgradeId', 'upgrade', 'id'), upgrade = EMPIRE_HEADQUARTERS_UPGRADES.find(item => item.id === upgradeId), level = e.headquarters[upgradeId] || 0;

@@ -20,7 +20,7 @@ export async function reduceHouse(snapshot,privateState,action,args={},now=Date.
  if(action==='view'){h.highCard??=deck().pop();result={highCard:h.highCard};}
  else if(action==='casino'){
   const game=String(args.game||''),move=String(args.move||'play');let g=h.rounds[game];const names={bj:'Blackjack',poker:'Three Card Poker',holdem:'Texas Hold’em',videopoker:'Video Poker',roulette:'Roulette',dice:'Lucky Dice',baccarat:'Baccarat',highlow:'High–Low',sicbo:'Sic Bo',racing:'Horse Racing',monte:'Three Card Monte',memory:'Memory Match'};
-  need(names[game]||game==='slots','Unknown casino table.');
+  need(names[game]||game==='slots','Unknown house table.');
   if(['bj','poker','holdem','videopoker','monte','memory'].includes(game)&&move==='start'){
    need(!g||g.finished,'Finish your current round first.');const bet=wager(snapshot,game,args.bet);g={bet,phase:'play',finished:false,deck:deck()};h.rounds[game]=g;
    if(game==='bj'){g.dealer=[g.deck.pop(),g.deck.pop()];g.player=[g.deck.pop(),g.deck.pop()];g.hit=false;if(score(g.player)===21)result=finish(snapshot,h,g,game,names[game],score(g.dealer)!==21,score(g.dealer)===21?'Push — wager returned.':'Blackjack — paid 3 to 2!',score(g.dealer)===21?bet:Math.floor(bet*2.5),now);else result={game,message:'Hit, stand, or double down.',round:publicRound(game,g)}}
