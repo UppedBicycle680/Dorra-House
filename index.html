@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="mac-responsive.css?v=20260807-mac2">
   <link rel="stylesheet" href="online-shell.css">
   <link rel="stylesheet" href="arrival.css">
+  <link rel="stylesheet" href="vendor/club-journal/icons/tabler-icons.min.css">
+  <link rel="stylesheet" href="estate-workspace.css">
 </head>
 <body>
   <script type="module" src="online-shell.js"></script>
@@ -181,10 +183,16 @@
       </section>
 
       <section id="progressionHub" class="progression-hub" hidden aria-labelledby="progressionTitle">
-        <header class="progression-hero">
+        <div class="estate-workspace-layout"><aside class="estate-sidebar"><small class="estate-eyebrow">Estate</small><nav id="estateManagementNav" aria-label="Estate management"><button data-estate-view="overview"><i class="ti ti-home" aria-hidden="true"></i>Overview</button><button data-estate-view="portfolio"><i class="ti ti-building" aria-hidden="true"></i>Portfolio</button><button data-estate-view="operations"><i class="ti ti-settings" aria-hidden="true"></i>Operations</button><button data-estate-view="upgrades"><i class="ti ti-chart-bar" aria-hidden="true"></i>Upgrades</button><button data-estate-view="marketing"><i class="ti ti-speakerphone" aria-hidden="true"></i>Marketing</button><button data-estate-view="finance"><i class="ti ti-coins" aria-hidden="true"></i>Finance</button><button data-estate-view="objectives"><i class="ti ti-target" aria-hidden="true"></i>Objectives</button></nav><small class="estate-eyebrow estate-house-label">House</small>        <nav class="progression-tabs" aria-label="Dorra Office sections">
+          <button id="empireTab" class="active" data-progression-tab="empire" aria-controls="empirePanel"><i class="ti ti-building" aria-hidden="true"></i>Estate</button>
+          <a class="progression-external" href="war-simulation.html"><i class="ti ti-external-link" aria-hidden="true"></i>Strategic Command <b aria-hidden="true">↗</b></a>
+          <button id="contractsTab" data-progression-tab="contracts" aria-controls="contractsPanel"><i class="ti ti-users" aria-hidden="true"></i>VIP Contracts <b id="contractBadge">0</b></button>
+          <button id="storyTab" data-progression-tab="story" aria-controls="storyPanel"><i class="ti ti-book" aria-hidden="true"></i>Story</button>
+          <button id="officeTab" data-progression-tab="office" aria-controls="officePanel"><i class="ti ti-file-text" aria-hidden="true"></i>Office Ledger</button>
+        </nav><button class="estate-back" id="progressionBackBtn"><i class="ti ti-arrow-left" aria-hidden="true"></i>Back to dashboard</button></aside><div class="estate-workspace-content">        <header class="progression-hero">
           <img src="assets/progression/dorra-legacy-office.png" alt="Dorra House directors planning the house estate from a rooftop office" loading="lazy" decoding="async">
           <div class="progression-hero-shade"></div>
-          <div class="progression-hero-copy"><small id="progressionEyebrow">House Empire</small><h1 id="progressionTitle">Run the house. Build the legacy.</h1><p id="progressionLead">Develop venues, grow your income, and expand Dorra House.</p><button class="room-back" id="progressionBackBtn">Back to dashboard</button></div>
+          <div class="progression-hero-copy"><small id="progressionEyebrow">House Empire</small><h1 id="progressionTitle">Run the house. Build the legacy.</h1><p id="progressionLead">Develop venues, grow your income, and expand Dorra House.</p></div>
         </header>
         <div class="progression-status" aria-label="Dorra progression overview">
           <div><span>Empire income</span><strong id="empireIncomeRate">$0 / hour</strong></div>
@@ -192,18 +200,13 @@
           <div><span>VIP standing</span><strong id="vipStanding">Prospect</strong></div>
           <div><span>Story progress</span><strong id="storyProgress">0 / 8</strong></div>
         </div>
-        <nav class="progression-tabs" aria-label="Dorra Office sections" role="tablist">
-          <button id="empireTab" class="active" data-progression-tab="empire" role="tab" aria-controls="empirePanel" aria-selected="true">House Empire</button>
-          <a class="progression-external" href="war-simulation.html">Strategic Command <b aria-hidden="true">↗</b></a>
-          <button id="contractsTab" data-progression-tab="contracts" role="tab" aria-controls="contractsPanel" aria-selected="false">VIP Contracts <b id="contractBadge">0</b></button>
-          <button id="storyTab" data-progression-tab="story" role="tab" aria-controls="storyPanel" aria-selected="false">Story Mode</button>
-          <button id="officeTab" data-progression-tab="office" role="tab" aria-controls="officePanel" aria-selected="false">Office Ledger</button>
-        </nav>
-        <section id="empirePanel" class="progression-panel" role="tabpanel" aria-labelledby="empireTab"></section>
+
+        <section id="empirePanel" class="progression-panel" role="region" aria-labelledby="empireTab"></section>
         <section id="campaignPanel" class="progression-panel campaign-panel" hidden aria-hidden="true"></section>
-        <section id="contractsPanel" class="progression-panel" role="tabpanel" aria-labelledby="contractsTab" hidden></section>
-        <section id="storyPanel" class="progression-panel" role="tabpanel" aria-labelledby="storyTab" hidden></section>
-        <section id="officePanel" class="progression-panel" role="tabpanel" aria-labelledby="officeTab" hidden></section>
+        <section id="contractsPanel" class="progression-panel" role="region" aria-labelledby="contractsTab" hidden></section>
+        <section id="storyPanel" class="progression-panel" role="region" aria-labelledby="storyTab" hidden></section>
+        <section id="officePanel" class="progression-panel" role="region" aria-labelledby="officeTab" hidden></section>
+        </div></div>
       </section>
 
       <section id="boutique" class="boutique-view" hidden>
