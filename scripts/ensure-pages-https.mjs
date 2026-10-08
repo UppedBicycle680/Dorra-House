@@ -38,6 +38,7 @@ export async function ensurePagesHttps({token = process.env.DORRA_GITHUB_TOKEN,
     report.httpsEnforced = page.https_enforced === true;
     const state = page.https_certificate?.state;
     report.certificateState = typeof state === 'string' && /^[a-z_]{1,64}$/.test(state) ? state : null;
+    if (!page.cname && address.hostname !== SITE.hostname) fail('INHERITED_CUSTOM_DOMAIN');
     if (page.cname || address.hostname !== SITE.hostname || address.pathname.replace(/\/$/, '') !== SITE.pathname.replace(/\/$/, '')
         || !['http:', 'https:'].includes(address.protocol) || address.username || address.password
         || address.search || address.hash) fail('UNEXPECTED_PAGES_CONFIGURATION');
