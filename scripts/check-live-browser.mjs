@@ -11,6 +11,17 @@ const DEFAULT_SITE = `${ORIGIN}/Dorra-House/`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TIMEOUT = 90000;
 const ensure = condition => { if (!condition) throw new Error('Live browser verification failed.'); };
+const ASSET_PATHS = new Map(['login.html', 'login.js', 'login.css', 'auth-client.js', 'online-config.js', 'vendor/supabase/supabase.js',
+  'index.html', 'app.js', 'vault-client.js', 'online-shell.js', 'online-shell.css', 'styles.css', 'progression-engine.js', 'campaign-engine.js',
+  'idle-airport.html', 'airport/ui.mjs', 'football-manager.html', 'football/football-ui.js', 'war-simulation.html', 'war-simulation.js', 'campaign-controller.js']
+  .map(asset => [`/Dorra-House/${asset}`, asset]));
+const AUTH_ACTIONS = new Set(['signup', 'token', 'user', 'logout', 'recover', 'resend']);
+const SCOPES = new Set(['session', 'house', 'airport', 'football', 'campaign']);
+const ACTIONS = new Set(['acquire', 'refresh', 'view', 'arrival', 'daily-reward', 'settings', 'load', 'command', 'withdraw', 'startClub', 'advanceWeek', 'create', 'end-turn']);
+const CODES = new Set(['email_not_confirmed', 'invalid_credentials', 'bad_jwt', 'refresh_token_not_found', 'refresh_token_already_used',
+  'signup_disabled', 'user_already_exists', 'email_address_invalid', 'email_address_not_authorized', 'over_email_send_rate_limit',
+  'over_request_rate_limit', 'unexpected_failure', 'SESSION_REPLACED', 'AUTH_SESSION_ENDED', 'UNAUTHORIZED', 'ACCOUNT_DISABLED',
+  'STALE_REVISION', 'REQUEST_REUSED', 'RATE_LIMIT', 'SAVE_REQUIRED', 'STORAGE_ERROR', 'ACTION_REJECTED', 'INVALID_ARGUMENTS', 'ORIGIN_DENIED']);
 
 async function launchBrowser() {
   let executablePath = process.env.DORRA_CHROMIUM_PATH;
@@ -30,9 +41,12 @@ async function launchBrowser() {
 // the defaults. Credentials, request bodies and browser logs stay in memory.
 export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBrowser} = {}) {
   const report = {ok: false, checks: [], account: null, startedAt: new Date().toISOString()};
-  const tokens = new Set(), pages = [], javascriptErrors = [];
-  let stage = 'Published site URL', browser = null, email = null, password = null;
+  const tokens = new Set(), pages = [], javascriptErrors = [], responseTasks = new Set();
+  const debug = {lastAuthStatus: null, currentPathname: null, javascriptErrorCount: 0, authResponseShape: null, sdkSessionShape: null, loginState: null, observations: []};
+  let stage = 'Published site URL', browser = null, email = null, password = null, expectedUsername = null, activePage = null;
   const passed = name => { report.checks.push(name); console.log(`Passed: ${name}`); };
+  const observe = value => { debug.observations.push(value); if (debug.observations.length > 45) debug.observations.shift(); };
+  const knownCode = value => typeof value === 'string' ? (CODES.has(value) ? value : 'other') : null;
   const visible = (page, selector) => page.locator(selector).waitFor({state: 'visible', timeout: TIMEOUT});
   const hidden = (page, selector) => page.locator(selector).waitFor({state: 'hidden', timeout: TIMEOUT});
   const exactText = (page, selector, text) => page.waitForFunction(({selector, text}) => document.querySelector(selector)?.textContent.trim() === text, {selector, text}, {timeout: TIMEOUT});
@@ -55,6 +69,7 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     return value;
   }
   async function perform(page, scope, action, trigger, expectedStatus = 200, predicate = null) {
+    activePage = page;
     const pending = waitAPI(page, scope, action, predicate);
     await trigger();
     return outcome(pending, expectedStatus);
@@ -65,12 +80,15 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     return pending;
   }
   async function accountSession(page) {
-    return page.evaluate(async () => {
+    const session = await page.evaluate(async () => {
       const {supabase} = await import(new URL('auth-client.js', location.href).href);
       const {data, error} = await supabase.auth.getSession();
       if (error || !data.session) return null;
       return {id: data.session.user?.id, username: data.session.user?.user_metadata?.username, accessToken: data.session.access_token};
     });
+    debug.sdkSessionShape = {hasSession: !!session, hasValidId: UUID.test(session?.id || ''), usernameMatches: session?.username === expectedUsername,
+      hasAccessToken: typeof session?.accessToken === 'string'};
+    return session;
   }
   async function newPage(context) {
     const page = await context.newPage();
@@ -82,13 +100,109 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
       const authorization = request.headers().authorization || '';
       if (authorization.startsWith('Bearer ey')) tokens.add(authorization.slice(7));
     });
+    page.on('response', response => {
+      const task = (async () => {
+        const url = new URL(response.url()), status = response.status();
+        if (url.origin === ORIGIN && ASSET_PATHS.has(url.pathname)) {
+          observe({kind: 'asset', asset: ASSET_PATHS.get(url.pathname), status});
+          return;
+        }
+        if (url.origin !== SUPABASE_URL) return;
+        const authAction = url.pathname.startsWith('/auth/v1/') ? url.pathname.slice('/auth/v1/'.length) : null;
+        if (AUTH_ACTIONS.has(authAction) && response.request().method() !== 'OPTIONS') {
+          debug.lastAuthStatus = status;
+          const entry = {kind: 'auth', action: authAction, status, code: null};
+          observe(entry);
+          // Begin reading immediately at the response event, before a successful
+          // signup redirects. Copy only the cleanup identity and tokens in memory.
+          try {
+            const value = await response.json();
+            entry.code = knownCode(value?.error_code || value?.code);
+            if (authAction === 'signup' || authAction === 'token') {
+              const authUser = value?.user || (UUID.test(value?.id || '') ? value : null);
+              debug.authResponseShape = {readable: true, hasUser: !!authUser, hasValidId: UUID.test(authUser?.id || ''),
+                hasAccessToken: typeof value?.access_token === 'string', hasRefreshToken: typeof value?.refresh_token === 'string', hasSession: !!value?.session};
+              if (typeof value?.access_token === 'string') tokens.add(value.access_token);
+              if (authAction === 'signup' && UUID.test(authUser?.id || '') && authUser?.user_metadata?.username === expectedUsername) {
+                report.account = {id: authUser.id, username: expectedUsername};
+              }
+            }
+          } catch {
+            if (authAction === 'signup' || authAction === 'token') debug.authResponseShape = {readable: false};
+          }
+          return;
+        }
+        if (url.href.split('?')[0] === API_URL && response.request().method() === 'POST') {
+          let body;
+          try { body = response.request().postDataJSON(); } catch { return; }
+          if (!SCOPES.has(body?.scope) || !ACTIONS.has(body?.action)) return;
+          const entry = {kind: 'gameplay', scope: body.scope, action: body.action, status, code: null};
+          observe(entry);
+          if (status >= 400) { try { entry.code = knownCode((await response.json())?.code); } catch {} }
+        }
+      })().catch(() => {});
+      responseTasks.add(task);
+      void task.finally(() => responseTasks.delete(task));
+    });
+    page.on('requestfailed', request => {
+      try {
+        const url = new URL(request.url());
+        if (url.origin === ORIGIN && ASSET_PATHS.has(url.pathname)) observe({kind: 'asset-request-failed', asset: ASSET_PATHS.get(url.pathname)});
+        else if (url.origin === SUPABASE_URL && AUTH_ACTIONS.has(url.pathname.slice('/auth/v1/'.length))) {
+          observe({kind: 'auth-request-failed', action: url.pathname.slice('/auth/v1/'.length)});
+        } else if (url.href.split('?')[0] === API_URL) observe({kind: 'gameplay-request-failed'});
+      } catch {}
+    });
     pages.push(page);
+    activePage = page;
     return page;
   }
   async function screenshot(page, filename) {
     if (process.env.DORRA_BROWSER_SCREENSHOTS !== '1') return;
     await mkdir(path.join(ROOT, 'work'), {recursive: true});
     await page.screenshot({path: path.join(ROOT, 'work', filename), fullPage: false});
+  }
+  async function failureDiagnostics() {
+    debug.javascriptErrorCount = javascriptErrors.length;
+    if (!activePage) return;
+    try {
+      const pathname = new URL(activePage.url()).pathname;
+      debug.currentPathname = ASSET_PATHS.has(pathname) || ['/', '/Dorra-House/'].includes(pathname) ? pathname : 'other';
+      debug.loginState = await activePage.evaluate(() => {
+        const form = document.querySelector('#accountForm'), message = document.querySelector('#accountMessage')?.textContent || '';
+        let messageKind = 'empty';
+        if (message) messageKind = /lock|acquir.*tim|NavigatorLockAcquireTimeout/i.test(message) ? 'auth-lock-error'
+          : /confirm|confirmation/i.test(message) ? 'email-confirmation'
+          : /api.?key|publishable|anon.?key/i.test(message) ? 'key-error'
+          : /token|JWT/i.test(message) ? 'token-error'
+          : /fetch|network/i.test(message) ? 'network-error'
+          : /username|database.*user/i.test(message) ? 'username-error'
+          : /password|credentials/i.test(message) ? 'credentials-error' : 'other';
+        let stored = null;
+        try { stored = JSON.parse(localStorage.getItem('dorra-online-auth') || 'null'); } catch {}
+        return {formPresent: !!form, formValid: form ? form.checkValidity() : null,
+          submitDisabled: document.querySelector('#submitAccount')?.disabled ?? null, messageKind,
+          storedAuthPresent: !!stored, storedAccessTokenPresent: typeof stored?.access_token === 'string', storedUserPresent: !!stored?.user};
+      });
+    } catch {}
+    // Remove fields and arbitrary account messages before capturing a failure.
+    // If sanitization cannot complete, omit the screenshot rather than risk data.
+    try {
+      await activePage.evaluate(() => {
+        for (const field of document.querySelectorAll('input,textarea,[contenteditable]')) {
+          if ('value' in field) field.value = '';
+          field.removeAttribute('value');
+          if (field.hasAttribute('contenteditable')) field.textContent = '';
+          field.style.setProperty('visibility', 'hidden', 'important');
+        }
+        for (const selector of ['#usernameField', '#emailField', '#passwordField', '#repeatField', '#accountMessage']) {
+          const element = document.querySelector(selector);
+          if (element) { element.textContent = ''; element.style.setProperty('visibility', 'hidden', 'important'); }
+        }
+      });
+      await mkdir(path.join(ROOT, 'work'), {recursive: true});
+      await activePage.screenshot({path: path.join(ROOT, 'work', 'live-browser-failure.png'), fullPage: false, timeout: 10000});
+    } catch {}
   }
   try {
     const site = new URL(process.env.DORRA_SITE_URL || DEFAULT_SITE);
@@ -103,30 +217,45 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     const desktopContext = await browser.newContext({viewport: {width: 1440, height: 1000}, locale: 'en-US', timezoneId: 'UTC', reducedMotion: 'reduce'});
     const desktop = await newPage(desktopContext);
     const suffix = randomBytes(6).toString('hex'), username = `AlphaQA_${suffix}`;
+    expectedUsername = username;
     email = `alpha.qa.${suffix}@example.com`;
     password = `Aa1!${randomBytes(30).toString('base64url')}`;
-    stage = 'Published signup UI';
+    stage = 'Signup page navigation';
     await desktop.goto(new URL('login.html', site).href, {waitUntil: 'domcontentloaded'});
+    stage = 'Signup page identity';
     ensure((await desktop.title()).includes('Dorra House'));
+    stage = 'Signup handler readiness';
     await desktop.waitForFunction(() => typeof document.querySelector('#signUpTab')?.onclick === 'function', null, {timeout: TIMEOUT});
+    stage = 'Signup mode selection';
     await desktop.locator('#signUpTab').click();
+    stage = 'Signup fields filling';
     await desktop.locator('#username').fill(username);
     await desktop.locator('#email').fill(email);
     await desktop.locator('#password').fill(password);
     await desktop.locator('#repeatPassword').fill(password);
     const signupPending = waitAuth(desktop, 'signup'), firstHousePending = waitAPI(desktop, 'house', 'view');
+    stage = 'Signup submission';
     await desktop.locator('#submitAccount').click();
+    stage = 'Signup Auth response';
     const signupResponse = await signupPending;
+    stage = 'Signup Auth status';
     ensure(signupResponse.ok());
+    stage = 'Signup redirect to House';
     await desktop.waitForURL(new URL('index.html', site).href, {waitUntil: 'domcontentloaded', timeout: TIMEOUT});
+    stage = 'Signup SDK session';
     const signup = await accountSession(desktop);
     if (typeof signup?.accessToken === 'string') tokens.add(signup.accessToken);
     if (UUID.test(signup?.id || '')) report.account = {id: signup.id, username};
     ensure(report.account && signup.username === username);
+    stage = 'First House view response';
     const initialHouse = await outcome(firstHousePending);
+    stage = 'First House wallet';
     ensure(initialHouse.snapshot.balance === 1000);
+    stage = 'First House arrival rendering';
     await visible(desktop, '#arrivalScreen');
+    stage = 'First House account rendering';
     await exactText(desktop, '[data-online-username]', username);
+    stage = 'First House JavaScript health';
     ensure(javascriptErrors.length === 0);
     passed('Real published email/password/username signup opens the desktop House');
 
@@ -156,18 +285,26 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     stage = 'Mobile password login and cloud restoration';
     const mobileContext = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Australia/Sydney', reducedMotion: 'reduce'});
     const mobile = await newPage(mobileContext);
+    stage = 'Mobile login page navigation';
     await mobile.goto(new URL('login.html', site).href, {waitUntil: 'domcontentloaded'});
+    stage = 'Mobile login handler readiness';
     await mobile.waitForFunction(() => typeof document.querySelector('#accountForm')?.onsubmit === 'function', null, {timeout: TIMEOUT});
     await mobile.locator('#email').fill(email);
     await mobile.locator('#password').fill(password);
     const loginPending = waitAuth(mobile, 'token'), secondHousePending = waitAPI(mobile, 'house', 'view');
+    stage = 'Mobile login submission';
     await mobile.locator('#submitAccount').click();
+    stage = 'Mobile login Auth response';
     const loginResponse = await loginPending;
+    stage = 'Mobile login Auth status';
     ensure(loginResponse.ok());
+    stage = 'Mobile login redirect';
     await mobile.waitForURL(new URL('index.html', site).href, {waitUntil: 'domcontentloaded', timeout: TIMEOUT});
+    stage = 'Mobile login SDK session';
     const login = await accountSession(mobile);
     if (typeof login?.accessToken === 'string') tokens.add(login.accessToken);
     ensure(login?.id === report.account.id && login.username === username);
+    stage = 'Mobile House view response';
     const restoredHouse = await outcome(secondHousePending);
     ensure(restoredHouse.snapshot.balance === savedBalance && restoredHouse.snapshot.progress?.rewardDate === rewardDate && restoredHouse.snapshot.progress?.arrival?.complete === true);
     await exactText(mobile, '#balance', '$1,250');
@@ -284,6 +421,8 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     report.failure = {stage, message: stage === 'Email confirmation guard'
       ? 'Email auto-confirm could not be verified. No signup or email was attempted.'
       : 'The published browser check did not complete this stage.'};
+    await failureDiagnostics();
+    report.debug = debug;
   } finally {
     let signedOut = true;
     for (const [index, token] of [...tokens].reverse().entries()) {
