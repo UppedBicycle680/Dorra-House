@@ -32,6 +32,7 @@ export async function ensurePagesHttps({token = process.env.DORRA_GITHUB_TOKEN,
     const address = new URL(page.html_url);
     report.pageConfiguration = {hasCustomDomain: !!page.cname, protocol: ['http:', 'https:'].includes(address.protocol) ? address.protocol : 'other',
       expectedHostname: address.hostname === SITE.hostname,
+      hostname: /^[a-z0-9.-]{1,253}$/.test(address.hostname) ? address.hostname : 'other',
       pathname: /^\/[A-Za-z0-9_-]{0,100}\/?$/.test(address.pathname) ? address.pathname : 'other',
       hasSearch: !!address.search, hasHash: !!address.hash};
     report.httpsEnforced = page.https_enforced === true;

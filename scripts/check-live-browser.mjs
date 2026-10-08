@@ -90,6 +90,17 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
       hasAccessToken: typeof session?.accessToken === 'string'};
     return session;
   }
+  async function requireSecureBrowser(page, screen) {
+    const routing = await page.evaluate(expectedOrigin => ({
+      protocol: location.protocol === 'https:' ? 'https' : location.protocol === 'http:' ? 'http' : 'other',
+      expectedOrigin: location.origin === expectedOrigin,
+      secureContext: window.isSecureContext === true,
+      randomUUIDAvailable: typeof globalThis.crypto?.randomUUID === 'function'
+    }), ORIGIN);
+    debug.credentialContexts ??= [];
+    debug.credentialContexts.push({screen, ...routing});
+    ensure(routing.protocol === 'https' && routing.expectedOrigin && routing.secureContext && routing.randomUUIDAvailable);
+  }
   async function newPage(context) {
     const page = await context.newPage();
     page.setDefaultTimeout(TIMEOUT);
@@ -223,8 +234,26 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     ensure(settingsResponse.ok && (await settingsResponse.json()).mailer_autoconfirm === true);
     passed('Email auto-confirm verified before any browser signup');
 
+    stage = 'Published HTTPS redirect headers';
+    const loginURL = new URL('login.html', site);
+    const initialRoutingResponse = await fetchImpl(loginURL, {method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(30000)});
+    debug.initialPublishedRouting = {status: initialRoutingResponse.status, location: null};
+    const locationHeader = initialRoutingResponse.headers.get('location');
+    if (locationHeader) {
+      try {
+        const target = new URL(locationHeader, loginURL);
+        debug.initialPublishedRouting.location = {
+          protocol: target.protocol === 'https:' ? 'https' : target.protocol === 'http:' ? 'http' : 'other',
+          expectedOrigin: target.origin === ORIGIN,
+          pathname: ASSET_PATHS.has(target.pathname) || ['/', '/Dorra-House/'].includes(target.pathname) ? target.pathname : 'other',
+          hasSearch: !!target.search, hasHash: !!target.hash
+        };
+      } catch { debug.initialPublishedRouting.location = {valid: false}; }
+    }
+    try { await initialRoutingResponse.body?.cancel(); } catch {}
+
     stage = 'Published HTTPS routing';
-    const routingResponse = await fetchImpl(new URL('login.html', site), {method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(30000)});
+    const routingResponse = await fetchImpl(loginURL, {method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(30000)});
     const routed = new URL(routingResponse.url);
     debug.publishedRouting = {status: routingResponse.status, protocol: routed.protocol === 'https:' ? 'https' : routed.protocol === 'http:' ? 'http' : 'other',
       expectedOrigin: routed.origin === ORIGIN, pathname: ASSET_PATHS.has(routed.pathname) ? routed.pathname : 'other'};
@@ -246,6 +275,8 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     ensure((await desktop.title()).includes('Dorra House'));
     stage = 'Signup handler readiness';
     await desktop.waitForFunction(() => typeof document.querySelector('#signUpTab')?.onclick === 'function', null, {timeout: TIMEOUT});
+    stage = 'Signup secure browser context';
+    await requireSecureBrowser(desktop, 'desktop-signup');
     stage = 'Signup mode selection';
     await desktop.locator('#signUpTab').click();
     stage = 'Signup fields filling';
@@ -309,6 +340,8 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await mobile.goto(new URL('login.html', site).href, {waitUntil: 'domcontentloaded'});
     stage = 'Mobile login handler readiness';
     await mobile.waitForFunction(() => typeof document.querySelector('#accountForm')?.onsubmit === 'function', null, {timeout: TIMEOUT});
+    stage = 'Mobile secure browser context';
+    await requireSecureBrowser(mobile, 'mobile-login');
     await mobile.locator('#email').fill(email);
     await mobile.locator('#password').fill(password);
     const loginPending = waitAuth(mobile, 'token'), secondHousePending = waitAPI(mobile, 'house', 'view');
