@@ -44,7 +44,7 @@ Free-plan capacity depends on active-player traffic, save sizes and Supabase’s
 
 ## Validation
 
-Regression tests cover all thirteen casino activities, authoritative costs and rewards, hidden information, market settlement, airport catch-up/withdrawals, football season progression and visual match authority, campaign commands, and malformed/forged payloads.
+Regression tests cover all thirteen house activities, authoritative costs and rewards, hidden information, market settlement, airport catch-up/withdrawals, football season progression and visual match authority, campaign commands, and malformed/forged payloads.
 
 The connected database was verified transactionally for profile-role isolation, atomic saves, duplicate replay, request collisions, stale revisions, device takeover, revoked Auth sessions, and denied browser write grants. Synthetic test users were rolled back.
 

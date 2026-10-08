@@ -26,7 +26,7 @@
       <div class="arrival-paths" role="radiogroup" aria-label="Choose your starting focus">
         <button class="arrival-path path-player" data-arrival-path="player" role="radio" aria-checked="false">
           <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="10" y="13" width="25" height="31" rx="3" transform="rotate(-10 10 13)"/><rect x="20" y="8" width="25" height="31" rx="3" transform="rotate(9 20 8)"/><path d="M28 18c-5 4-7 6-4 9 2 2 4 0 4 0s2 2 4 0c3-3 1-5-4-9Z"/></svg></i></span>
-          <span class="arrival-path-copy"><strong>At the Tables</strong><em>Master the games, climb the floors, and earn your reputation one hand at a time.</em><span><small>Casino games</small><small>Daily challenges</small><small>High-limit access</small></span></span>
+          <span class="arrival-path-copy"><strong>At the Tables</strong><em>Master the games, climb the floors, and earn your reputation one hand at a time.</em><span><small>Table games</small><small>Daily challenges</small><small>High-limit access</small></span></span>
           <b class="arrival-check" aria-hidden="true">✓</b>
         </button>
         <button class="arrival-path path-owner selected" data-arrival-path="owner" role="radio" aria-checked="true">
@@ -41,7 +41,7 @@
         </button>
       </div>
       <footer class="arrival-action">
-        <p aria-live="polite">You are set to <strong id="arrivalSummary">Begin as a Business Owner</strong><span id="arrivalNextStep">Your first stop is the Casino Empire office.</span></p>
+        <p aria-live="polite">You are set to <strong id="arrivalSummary">Begin as a Business Owner</strong><span id="arrivalNextStep">Your first stop is the House Empire office.</span></p>
         <button id="arrivalEnterBtn">Enter Dorra House <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></button>
         <button id="arrivalSkipBtn">I’ll decide later</button>
       </footer>
@@ -83,14 +83,14 @@
       <section id="lobby" class="dashboard">
         <div class="dashboard-main">
           <div class="dashboard-intro">
-            <div><h1>Casino Dashboard</h1><p>Your tables, progress, and collection at a glance.</p><button class="explore-house-btn" id="exploreHouseBtn">Explore the Casino <span>→</span></button></div>
+            <div><h1>House Dashboard</h1><p>Your tables, progress, and collection at a glance.</p><button class="explore-house-btn" id="exploreHouseBtn">Explore the House <span>→</span></button></div>
             <div class="balance-panel"><div><span>Available balance</span><strong id="dashboardBalance">$1,000</strong><small>Play money only</small></div><div class="balance-actions"><button id="dailyRewardBtn">Claim $250</button><button id="dashboardBoutiqueBtn">Open boutique</button><button id="dashboardMotorBtn">Motor gallery</button><button id="dashboardOfficeBtn">Dorra Office</button></div></div>
           </div>
           <div class="dashboard-progress">
             <div class="progress-copy"><span>Level Progress</span><strong>Level <b id="dashboardLevel">1</b> · <em id="dashboardLevelTitle">New Arrival</em></strong><small id="dashboardXpCopy">0 / 300 XP</small></div>
             <div class="dashboard-xp-track" role="progressbar" aria-label="Level progress"><i id="dashboardXpFill"></i></div>
           </div>
-          <section class="casino-tier-card" id="casinoTierCard" aria-live="polite"></section>
+          <section class="house-tier-card" id="houseTierCard" aria-live="polite"></section>
           <div class="dashboard-overview">
             <section class="objective-panel"><div class="panel-heading"><h2>Daily Objectives</h2><span id="objectiveReset">Local goals</span></div><div id="objectiveList" class="objective-list"></div></section>
             <section class="collection-panel"><div class="panel-heading"><h2>Your Collection</h2><button id="collectionBoutiqueBtn">View boutique</button></div><div class="collection-stats"><div><span>Owned</span><strong id="dashboardOwned">0</strong></div><div><span>Equipped</span><strong id="dashboardEquipped">0</strong></div><div><span>Collection value</span><strong id="dashboardCollectionValue">$0</strong></div></div><div id="equippedPreview" class="equipped-preview">No items equipped yet.</div></section>
@@ -137,39 +137,39 @@
 
       <section id="houseMap" class="house-hub" hidden aria-labelledby="houseMapTitle">
         <header class="house-hub-heading">
-          <div><small>Casino directory</small><h1 id="houseMapTitle">Explore the Casino</h1><p>Discover the gaming floor, bars, galleries, and members-only venues.</p></div>
+          <div><small>House directory</small><h1 id="houseMapTitle">Explore the House</h1><p>Discover the gaming floor, bars, galleries, and members-only venues.</p></div>
           <button class="room-back" data-house-home>Back to dashboard</button>
         </header>
-        <section class="interactive-casino" aria-labelledby="interactiveCasinoTitle">
-          <div class="interactive-casino-heading"><div><small>Interactive directory</small><h2 id="interactiveCasinoTitle">Choose your casino floor</h2></div><p>Climb through Dorra House as your membership level grows.</p></div>
-          <div class="casino-building" id="casinoBuilding"><img src="assets/rooms/dorra-interactive-floors-v1.png" alt="Cutaway view of four increasingly premium Dorra House casino floors"><div id="casinoFloorButtons" class="casino-floor-buttons"></div></div>
+        <section class="interactive-house" aria-labelledby="interactiveHouseTitle">
+          <div class="interactive-house-heading"><div><small>Interactive directory</small><h2 id="interactiveHouseTitle">Choose your gaming floor</h2></div><p>Climb through Dorra House as your membership level grows.</p></div>
+          <div class="house-building" id="houseBuilding"><img src="assets/rooms/dorra-interactive-floors-v1.png" alt="Cutaway view of four increasingly premium Dorra House gaming floors"><div id="houseFloorButtons" class="house-floor-buttons"></div></div>
         </section>
         <div class="house-map-layout">
           <div class="house-elevation">
-            <img src="assets/rooms/casino-directory.png" alt="Grand casino atrium connecting its gaming and entertainment venues">
-            <div class="house-elevation-copy"><small>Casino directory</small><strong id="houseOpenCount">2 venues open</strong></div>
+            <img src="assets/rooms/house-directory.png" alt="Grand house atrium connecting its gaming and entertainment venues">
+            <div class="house-elevation-copy"><small>House directory</small><strong id="houseOpenCount">2 venues open</strong></div>
           </div>
           <aside class="house-status-panel">
-            <span>Casino access</span><strong>Level <b id="houseLevel">1</b></strong><p id="houseNextUnlock">The Skyline Bar opens at Level 2.</p>
+            <span>House access</span><strong>Level <b id="houseLevel">1</b></strong><p id="houseNextUnlock">The Skyline Bar opens at Level 2.</p>
             <div class="room-progress"><i id="houseProgressFill"></i></div>
           </aside>
         </div>
-        <div id="houseRoomGrid" class="house-room-grid" aria-label="Casino venues"></div>
+        <div id="houseRoomGrid" class="house-room-grid" aria-label="House venues"></div>
       </section>
 
       <section id="rooftopRoom" class="room-view rooftop-room" hidden aria-labelledby="rooftopTitle">
         <header class="room-hero rooftop-hero">
-          <div class="room-hero-copy"><small>Level 2 · Casino nightlife</small><h1 id="rooftopTitle">Skyline Bar</h1><p>Collect your casino credit, keep a streak alive, and complete tonight's objectives above the gaming floor.</p><button class="room-back" data-house-map>View casino directory</button></div>
+          <div class="room-hero-copy"><small>Level 2 · House nightlife</small><h1 id="rooftopTitle">Skyline Bar</h1><p>Collect your house credit, keep a streak alive, and complete tonight's objectives above the gaming floor.</p><button class="room-back" data-house-map>View house directory</button></div>
         </header>
         <div class="room-content-grid">
           <section class="room-panel reward-panel"><div class="panel-heading"><div><small>Member credit</small><h2>Tonight's tab</h2></div><span id="rooftopStreak">0 day streak</span></div><div class="reward-amount"><span>Daily play-money credit</span><strong id="rooftopRewardAmount">$250</strong><p>Available once per local day. Emergency refills remain available when your balance runs out.</p></div><button id="rooftopRewardBtn">Claim credit</button></section>
-          <section class="room-panel"><div class="panel-heading"><div><small>Resets locally each day</small><h2>Skyline objectives</h2></div><span id="rooftopObjectiveDate">Tonight</span></div><div id="rooftopObjectives" class="objective-list"></div><p class="objective-reward-note">Complete all three to earn a $300 casino bonus.</p></section>
+          <section class="room-panel"><div class="panel-heading"><div><small>Resets locally each day</small><h2>Skyline objectives</h2></div><span id="rooftopObjectiveDate">Tonight</span></div><div id="rooftopObjectives" class="objective-list"></div><p class="objective-reward-note">Complete all three to earn a $300 house bonus.</p></section>
         </div>
       </section>
 
       <section id="trophyRoom" class="room-view trophy-room" hidden aria-labelledby="trophyTitle">
         <header class="room-hero trophy-hero">
-          <div class="room-hero-copy"><small>Level 3 · Casino legacy</small><h1 id="trophyTitle">Hall of Fame</h1><p>Your defining hands, collection milestones, and casino reputation—preserved permanently.</p><button class="room-back" data-house-map>View casino directory</button></div>
+          <div class="room-hero-copy"><small>Level 3 · House legacy</small><h1 id="trophyTitle">Hall of Fame</h1><p>Your defining hands, collection milestones, and house reputation—preserved permanently.</p><button class="room-back" data-house-map>View house directory</button></div>
         </header>
         <div class="trophy-summary">
           <div><span>Unlocked</span><strong id="trophyUnlocked">0 / 12</strong></div><div><span>Rounds played</span><strong id="trophyRounds">0</strong></div><div><span>House wins</span><strong id="trophyWins">0</strong></div><div><span>Collection value</span><strong id="trophyValue">$0</strong></div>
@@ -179,9 +179,9 @@
 
       <section id="progressionHub" class="progression-hub" hidden aria-labelledby="progressionTitle">
         <header class="progression-hero">
-          <img src="assets/progression/dorra-legacy-office.png" alt="Dorra House directors planning the casino estate from a rooftop office" loading="lazy" decoding="async">
+          <img src="assets/progression/dorra-legacy-office.png" alt="Dorra House directors planning the house estate from a rooftop office" loading="lazy" decoding="async">
           <div class="progression-hero-shade"></div>
-          <div class="progression-hero-copy"><small id="progressionEyebrow">Casino Empire</small><h1 id="progressionTitle">Run the house. Build the legacy.</h1><p id="progressionLead">Develop venues, grow your income, and expand Dorra House.</p><button class="room-back" id="progressionBackBtn">Back to dashboard</button></div>
+          <div class="progression-hero-copy"><small id="progressionEyebrow">House Empire</small><h1 id="progressionTitle">Run the house. Build the legacy.</h1><p id="progressionLead">Develop venues, grow your income, and expand Dorra House.</p><button class="room-back" id="progressionBackBtn">Back to dashboard</button></div>
         </header>
         <div class="progression-status" aria-label="Dorra progression overview">
           <div><span>Empire income</span><strong id="empireIncomeRate">$0 / hour</strong></div>
@@ -190,7 +190,7 @@
           <div><span>Story progress</span><strong id="storyProgress">0 / 8</strong></div>
         </div>
         <nav class="progression-tabs" aria-label="Dorra Office sections" role="tablist">
-          <button id="empireTab" class="active" data-progression-tab="empire" role="tab" aria-controls="empirePanel" aria-selected="true">Casino Empire</button>
+          <button id="empireTab" class="active" data-progression-tab="empire" role="tab" aria-controls="empirePanel" aria-selected="true">House Empire</button>
           <a class="progression-external" href="war-simulation.html">Strategic Command <b aria-hidden="true">↗</b></a>
           <button id="contractsTab" data-progression-tab="contracts" role="tab" aria-controls="contractsPanel" aria-selected="false">VIP Contracts <b id="contractBadge">0</b></button>
           <button id="storyTab" data-progression-tab="story" role="tab" aria-controls="storyPanel" aria-selected="false">Story Mode</button>
@@ -209,7 +209,7 @@
           <div class="xp-copy"><span id="xpLabel">0 / 300 XP</span><span id="nextLevelLabel">Next: Card Player</span></div>
           <div class="xp-track"><i id="xpFill"></i></div>
           <p>Complete rounds to earn XP. Wins and higher wagers earn a little more.</p>
-          <button id="backToDashboard">Back to casino</button>
+          <button id="backToDashboard">Back to house</button>
         </div>
         <div class="boutique-catalog">
           <div class="boutique-heading"><div><p>Fictional collectibles · Play money only</p><h1>Boutique</h1></div><span id="collectionCount">0 owned</span></div>
@@ -219,7 +219,7 @@
       </section>
 
       <section id="motorGallery" class="motor-gallery" hidden>
-        <header class="motor-heading"><div><h1>Motor Atrium</h1><p>Configure real marques with play money in this unofficial fan-made simulation.</p></div><div><span>PLAY MONEY ONLY</span><button id="motorBackBtn">Back to casino</button></div></header>
+        <header class="motor-heading"><div><h1>Motor Atrium</h1><p>Configure real marques with play money in this unofficial fan-made simulation.</p></div><div><span>PLAY MONEY ONLY</span><button id="motorBackBtn">Back to house</button></div></header>
         <div class="motor-catalog-tools"><label><span>Find a vehicle</span><input id="motorSearch" type="search" placeholder="Search model or marque" autocomplete="off"></label><p><strong id="motorModelTotal">24</strong> models across <strong id="motorBrandTotal">6</strong> marques</p></div>
         <nav id="brandSelector" class="brand-selector" aria-label="Vehicle brands"></nav>
         <div class="brand-section-heading"><div><small id="brandVehicleCount">4 vehicles</small><h2 id="brandSectionTitle">Porsche Collection</h2></div><p id="brandSectionCopy">Sports cars, grand tourers, electric performance, and SUVs.</p></div>
@@ -466,7 +466,7 @@
             <div class="dorraos-greeting"><small id="dorraOsDate">Dorra House</small><h1 id="dorraOsTitle">Good evening.</h1><p id="dorraOsBalance">$0 available</p></div>
             <div class="dorraos-app-grid">
               <button data-os-app="wallet"><i class="os-icon os-wallet">$</i><span>Wallet</span></button>
-              <button data-os-app="casino"><i class="os-icon os-casino">♠</i><span>Casino</span></button>
+              <button data-os-app="tables"><i class="os-icon os-house">♠</i><span>Tables</span></button>
               <button data-os-app="garage"><i class="os-icon os-garage">◆</i><span>Garage</span></button>
               <button data-os-app="messages"><i class="os-icon os-messages">•••</i><span>Messages</span></button>
               <button data-os-app="markets" data-installed-app="markets" hidden><i class="os-icon os-markets">↗</i><span>Markets Pro</span></button>

@@ -2,10 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {cars} from '../supabase/functions/dorra-api/house-catalog.mjs';
 import {reduceHouse} from '../supabase/functions/dorra-api/house.mjs';
+import {normalizeProgression} from '../progression-engine.js';
 const NOW=Date.parse('2026-10-07T12:00:00Z');
 function fixture(){return {snapshot:{balance:2_000_000,history:[],stats:{sessions:0,wins:0,games:{}},progress:{level:7,xp:0,owned:['iphonex']}},privateState:{}}}
 async function act(f,action,args={},now=NOW){const result=await reduceHouse(structuredClone(f.snapshot),structuredClone(f.privateState),action,args,now);f.snapshot=result.snapshot;f.privateState=result.privateState;return result.result}
-test('all casino games settle server-derived outcomes and no hidden deck is returned',async()=>{
+
+test('existing office records adopt House wording without changing saved amounts or progress',async()=>{
+ const progress={office:{transactions:[{type:'income',label:'Casino Empire collection',amount:350,at:NOW},{type:'trading',label:'Casino Empire · Week 12',amount:-200,at:NOW},{type:'upgrade',label:'Terrace · Level 2',amount:-1000,at:NOW}]}};
+ normalizeProgression(progress,NOW);
+ assert.deepEqual(progress.office.transactions.map(item=>item.label),['House Empire collection','House Empire · Week 12','Terrace · Level 2']);
+ assert.deepEqual(progress.office.transactions.map(item=>item.amount),[350,-200,-1000]);
+ assert(progress.office.transactions.every(item=>item.at===NOW));
+ const f=fixture();f.snapshot.progress.office=progress.office;
+ await act(f,'view');
+ assert.deepEqual(f.snapshot.progress.office.transactions,progress.office.transactions);
+});
+test('all table games settle server-derived outcomes and no hidden deck is returned',async()=>{
  const f=fixture();await act(f,'view');
  for(const [game,args]of Object.entries({roulette:{choice:'red'},dice:{choice:'seven'},baccarat:{choice:'player'},highlow:{choice:'higher'},sicbo:{choice:'triple'},slots:{machine:'classic'},racing:{choice:0}})){const previous=f.snapshot.stats.sessions,r=await act(f,'casino',{game,move:'play',bet:25,...args,payout:999999999,won:true});assert.equal(f.snapshot.stats.sessions,previous+1);assert(Number.isSafeInteger(f.snapshot.balance));assert.equal(r.game,game);assert(!JSON.stringify(r).includes('deck'))}
  for(const game of ['bj','poker','holdem','videopoker']){let r=await act(f,'casino',{game,move:'start',bet:25});assert(!JSON.stringify(r).includes('deck'));if(game==='holdem')assert.equal(r.round.board.length,3);if(game==='poker'||game==='holdem')assert(r.round.dealer.every(c=>c.r===''));if(!r.round.finished)r=await act(f,'casino',{game,move:game==='bj'?'stand':game==='videopoker'?'draw':'fold',held:[0,1]});assert(r.round.finished);await assert.rejects(()=>act(f,'casino',{game,move:game==='bj'?'stand':game==='videopoker'?'draw':'fold'}),/already|first|hand/i)}
