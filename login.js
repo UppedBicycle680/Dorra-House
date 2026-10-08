@@ -1,19 +1,169 @@
 import { supabase, siteURL } from './auth-client.js';
-const $=selector=>document.querySelector(selector);
-let mode='signin',busy=false;
-function destination(){const next=new URLSearchParams(location.search).get('next');return siteURL(['index.html','football-manager.html','war-simulation.html','idle-airport.html'].includes(next)?next:'index.html');}
-function message(text,error=false){const el=$('#accountMessage');el.textContent=text;el.hidden=!text;el.classList.toggle('error',error);}
-function setMode(next){mode=next;message('');const signup=next==='signup',recovery=next==='recovery',reset=next==='reset';$('#usernameField').hidden=!signup;$('#username').required=signup;$('#username').disabled=!signup;$('#repeatField').hidden=!(signup||reset);$('#repeatPassword').required=signup||reset;$('#repeatPassword').disabled=!(signup||reset);$('#emailField').hidden=reset;$('#email').required=!reset;$('#email').disabled=reset;$('#passwordField').hidden=recovery;$('#password').required=!recovery;$('#password').disabled=recovery;$('#password').autocomplete=signup||reset?'new-password':'current-password';$('#signInTab').setAttribute('aria-pressed',String(next==='signin'));$('#signUpTab').setAttribute('aria-pressed',String(signup));$('.account-tabs').hidden=recovery||reset;$('#forgotPassword').hidden=next!=='signin';$('#backToSignIn').hidden=!(recovery||reset);$('#resendConfirmation').hidden=true;$('#formTitle').textContent=signup?'Make yourself at home.':recovery?'Reset your password.':reset?'Choose a new password.':'Welcome back.';$('#formCopy').textContent=signup?'Create your account and begin your House journey.':recovery?'We’ll send you a link if this email has an account.':reset?'Enter a new password for your Dorra House account.':'Sign in to continue your Dorra House journey.';$('#submitAccount').textContent=signup?'Create account':recovery?'Send reset link':reset?'Save password':'Sign in';}
-$('#signInTab').onclick=()=>setMode('signin');$('#signUpTab').onclick=()=>setMode('signup');$('#forgotPassword').onclick=()=>setMode('recovery');$('#backToSignIn').onclick=()=>setMode('signin');
-$('#showPassword').onclick=()=>{const show=$('#password').type==='password';$('#password').type=show?'text':'password';$('#showPassword').textContent=show?'Hide':'Show';$('#showPassword').setAttribute('aria-label',show?'Hide password':'Show password');$('#showPassword').setAttribute('aria-pressed',String(show));};
-$('#accountForm').onsubmit=async event=>{event.preventDefault();if(busy)return;if((mode==='signup'||mode==='reset')&&$('#password').value!==$('#repeatPassword').value){message('The passwords don’t match.',true);return;}busy=true;$('#submitAccount').disabled=true;message('');try{const email=$('#email').value.trim(),password=$('#password').value;let response;
-  if(mode==='signup'){response=await supabase.auth.signUp({email,password,options:{data:{username:$('#username').value.trim()},emailRedirectTo:siteURL('login.html').href}});if(response.error)throw response.error;if(response.data.session){location.replace(destination());return;}message('Your account was created. Confirm your email to sign in. If email confirmation is disabled in Supabase, you can sign in immediately.');$('#resendConfirmation').hidden=false;}
-  else if(mode==='recovery'){response=await supabase.auth.resetPasswordForEmail(email,{redirectTo:siteURL('login.html?recovery=1').href});if(response.error)throw response.error;message('If an account exists, a password reset link has been requested.');}
-  else if(mode==='reset'){response=await supabase.auth.updateUser({password});if(response.error)throw response.error;await supabase.auth.signOut();setMode('signin');message('Password updated. Sign in with your new password.');}
-  else{response=await supabase.auth.signInWithPassword({email,password});if(response.error)throw response.error;location.replace(destination());}
-}catch(error){let text=error.message||'We couldn’t complete that request. Try again.';if(/database error saving new user/i.test(text))text='That username may already be taken. Choose another username and try again.';if(/email not confirmed/i.test(text))$('#resendConfirmation').hidden=false;if(/email.*rate|smtp|sending confirmation|email address.*authorized/i.test(text))text='Email delivery is unavailable. Please contact the House owner to review the Supabase email settings.';message(text,true);}finally{busy=false;$('#submitAccount').disabled=false;}};
-$('#resendConfirmation').onclick=async()=>{if(busy)return;busy=true;try{const {error}=await supabase.auth.resend({type:'signup',email:$('#email').value.trim(),options:{emailRedirectTo:siteURL('login.html').href}});if(error)throw error;message('A new confirmation email has been requested.');}catch(error){message(error.message,true);}finally{busy=false;}};
-supabase.auth.onAuthStateChange(event=>{if(event==='PASSWORD_RECOVERY')setMode('reset');});
-const query=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.slice(1));
-if(query.get('recovery')==='1'||hash.get('type')==='recovery')setMode('reset');
-else{setMode('signin');const {data:{session}}=await supabase.auth.getSession();if(session)location.replace(destination());}
+
+const $ = selector => document.querySelector(selector);
+const actionLabels = {signin: 'Sign in', signup: 'Create a profile', recovery: 'Send reset link', reset: 'Save password'};
+const busyLabels = {signin: 'Signing in…', signup: 'Creating profile…', recovery: 'Sending reset link…', reset: 'Saving password…'};
+let mode = 'signin', busy = false, redirecting = false;
+
+function destination() {
+  const next = new URLSearchParams(location.search).get('next');
+  return siteURL(['index.html', 'football-manager.html', 'war-simulation.html', 'idle-airport.html'].includes(next) ? next : 'index.html');
+}
+function message(text, error = false) {
+  const element = $('#accountMessage');
+  element.textContent = text;
+  element.hidden = !text;
+  element.classList.toggle('error', error);
+}
+function actionState(label = actionLabels[mode], icon = 'arrow') {
+  $('#submitLabel').textContent = label;
+  $('#submitIcon').src = `assets/login/${icon}.svg`;
+}
+function setBusy(value) {
+  busy = value;
+  $('#accountForm').setAttribute('aria-busy', String(value));
+  for (const button of document.querySelectorAll('button')) button.disabled = value;
+  actionState(value ? busyLabels[mode] : actionLabels[mode], value ? 'loading' : 'arrow');
+}
+function enterHouse() {
+  redirecting = true;
+  actionState("You're in", 'success');
+  location.replace(destination());
+}
+function setMode(next) {
+  if (busy) return;
+  mode = next;
+  message('');
+  const signup = next === 'signup', recovery = next === 'recovery', reset = next === 'reset';
+  $('.entrance').dataset.mode = next;
+  $('#usernameField').hidden = !signup;
+  $('#username').required = signup;
+  $('#username').disabled = !signup;
+  $('#repeatField').hidden = !(signup || reset);
+  $('#repeatPassword').required = signup || reset;
+  $('#repeatPassword').disabled = !(signup || reset);
+  $('#emailField').hidden = reset;
+  $('#email').required = !reset;
+  $('#email').disabled = reset;
+  $('#email').type = next === 'signin' ? 'text' : 'email';
+  $('#email').autocomplete = next === 'signin' ? 'username' : 'email';
+  $('#email').placeholder = next === 'signin' ? 'Enter your username' : 'Enter your email';
+  $('#identityLabel').textContent = next === 'signin' ? 'Username' : 'Email';
+  // Recovery always uses the verified email address, never a username lookup.
+  if (next !== 'signin' && !$('#email').value.includes('@')) $('#email').value = '';
+  $('#passwordField').hidden = recovery;
+  $('#password').required = !recovery;
+  $('#password').disabled = recovery;
+  $('#password').autocomplete = signup || reset ? 'new-password' : 'current-password';
+  $('#password').type = 'password';
+  $('#showPassword').setAttribute('aria-label', 'Show password');
+  $('#showPassword').setAttribute('aria-pressed', 'false');
+  $('#signInTab').setAttribute('aria-pressed', String(next === 'signin'));
+  $('#signUpTab').setAttribute('aria-pressed', String(signup));
+  $('#signInTab').hidden = !signup;
+  $('#signUpTab').hidden = signup;
+  $('#accountPrompt').textContent = signup ? 'Already a member?' : 'New here?';
+  $('.account-tabs').hidden = recovery || reset;
+  $('#forgotPassword').hidden = next !== 'signin';
+  $('#backToSignIn').hidden = !(recovery || reset);
+  $('#resendConfirmation').hidden = true;
+  $('#formTitle').replaceChildren();
+  if (next === 'signin') $('#formTitle').append('Sign in to', document.createElement('br'), 'Dorra House');
+  else $('#formTitle').textContent = signup ? 'Make yourself at home.' : recovery ? 'Reset your password.' : 'Choose a new password.';
+  $('#formCopy').textContent = signup ? 'Create your profile. Begin your story.' : recovery ? 'We’ll send you a link if this email has an account.' : reset ? 'Enter a new password for your Dorra House account.' : 'Welcome back. Continue your story.';
+  actionState();
+}
+$('#signInTab').onclick = () => setMode('signin');
+$('#signUpTab').onclick = () => setMode('signup');
+$('#forgotPassword').onclick = () => setMode('recovery');
+$('#backToSignIn').onclick = () => setMode('signin');
+$('#showPassword').onclick = () => {
+  const show = $('#password').type === 'password';
+  $('#password').type = show ? 'text' : 'password';
+  $('#showPassword').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  $('#showPassword').setAttribute('aria-pressed', String(show));
+};
+
+async function signIn(identity, password) {
+  // Retain the existing email flow, including confirmation and recovery support.
+  if (identity.includes('@')) return supabase.auth.signInWithPassword({email: identity, password});
+  const {data, error} = await supabase.functions.invoke('dorra-login', {body: {username: identity, password}});
+  if (error) {
+    let detail;
+    try { detail = await error.context?.json(); } catch { /* Network errors have no response body. */ }
+    throw new Error(detail?.error || 'We couldn’t sign you in. Try again.');
+  }
+  if (!data?.access_token || !data?.refresh_token) throw new Error('We couldn’t sign you in. Try again.');
+  // The normal Supabase client owns persistence, token refresh and game sessions.
+  return supabase.auth.setSession({access_token: data.access_token, refresh_token: data.refresh_token});
+}
+
+$('#accountForm').onsubmit = async event => {
+  event.preventDefault();
+  if (busy) return;
+  if ((mode === 'signup' || mode === 'reset') && $('#password').value !== $('#repeatPassword').value) {
+    message('The passwords don’t match.', true);
+    return;
+  }
+  const requestedMode = mode, identity = $('#email').value.trim(), password = $('#password').value;
+  setBusy(true);
+  message('');
+  try {
+    let response;
+    if (requestedMode === 'signup') {
+      response = await supabase.auth.signUp({email: identity, password, options: {data: {username: $('#username').value.trim()}, emailRedirectTo: siteURL('login.html').href}});
+      if (response.error) throw response.error;
+      if (response.data.session) { enterHouse(); return; }
+      message('Your profile was created. Confirm your email to sign in.');
+      $('#resendConfirmation').hidden = false;
+    } else if (requestedMode === 'recovery') {
+      response = await supabase.auth.resetPasswordForEmail(identity, {redirectTo: siteURL('login.html?recovery=1').href});
+      if (response.error) throw response.error;
+      message('If an account exists, a password reset link has been requested.');
+    } else if (requestedMode === 'reset') {
+      response = await supabase.auth.updateUser({password});
+      if (response.error) throw response.error;
+      const {error} = await supabase.auth.signOut();
+      if (error) throw error;
+      setBusy(false);
+      setMode('signin');
+      message('Password updated. Sign in with your new password.');
+    } else {
+      response = await signIn(identity, password);
+      if (response.error) throw response.error;
+      enterHouse();
+    }
+  } catch (error) {
+    let text = error.message || 'We couldn’t complete that request. Try again.';
+    if (/database error saving new user/i.test(text)) text = 'That username may already be taken. Choose another username and try again.';
+    if (/email not confirmed/i.test(text) && identity.includes('@')) $('#resendConfirmation').hidden = false;
+    if (/email.*rate|smtp|sending confirmation|email address.*authorized/i.test(text)) text = 'Email delivery is unavailable. Please contact the House owner.';
+    message(text, true);
+  } finally {
+    if (!redirecting) setBusy(false);
+  }
+};
+$('#resendConfirmation').onclick = async () => {
+  if (busy) return;
+  setBusy(true);
+  try {
+    const {error} = await supabase.auth.resend({type: 'signup', email: $('#email').value.trim(), options: {emailRedirectTo: siteURL('login.html').href}});
+    if (error) throw error;
+    message('A new confirmation email has been requested.');
+  } catch (error) { message(error.message, true); }
+  finally { setBusy(false); }
+};
+
+supabase.auth.onAuthStateChange(event => {
+  if (event === 'PASSWORD_RECOVERY') {
+    setBusy(false);
+    setMode('reset');
+  }
+});
+const query = new URLSearchParams(location.search), hash = new URLSearchParams(location.hash.slice(1));
+if (query.get('recovery') === '1' || hash.get('type') === 'recovery') setMode('reset');
+else {
+  setMode('signin');
+  const {data: {session}} = await supabase.auth.getSession();
+  if (session) location.replace(destination());
+}

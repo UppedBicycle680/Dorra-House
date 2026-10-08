@@ -302,16 +302,18 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await screenshot(desktop, 'live-browser-house-desktop.png');
     passed('Daily reward updates the protected wallet and renders Saved online');
 
-    stage = 'Mobile password login and cloud restoration';
+    stage = 'Mobile username login and cloud restoration';
     const mobileContext = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Australia/Sydney', reducedMotion: 'reduce'});
     const mobile = await newPage(mobileContext);
     stage = 'Mobile login page navigation';
     await mobile.goto(new URL('login.html', site).href, {waitUntil: 'domcontentloaded'});
     stage = 'Mobile login handler readiness';
     await mobile.waitForFunction(() => typeof document.querySelector('#accountForm')?.onsubmit === 'function', null, {timeout: TIMEOUT});
-    await mobile.locator('#email').fill(email);
+    await mobile.locator('#email').fill(username.toLowerCase());
     await mobile.locator('#password').fill(password);
-    const loginPending = waitAuth(mobile, 'token'), secondHousePending = waitAPI(mobile, 'house', 'view');
+    const loginPending = mobile.waitForResponse(response => response.url().split('?')[0] === `${SUPABASE_URL}/functions/v1/dorra-login` && response.request().method() === 'POST', {timeout: TIMEOUT});
+    loginPending.catch(() => {});
+    const secondHousePending = waitAPI(mobile, 'house', 'view');
     stage = 'Mobile login submission';
     await mobile.locator('#submitAccount').click();
     stage = 'Mobile login Auth response';
