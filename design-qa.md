@@ -117,6 +117,10 @@ reports, flags and staff-action history.
   all dates with paginated Activity access.
 - P2: Confirmation omitted explicit deltas. Numeric resource previews now show
   before, after and actual delta; text changes use a labelled before/after pair.
+- P1: An in-flight response could repaint records after manual lock or expiry.
+  Lock/expiry now cancel the UI generation, stop the old countdown, clear dialog
+  content and discard late previews/commits. Delayed-response browser tests cover
+  both boundaries.
 
 ## Required fidelity surfaces
 

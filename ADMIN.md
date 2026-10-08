@@ -96,3 +96,11 @@ API denial without credentials. Browser fixture metrics exist only in tests.
 Live staff verification used explicitly disposable QA accounts, removed after
 the walkthrough. The deployment remains locked until you designate the first
 owner. See `design-qa.md` for the desktop visual and interaction checks.
+
+Supabase's [RLS-without-policy notice](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
+is expected for these closed private tables: browser grants are denied and
+server operations authorize each request. The project also reports its existing
+leaked-password protection setting as disabled; review the
+[Auth password protections](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
+in trusted Supabase settings. This release retains the requested password plus
+staff code flow without requiring authenticator-app MFA.
