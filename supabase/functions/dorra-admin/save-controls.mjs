@@ -1,6 +1,7 @@
 import {MAX_BALANCE,MAX_FOOTBALL_TOKENS} from '../dorra-api/shared/game-limits.js';
 import {EMPIRE_VENUES,EMPIRE_STAFF_ROLES,EMPIRE_FOCUSES,STORY_MISSIONS,STORY_CHARACTERS} from '../dorra-api/shared/progression-engine.js';
-import {MAX_CURRENCY,MAX_DIAMONDS,projectCareer} from '../dorra-api/shared/airport/engine.mjs';
+import {MAX_CURRENCY,MAX_DIAMONDS,getBuildingQuote} from '../dorra-api/shared/airport/engine.mjs';
+import {BUILDINGS} from '../dorra-api/shared/airport/catalog.mjs';
 
 const read=(root,path)=>path.reduce((value,key)=>value?.[key],root);
 const write=(root,path,value)=>{let item=root;for(const key of path.slice(0,-1)){if(!item[key]||typeof item[key]!=='object')throw new Error('This save field is unavailable.');item=item[key];}item[path.at(-1)]=value;};
@@ -46,8 +47,12 @@ function fields(saved){
  if(c){num('Airport','Diamonds','privateState',['airport','diamonds'],0,MAX_DIAMONDS);
   choice('Airport','Selected airport','privateState',['airport','selectedAirportId'],Object.keys(c.airports).map(id=>({value:id,label:id})));
   for(const [id,airport]of Object.entries(c.airports)){num('Airport',id+' cash','privateState',['airport','airports',id,'cash'],0,MAX_CURRENCY);num('Airport',id+' research','privateState',['airport','airports',id,'research'],0,MAX_CURRENCY);
-   const projection=projectCareer({...c,selectedAirportId:id},Date.now(),{compact:true}).selectedAirport;
-   for(const building of projection?.buildings||[])if(building.level>0&&building.quote.available)num('Airport',id+' · '+building.name,'privateState',['airport','airports',id,'buildings',building.key],building.level,building.maxLevel);
+   for(const building of BUILDINGS){const level=airport.buildings[building.key],quote=getBuildingQuote(airport,building.key);if(level<=0||!quote.available)continue;
+    // Reuse the engine's location-specific maximum without projecting fleets,
+    // gates and every other airport for each scalar editor control.
+    let maximum=level;while(maximum<building.maxLevel&&!getBuildingQuote({...airport,buildings:{...airport.buildings,[building.key]:maximum}},building.key).maxed)maximum++;
+    num('Airport',id+' · '+building.name,'privateState',['airport','airports',id,'buildings',building.key],level,maximum);
+   }
   }
  }
  const campaign=p.campaign;
