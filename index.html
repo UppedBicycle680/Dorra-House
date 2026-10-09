@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="arrival.css">
   <link rel="stylesheet" href="vendor/club-journal/icons/tabler-icons.min.css">
   <link rel="stylesheet" href="estate-workspace.css?v=20261008-estate2">
+  <link rel="stylesheet" href="home-workspace.css?v=20261009-home1">
 </head>
 <body>
   <script type="module" src="online-shell.js"></script>
@@ -85,59 +86,74 @@
     </header>
 
     <main>
-      <section id="lobby" class="dashboard">
-        <div class="dashboard-main">
-          <div class="dashboard-intro">
-            <div><h1>House Dashboard</h1><p>Your tables, progress, and collection at a glance.</p><button class="explore-house-btn" id="exploreHouseBtn">Explore the House <span>→</span></button></div>
-            <div class="balance-panel"><div><span>Available balance</span><strong id="dashboardBalance">$1,000</strong><small>Play money only</small></div><div class="balance-actions"><button id="dailyRewardBtn">Claim $250</button><button id="dashboardBoutiqueBtn">Open boutique</button><button id="dashboardMotorBtn">Motor gallery</button><button id="dashboardOfficeBtn">Dorra Office</button></div></div>
-          </div>
-          <div class="dashboard-progress">
-            <div class="progress-copy"><span>Level Progress</span><strong>Level <b id="dashboardLevel">1</b> · <em id="dashboardLevelTitle">New Arrival</em></strong><small id="dashboardXpCopy">0 / 300 XP</small></div>
-            <div class="dashboard-xp-track" role="progressbar" aria-label="Level progress"><i id="dashboardXpFill"></i></div>
-          </div>
-          <section class="house-tier-card" id="houseTierCard" aria-live="polite"></section>
-          <div class="dashboard-overview">
-            <section class="objective-panel"><div class="panel-heading"><h2>Daily Objectives</h2><span id="objectiveReset">Local goals</span></div><div id="objectiveList" class="objective-list"></div></section>
-            <section class="collection-panel"><div class="panel-heading"><h2>Your Collection</h2><button id="collectionBoutiqueBtn">View boutique</button></div><div class="collection-stats"><div><span>Owned</span><strong id="dashboardOwned">0</strong></div><div><span>Equipped</span><strong id="dashboardEquipped">0</strong></div><div><span>Collection value</span><strong id="dashboardCollectionValue">$0</strong></div></div><div id="equippedPreview" class="equipped-preview">No items equipped yet.</div></section>
-          </div>
-          <a class="football-launch-card" href="football-manager.html" aria-label="Open Queensland Club Manager">
-            <span class="football-launch-pitch" aria-hidden="true"><i></i><b></b></span>
-            <span class="football-launch-copy"><small>New standalone game</small><strong>Queensland Club Manager</strong><em>Build an academy. Climb from FQPL 6. Take your club national.</em></span>
-            <span class="football-launch-action">Enter club HQ <b aria-hidden="true">→</b></span>
-          </a>
-          <a class="football-launch-card strategic-launch-card" href="war-simulation.html" aria-label="Open Dorra Strategic Command">
-            <span class="strategy-launch-map" aria-hidden="true"><i></i><b></b></span>
-            <span class="football-launch-copy"><small>Standalone world simulation</small><strong>Dorra Strategic Command</strong><em>Develop your nation, direct formations, and secure operating rights across the globe.</em></span>
-            <span class="football-launch-action">Enter command <b aria-hidden="true">→</b></span>
-          </a>
-          <a class="football-launch-card airport-launch-card" href="idle-airport.html" aria-label="Open Dorra Airports">
-            <span class="airport-launch-art" aria-hidden="true">✈</span>
-            <span class="football-launch-copy"><small>Australian idle airport builder</small><strong>Dorra Airports</strong><em>Start with a dirt strip. Build your way to Brisbane. Earn while you’re away.</em></span>
-            <span class="football-launch-action">Open your airport <b aria-hidden="true">→</b></span>
-          </a>
-          <div class="section-rule"><h2>Play a game</h2><i></i></div>
-          <div class="dashboard-games">
-            <button class="dashboard-game monte-game" data-game="monte"><span class="game-symbol">Q · ? · ?</span><span class="game-copy"><small>Track the queen</small><strong>Three Card Monte</strong><em>Follow the shuffle</em></span></button>
-            <button class="dashboard-game memory-game" data-game="memory"><span class="game-symbol">◆ ◇ ◆</span><span class="game-copy"><small>Find every pair</small><strong>Memory Match</strong><em>Test your memory</em></span></button>
-            <button class="dashboard-game blackjack-game" data-game="blackjack"><span class="game-symbol">A♠</span><span class="game-copy"><small>Classic 3:2 table</small><strong>Blackjack</strong><em>Continue playing</em></span></button>
-            <button class="dashboard-game roulette-game" data-game="roulette"><span class="game-symbol">◉</span><span class="game-copy"><small>Single zero wheel</small><strong>European Roulette</strong><em>Open table</em></span></button>
-            <button class="dashboard-game highlow-game" data-game="highlow"><span class="game-symbol">▲<br>▼</span><span class="game-copy"><small>Call the next card</small><strong>High–Low</strong><em>Play now</em></span></button>
-            <button class="dashboard-game dice-game" data-game="dice"><span class="game-symbol">⚄</span><span class="game-copy"><small>Call the total</small><strong>Lucky Dice</strong><em>Roll the dice</em></span></button>
-            <button class="dashboard-game baccarat-game" data-game="baccarat"><span class="game-symbol">8 · 9</span><span class="game-copy"><small>Player, banker, or tie</small><strong>Baccarat</strong><em>Open table</em></span></button>
-            <button class="dashboard-game poker-game" data-game="poker"><span class="game-symbol">Q♠ 7♥ 2♣</span><span class="game-copy"><small>Ante and play</small><strong>Three Card Poker</strong><em>Take a seat</em></span></button>
-            <button class="dashboard-game holdem-game" data-game="holdem"><span class="game-symbol">A♠ K♠</span><span class="game-copy"><small>Heads-up · flop, turn, river</small><strong>Texas Hold'em</strong><em>Join the table</em></span></button>
-            <button class="dashboard-game videopoker-game" data-game="videopoker"><span class="game-symbol">J♠ J♦</span><span class="game-copy"><small>Deal, hold, and draw</small><strong>Jacks or Better</strong><em>Play video poker</em></span></button>
-            <button class="dashboard-game sicbo-game" data-game="sicbo"><span class="game-symbol">⚂ ⚄ ⚀</span><span class="game-copy"><small>Three dice · transparent odds</small><strong>Sic Bo</strong><em>Choose a wager</em></span></button>
-            <button class="dashboard-game slots-game" data-game="slots"><span class="game-symbol">7 · 7 · 7</span><span class="game-copy"><small>Three reels · fixed paytable</small><strong>House Slots</strong><em>Spin the reels</em></span></button>
-            <button class="dashboard-game racing-game" data-game="racing"><span class="game-symbol">♞</span><span class="game-copy"><small>Six runners · fixed odds</small><strong>Dorra Downs</strong><em>Back a winner</em></span></button>
+      <section id="lobby" class="dashboard home-workspace" aria-labelledby="homeTitle">
+        <aside class="home-sidebar" aria-label="House navigation">
+          <small>Your House</small>
+          <nav>
+            <button class="home-current" data-house-home aria-current="page"><i class="ti ti-layout-dashboard" aria-hidden="true"></i>Overview</button>
+            <button id="exploreHouseBtn"><i class="ti ti-building" aria-hidden="true"></i>Explore the House</button>
+            <button id="dashboardOfficeBtn"><i class="ti ti-chart-bar" aria-hidden="true"></i>Dorra Office</button>
+            <button data-home-estate="story"><i class="ti ti-book" aria-hidden="true"></i>House story</button>
+            <button id="dashboardBoutiqueBtn"><i class="ti ti-shopping-bag" aria-hidden="true"></i>Boutique</button>
+            <button id="dashboardMotorBtn"><i class="ti ti-car" aria-hidden="true"></i>Motor gallery</button>
+          </nav>
+          <p class="home-sidebar-note"><strong>A world of your own.</strong>Play a hand. Build the estate.<br>Make your next move.</p>
+          <div id="homeAccount" class="home-account" aria-label="Account and cloud save"></div>
+        </aside>
+        <div class="home-content">
+          <header class="home-heading">
+            <div><span class="home-eyebrow">Welcome to Dorra House</span><h1 id="homeTitle">House Dashboard</h1><p>Your next move, all in one place.</p></div>
+            <button data-home-estate="empire" aria-label="Through the Estate"><i class="ti ti-building-estate" aria-hidden="true"></i><span>Through the Estate</span><i class="ti ti-arrow-up-right" aria-hidden="true"></i></button>
+          </header>
+          <div class="home-columns">
+            <div class="dashboard-main">
+              <section class="balance-panel" aria-label="Balance and daily reward">
+                <div><span>Available balance</span><strong id="dashboardBalance">$1,000</strong><small>Play money only</small></div>
+                <div class="home-reward"><small>Your daily House credit</small><button id="dailyRewardBtn">Claim $250</button></div>
+              </section>
+              <section class="home-game-library" aria-labelledby="homeGamesTitle">
+                <header class="home-library-heading"><div><h2 id="homeGamesTitle">Find your table</h2><span id="homeGameCount" aria-live="polite">4 games</span></div><label class="home-search"><i class="ti ti-search" aria-hidden="true"></i><input id="homeGameSearch" type="search" placeholder="Search games" aria-label="Search games" autocomplete="off"></label></header>
+                <nav class="home-filters" aria-label="Filter games by floor">
+                  <button data-home-floor="1" aria-pressed="true">Lower floor</button><button data-home-floor="2" aria-pressed="false">Main · L2</button><button data-home-floor="3" aria-pressed="false">Premium · L3</button><button data-home-floor="4" aria-pressed="false">Royal · L4</button><button data-home-floor="all" aria-pressed="false">All games</button>
+                </nav>
+                <div class="dashboard-games">
+            <button class="dashboard-game monte-game" data-game="monte" data-home-level="1"><span class="game-symbol">Q · ? · ?</span><span class="game-copy"><small>Track the queen</small><strong>Three Card Monte</strong><em>Follow the shuffle</em></span></button>
+            <button class="dashboard-game memory-game" data-game="memory" data-home-level="1"><span class="game-symbol">◆ ◇ ◆</span><span class="game-copy"><small>Find every pair</small><strong>Memory Match</strong><em>Test your memory</em></span></button>
+            <button class="dashboard-game blackjack-game" data-game="blackjack" data-home-level="1"><span class="game-symbol">A♠</span><span class="game-copy"><small>Classic 3:2 table</small><strong>Blackjack</strong><em>Continue playing</em></span></button>
+            <button class="dashboard-game roulette-game" data-game="roulette" data-home-level="1"><span class="game-symbol">◉</span><span class="game-copy"><small>Single zero wheel</small><strong>European Roulette</strong><em>Open table</em></span></button>
+            <button class="dashboard-game highlow-game" data-game="highlow" data-home-level="2"><span class="game-symbol">▲<br>▼</span><span class="game-copy"><small>Call the next card</small><strong>High–Low</strong><em>Play now</em></span></button>
+            <button class="dashboard-game dice-game" data-game="dice" data-home-level="2"><span class="game-symbol">⚄</span><span class="game-copy"><small>Call the total</small><strong>Lucky Dice</strong><em>Roll the dice</em></span></button>
+            <button class="dashboard-game baccarat-game" data-game="baccarat" data-home-level="3"><span class="game-symbol">8 · 9</span><span class="game-copy"><small>Player, banker, or tie</small><strong>Baccarat</strong><em>Open table</em></span></button>
+            <button class="dashboard-game poker-game" data-game="poker" data-home-level="3"><span class="game-symbol">Q♠ 7♥ 2♣</span><span class="game-copy"><small>Ante and play</small><strong>Three Card Poker</strong><em>Take a seat</em></span></button>
+            <button class="dashboard-game holdem-game" data-game="holdem" data-home-level="4"><span class="game-symbol">A♠ K♠</span><span class="game-copy"><small>Heads-up · flop, turn, river</small><strong>Texas Hold'em</strong><em>Join the table</em></span></button>
+            <button class="dashboard-game videopoker-game" data-game="videopoker" data-home-level="3"><span class="game-symbol">J♠ J♦</span><span class="game-copy"><small>Deal, hold, and draw</small><strong>Jacks or Better</strong><em>Play video poker</em></span></button>
+            <button class="dashboard-game sicbo-game" data-game="sicbo" data-home-level="4"><span class="game-symbol">⚂ ⚄ ⚀</span><span class="game-copy"><small>Three dice · transparent odds</small><strong>Sic Bo</strong><em>Choose a wager</em></span></button>
+            <button class="dashboard-game slots-game" data-game="slots" data-home-level="2"><span class="game-symbol">7 · 7 · 7</span><span class="game-copy"><small>Three reels · fixed paytable</small><strong>House Slots</strong><em>Spin the reels</em></span></button>
+            <button class="dashboard-game racing-game" data-game="racing" data-home-level="4"><span class="game-symbol">♞</span><span class="game-copy"><small>Six runners · fixed odds</small><strong>Dorra Downs</strong><em>Back a winner</em></span></button>
+                </div>
+                <div id="homeGamesEmpty" class="home-empty" hidden><p>No games match this search on this floor.</p><button id="homeClearSearch">Clear search · show all games</button></div>
+              </section>
+              <section class="home-worlds" aria-labelledby="homeWorldsTitle">
+                <header><h2 id="homeWorldsTitle">Beyond the tables</h2><span>Three worlds. Your next chapter.</span></header>
+                <div class="home-world-grid">
+                  <a href="football-manager.html" aria-label="Open Queensland Club Manager"><i class="ti ti-ball-football" aria-hidden="true"></i><strong>Queensland Club Manager</strong><small>Build your club. Go national.</small><i class="ti ti-arrow-up-right home-world-arrow" aria-hidden="true"></i></a>
+                  <a href="war-simulation.html" aria-label="Open Dorra Strategic Command"><i class="ti ti-world" aria-hidden="true"></i><strong>Dorra Strategic Command</strong><small>A world of strategic decisions.</small><i class="ti ti-arrow-up-right home-world-arrow" aria-hidden="true"></i></a>
+                  <a href="idle-airport.html" aria-label="Open Dorra Airports"><i class="ti ti-plane" aria-hidden="true"></i><strong>Dorra Airports</strong><small>From dirt strip to destination.</small><i class="ti ti-arrow-up-right home-world-arrow" aria-hidden="true"></i></a>
+                </div>
+              </section>
+              <p class="home-footnote"><span><i class="status-dot" aria-hidden="true"></i>Online Alpha</span><span>Play money only. No real-money wagering.</span></p>
+            </div>
+            <aside class="home-rail" aria-label="Your progress and collection">
+              <section class="home-membership" aria-label="Membership and House access">
+                <div class="dashboard-progress"><div class="progress-copy"><span>Your membership</span><strong>Level <b id="dashboardLevel">1</b> · <em id="dashboardLevelTitle">New Arrival</em></strong><small id="dashboardXpCopy">0 / 300 XP</small></div><div class="dashboard-xp-track" role="progressbar" aria-label="Level progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="dashboardXpFill"></i></div></div>
+                <section class="house-tier-card" id="houseTierCard" aria-live="polite"></section>
+              </section>
+              <section class="objective-panel"><div class="panel-heading"><h2>Daily Objectives</h2><span id="objectiveReset">Daily goals</span></div><div id="objectiveList" class="objective-list"></div><p class="home-objective-bonus">Complete all three for a $300 House bonus.</p></section>
+              <section class="collection-panel"><div class="panel-heading"><h2>Your Collection</h2><button id="collectionBoutiqueBtn">View boutique →</button></div><div class="collection-stats"><div><span>Owned</span><strong id="dashboardOwned">0</strong></div><div><span>Equipped</span><strong id="dashboardEquipped">0</strong></div><div><span>Collection value</span><strong id="dashboardCollectionValue">$0</strong></div></div><div id="equippedPreview" class="equipped-preview">No items equipped yet.</div></section>
+              <section class="house-record"><details><summary>House record &amp; activity <i class="ti ti-chevron-down" aria-hidden="true"></i></summary><dl><div><dt>Sessions</dt><dd id="statSessions">0</dd></div><div><dt>Wins</dt><dd id="statWins">0</dd></div><div><dt>Win rate</dt><dd id="statWinRate">—</dd></div><div><dt>Best game</dt><dd id="statBestGame">—</dd></div></dl><div class="activity-head"><h3>Recent activity</h3><span>House ledger</span></div><ol id="dashboardActivity" class="activity-list"><li class="empty-activity">Play a game to begin your record.</li></ol></details></section>
+            </aside>
           </div>
         </div>
-        <aside class="house-record">
-          <h2>House record</h2>
-          <dl><div><dt>Sessions</dt><dd id="statSessions">0</dd></div><div><dt>Wins</dt><dd id="statWins">0</dd></div><div><dt>Win rate</dt><dd id="statWinRate">—</dd></div><div><dt>Best game</dt><dd id="statBestGame">—</dd></div></dl>
-          <div class="activity-head"><h3>Recent activity</h3><span>Local ledger</span></div>
-          <ol id="dashboardActivity" class="activity-list"><li class="empty-activity">Play a game to begin your record.</li></ol>
-        </aside>
       </section>
 
       <section id="houseMap" class="house-hub" hidden aria-labelledby="houseMapTitle">
@@ -536,6 +552,6 @@
   <script src="vehicle-visual-matrices-v2-modern.js?v=20260807-imagegen1"></script>
   <script src="vehicle-visual-matrices-v2-audi.js?v=20260807-imagegen1"></script>
   <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
-  <script type="module" src="app.js?v=20261008-estate2"></script>
+  <script type="module" src="app.js?v=20261009-home1"></script>
 </body>
 </html>
