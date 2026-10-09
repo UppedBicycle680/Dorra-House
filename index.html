@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="vendor/club-journal/icons/tabler-icons.min.css">
   <link rel="stylesheet" href="estate-workspace.css?v=20261008-estate2">
   <link rel="stylesheet" href="home-workspace.css?v=20261009-home2">
+  <link rel="stylesheet" href="estate.css?v=20261009-estate1">
 </head>
 <body>
   <script type="module" src="online-shell.js"></script>
@@ -35,7 +36,7 @@
         </button>
         <button class="arrival-path path-owner selected" data-arrival-path="owner" role="radio" aria-checked="true">
           <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M5 42h38M9 42V21l15-12 15 12v21M15 42V25h18v17M20 42V31h8v11M5 22 24 6l19 16"/></svg></i></span>
-          <span class="arrival-path-copy"><span class="arrival-path-kicker">02 · Build your legacy</span><strong>Through the Estate</strong><em>Open your first venue. Grow a quiet estate into a thriving House.</em><span class="arrival-features"><small>Venue upgrades</small><small>Offline income</small><small>House directors</small></span></span>
+          <span class="arrival-path-copy"><span class="arrival-path-kicker">02 · Build your legacy</span><strong>Through the Estate</strong><em>Serve customers, hire managers, and grow six venues into a thriving estate.</em><span class="arrival-features"><small>Tap to serve</small><small>Manager automation</small><small>VIP rewards</small></span></span>
           <b class="arrival-check" aria-hidden="true">✓</b>
         </button>
         <button class="arrival-path path-story" data-arrival-path="story" role="radio" aria-checked="false">
@@ -45,7 +46,7 @@
         </button>
       </div>
       <footer class="arrival-action">
-        <p aria-live="polite">Your starting path<strong id="arrivalSummary">Through the Estate</strong><span id="arrivalNextStep">A one-time Founder’s Advance makes the Terrace your first opening.</span></p>
+        <p aria-live="polite">Your starting path<strong id="arrivalSummary">Through the Estate</strong><span id="arrivalNextStep">Open the Terrace for $250. Serve customers, then hire your first manager.</span></p>
         <div class="arrival-action-buttons">
         <button id="arrivalEnterBtn">Enter Dorra House <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></button>
         <button id="arrivalSkipBtn">I’ll decide later</button>
@@ -199,7 +200,7 @@
       </section>
 
       <section id="progressionHub" class="progression-hub" hidden aria-labelledby="progressionTitle">
-        <div class="estate-workspace-layout"><aside class="estate-sidebar"><small class="estate-eyebrow">Estate</small><nav id="estateManagementNav" aria-label="Estate management"><button data-estate-view="overview"><i class="ti ti-home" aria-hidden="true"></i>Overview</button><button data-estate-view="portfolio"><i class="ti ti-building" aria-hidden="true"></i>Portfolio</button><button data-estate-view="operations"><i class="ti ti-settings" aria-hidden="true"></i>Operations</button><button data-estate-view="upgrades"><i class="ti ti-chart-bar" aria-hidden="true"></i>Upgrades</button><button data-estate-view="marketing"><i class="ti ti-speakerphone" aria-hidden="true"></i>Marketing</button><button data-estate-view="finance"><i class="ti ti-coins" aria-hidden="true"></i>Finance</button><button data-estate-view="objectives"><i class="ti ti-target" aria-hidden="true"></i>Objectives</button></nav><small class="estate-eyebrow estate-house-label">House</small>        <nav class="progression-tabs" aria-label="Dorra Office sections">
+        <div class="estate-workspace-layout"><aside class="estate-sidebar"><small class="estate-eyebrow">Estate</small><nav id="estateManagementNav" aria-label="Estate"><button class="active" data-estate-launch><i class="ti ti-building-estate" aria-hidden="true"></i>Play Dorra Estate</button></nav><small class="estate-eyebrow estate-house-label">House</small>        <nav class="progression-tabs" aria-label="Dorra Office sections">
           <button id="empireTab" class="active" data-progression-tab="empire" aria-controls="empirePanel"><i class="ti ti-building" aria-hidden="true"></i>Estate</button>
           <a class="progression-external" href="war-simulation.html"><i class="ti ti-external-link" aria-hidden="true"></i>Strategic Command <b aria-hidden="true">↗</b></a>
           <button id="contractsTab" data-progression-tab="contracts" aria-controls="contractsPanel"><i class="ti ti-users" aria-hidden="true"></i>VIP Contracts <b id="contractBadge">0</b></button>
@@ -552,6 +553,6 @@
   <script src="vehicle-visual-matrices-v2-modern.js?v=20260807-imagegen1"></script>
   <script src="vehicle-visual-matrices-v2-audi.js?v=20260807-imagegen1"></script>
   <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
-  <script type="module" src="app.js?v=20261009-home1"></script>
+  <script type="module" src="app.js?v=20261009-estate1"></script>
 </body>
 </html>
