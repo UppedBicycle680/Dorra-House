@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   ESTATE_VENUES,ESTATE_TAP_INTERVAL_MS,ESTATE_RUSH_MS,normalizeEstate,estateSnapshot,estateGoals,
   accrueEstate,serveEstateCustomer,purchaseEstateVenue,upgradeEstateVenue,hireEstateManager,claimEstateIncome,claimEstateGoal
-} from './estate-engine.js';
+} from '../estate-engine.js';
+import {estateAutoPerMinute} from '../estate-engine.js';
+import {normalizeProgression,empireRate} from '../progression-engine.js';
 
 const NOW=1_800_000_000_000;
 const fresh=()=>normalizeEstate({},NOW);
@@ -263,4 +265,24 @@ test('all six venues expose finite action metrics and require no external casino
     assert.ok(venue.tapValue>0&&Number.isSafeInteger(venue.tapValue));
   }
   assert.equal(estateGoals(progress).find(goal=>goal.id==='thirty-stars').complete,true);
+});
+
+test('rate lookups and historical progression normalization cannot accrue ambient wall time',()=>{
+  const at=Date.parse('2026-10-07T12:00:00Z');
+  const progress={};
+  normalizeProgression(progress,at);
+  normalizeEstate(progress,at);
+  progress.empire.venues.terrace.level=2;
+  progress.empire.venues.terrace.manager=true;
+  const before=structuredClone(progress);
+  assert.equal(estateAutoPerMinute(progress),216);
+  assert.equal(empireRate(progress),12_960);
+  assert.deepEqual(progress,before,'rate displays must not settle money or alter timestamps');
+  normalizeProgression(progress,at+1_000);
+  assert.equal(progress.empire.pending,0,'normalization is not an income claim');
+  assert.equal(progress.empire.clicker.lastAccruedAt,at);
+  assert.equal(progress.empire.clicker.bankMs,0);
+  assert.equal(accrueEstate(progress,at+1_000),3);
+  near(progress.empire.pending,3.6);
+  assert.equal(progress.empire.clicker.lastAccruedAt,at+1_000);
 });

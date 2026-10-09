@@ -1,20 +1,10 @@
-# Dorra Estate account saves
+# Dorra Estate online integration
 
-Dorra Estate offers protected local play and an optional existing Dorra account. Connecting an account shows that account's estate and balance inside Estate. The guest estate and casino wallet stay in the existing offline vault. Disconnecting returns to that guest estate.
+Dorra Estate runs inside the authenticated online Alpha app. It uses the existing Dorra account, shared House balance, Supabase Auth client, session lease, and server-authoritative command client. Browser state is a view of the saved account.
 
 ## Browser contract
 
-`createEstateCloud({onChange,onStatus})` in `estate-cloud.js` exposes cloned `snapshot`, `connected`, `username`, `status`, `serverNow`, `remembered`, and `error` getters. Its methods are `login(username,password)`, `resume()`, `refresh()`, `command(action,args)`, `disconnect()`, and `flush()`.
-
-`createEstateAccount({cloud,onChange})` in `estate-account.js` owns the account dialog and exposes `show()` and `destroy()`. Include `estate-account.css` in the page.
-
-Passwords are sent directly to the existing `dorra-login` endpoint and never stored. Access and refresh tokens use this tab's sessionStorage. The browser contains only the public publishable key. The service credential stays in Supabase's existing function environment.
-
-The cloud snapshot is not written into the guest vault. A failed cloud action stays in cloud mode and reports its error; it cannot execute locally as a fallback. Every accepted API response replaces the adapter snapshot. UI previews can accrue a clone using `cloud.serverNow`.
-
-## Authoritative commands
-
-The API at `https://fbebytnhlanqdbbvxzwz.supabase.co/functions/v1/dorra-api` accepts POST commands with a user access token. Session acquisition accepts `{scope:"session",action:"acquire",leaseId}`. Gameplay accepts `{scope:"house",action,args,leaseId,requestId,expectedRevision}`.
+Estate sends the following intentions through `vault.dispatch('house', action, args)`:
 
 | Action | Arguments |
 | --- | --- |
@@ -25,28 +15,36 @@ The API at `https://fbebytnhlanqdbbvxzwz.supabase.co/functions/v1/dorra-api` acc
 | `estate-clicker-claim` | `{}` |
 | `estate-clicker-goal` | `{goalId}` |
 
-The server derives costs, earnings, milestones, eligibility, and timestamps. Client prices, balances, clocks, and outcomes are rejected. Mutations use the existing session lease, revision check, request replay, and database transaction. If a network response is lost, the adapter retries the same request identifier so a committed action cannot pay or charge twice.
+The existing online controller adopts the returned account snapshot and refreshes the House UI. The client never uploads a complete save, balance, price, payout, timestamp, or outcome. A failed cloud command reports an error and cannot execute locally as a fallback.
 
-The existing database rate limit is 180 committed gameplay actions per minute. Cloud serving should throttle to at least 400 milliseconds and permit only one outstanding serve request. The shared rules enforce a 300 millisecond service cooldown across all venues.
+`vault.serverNow` provides the server-aligned wall clock for presentation. Rendering uses a cloned progress object, so animated manager cycles cannot change the authoritative save. Rate calculations use `estateAutoPerMinute`, which cannot accrue income from the browser or execution host clock.
 
-## Supabase source and deployment
+The existing database limit is 180 committed gameplay actions per minute. Cloud serving throttles to at least 400 milliseconds and permits only one outstanding action. The shared rules enforce a 300 millisecond service cooldown across all venues.
 
-`supabase/functions/dorra-api/` contains the complete source bundle retrieved from the existing live `dorra-api` version 4 on 9 October 2026. The original entrypoint, protocol, casino, football, campaign, airport, and response codec remain intact. `house-progression.mjs` dispatches the six new commands to `estate.mjs`, which uses `shared/estate-engine.js`.
+## Supabase backend
 
-Before deployment, copy the final root `estate-engine.js` and `progression-engine.js` into their matching `shared/` paths. Keep these copies identical to the frontend rules. Deploy the complete directory as the existing `dorra-api`, with `index.ts` as the entrypoint, `deno.json` as the import map, and JWT verification enabled. No login function changes, SQL migrations, or table policy changes are needed.
+`supabase/functions/dorra-api/estate.mjs` validates the six commands and calls the shared rules in `shared/estate-engine.js`. Costs, manager eligibility, service bonuses, milestone rewards, and timestamps are server-derived. Wallet settlements require safe whole-dollar integers and reject overflow.
 
-Saves are existing `dorra_private.player_state.snapshot` JSONB values with RLS enabled and no direct client policies. New state lives under `progress.empire.clicker`; venue ownership and pending legacy income remain under `progress.empire`. The API limits total snapshot/private-state serialization to 9 MB and the database to 10 MB. The local vault limits progress to 2 MB; the new bounded counters and milestone lists stay far below these limits.
+`house-progression.mjs` initializes the versioned clicker state during the existing House bootstrap and dispatches the new actions. Legacy Estate management commands are retired, including the old instant business-week reward, preventing old clients from bypassing the new economy. Other House, casino, contract, story, airport, campaign, and football commands retain their existing routes.
 
-The client CSP must permit connections to `https://fbebytnhlanqdbbvxzwz.supabase.co`. The API permits the existing GitHub Pages origin and localhost/127.0.0.1 port 4173.
+The founder advance now tops up to $1,000, with its original once-only protection. Existing venue levels, manager ownership, pending cash, staff, property investment, headquarters improvements, specialization, and House perks survive migration. Staff and trading records remain in the save; the clicker UI replaces their old management controls.
+
+State remains under `progress.empire`, with bounded activity counters and milestone claims in `progress.empire.clicker`. The existing `dorra_private.player_state.snapshot` JSONB save, RLS, account checks, session replacement, request replay, revision checks, and transaction remain intact. The API limits total snapshot/private-state serialization to 9 MB; the database limit is 10 MB. No SQL migration or policy change is required.
+
+## Source and deployment
+
+The backend source is based on the repository's online `Alpha` branch. Only the new Estate reducer, its dispatch/migration, shared Estate rules, and related progression rules change. Auth credentials remain in the existing Supabase function environment. The browser uses only its existing public configuration.
+
+Run `npm run bundle:server` after changing shared game rules. It copies the final pure modules into `supabase/functions/dorra-api/shared/`, including the Estate rules imported by progression.
+
+Deploy the complete `supabase/functions/dorra-api/` directory as the existing `dorra-api` function, using `index.ts` as entrypoint, `deno.json` as import map, and JWT verification enabled. Do not redeploy the login or admin functions for an Estate change. The API permits the GitHub Pages origin and localhost/127.0.0.1 port 4173.
 
 ## Verification
 
-Run:
+Run `npm run check`, `npm test`, and the relevant browser tests. The Estate tests live in `tests/estate-engine.test.mjs`, `tests/estate-clicker-online.test.mjs`, and the Estate sections of `tests/house-progression-online.test.mjs`.
 
-```powershell
-node --test estate-engine.test.mjs estate-cloud.test.mjs
-```
+They cover prices, star gates, cooldowns, managers, offline caps, fractional earnings, VIP/rush rewards, wallet limits, milestone replay, migration investment, legacy action rejection, JSON saves, and historical server-clock normalization. The existing vault browser test covers Auth, ordered commands, uncertain-delivery request replay, cloned snapshots, and session replacement.
 
-The cloud suite tests the real backend reducer using isolated fixtures and an injected HTTP transport: server prices and timestamps, cooldowns, manager eligibility, offline cap, milestone replay, wallet limits, nested JSON saves, network replay, revision conflicts, auth refresh, and guest-save isolation.
+`node scripts/check-estate-online.mjs` exercises the deployed service with a disposable account: opening, manual service, milestone claims, upgrade, manager hire, automatic income, rejected tampering, same-request replay, and restoration after a fresh sign-in. It verifies email auto-confirm before signup, signs out its sessions, prints no credentials or player save, and returns only the temporary account UUID/username for narrowly scoped cleanup. Remove that QA Auth account and its cascading game data after the run.
 
-A read-only fixture SELECT on the live Supabase project confirmed JSONB round-trip preservation of clicker counters, venue ownership, and balance, as well as both server payload limits. No production player data was read or modified for these checks. An authenticated live account gameplay round-trip requires a dedicated test account; fixture coverage does not claim to have modified a real player's cloud save.
+A read-only literal fixture SELECT on Supabase also confirmed JSONB round-trip preservation of activity counters, venue ownership, and balance within both payload limits.

@@ -76,134 +76,101 @@ test('emergency refill and Skyline credit derive eligibility and amount from sav
 });
 
 test('founder advance can only be earned once despite changing arrival focus', async () => {
-  const f = fixture();
+  const f = fixture({balance:200});
   await assert.rejects(() => act(f, 'arrival', {path: 'administrator'}), /Invalid/);
   const first = await act(f, 'arrival', {path: 'owner', advance: 1e9});
-  assert.equal(first.advance, 4000);
-  assert.equal(f.snapshot.balance, 5000);
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  assert.equal(f.snapshot.balance, 0);
+  assert.equal(first.advance, 800);
+  assert.equal(f.snapshot.balance, 1000);
+  await act(f, 'estate-clicker-open', {venueId: 'terrace'});
+  assert.equal(f.snapshot.balance, 750);
   await act(f, 'arrival', {path: 'player'});
   await act(f, 'arrival', {path: 'owner'});
-  assert.equal(f.snapshot.balance, 0);
+  assert.equal(f.snapshot.balance, 750);
   assert.equal(f.snapshot.progress.arrival.ownerOpeningUnlocked, true);
   await act(f, 'arrival', {skip: true});
   assert.equal(f.snapshot.progress.arrival.path, '');
   assert.equal(f.snapshot.progress.arrival.complete, true);
 });
 
-test('estate openings enforce affordability, star unlocks, vehicle requirements, and server prices', async () => {
-  const f = fixture();
-  await assert.rejects(() => act(f, 'estate-upgrade', {venueId: 'terrace', cost: 0}), /Not enough/);
-  await act(f, 'arrival', {path: 'owner'});
-  const opened = await act(f, 'estate-upgrade', {venueId: 'terrace', cost: 0, level: 5});
-  assert.equal(opened.cost, 5000);
-  assert.equal(f.snapshot.progress.empire.venues.terrace.level, 1);
-  assert.equal(f.snapshot.progress.empire.pending, 100);
-  f.snapshot.balance = 10000000; // Authoritative test fixture, not an accepted player input.
-  await assert.rejects(() => act(f, 'estate-upgrade', {venueId: 'hotel'}), /locked/);
-  await assert.rejects(() => act(f, 'estate-upgrade', {venueId: 'not-a-venue'}), /Unknown/);
-  for (let level = 2; level <= 5; level++) await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  await assert.rejects(() => act(f, 'estate-upgrade', {venueId: 'terrace'}), /fully/);
-  // Reach the racing venue's star gate without granting a car.
-  Object.assign(f.snapshot.progress.empire.venues, {valet: {level: 5}, boutique: {level: 3}});
-  await assert.rejects(() => act(f, 'estate-upgrade', {venueId: 'grandprix'}), /locked/);
+test('clicker venues enforce server prices and stars without requiring a casino vehicle', async () => {
+  const f=fixture({balance:200});
+  await assert.rejects(()=>act(f,'estate-clicker-open',{venueId:'terrace'}),/capital/);
+  f.snapshot.balance=10000000;
+  await assert.rejects(()=>act(f,'estate-clicker-open',{venueId:'terrace',cost:0}),/calculated/);
+  const opened=await act(f,'estate-clicker-open',{venueId:'terrace'});
+  assert.equal(opened.cost,250);
+  assert.equal(f.snapshot.progress.empire.pending,0);
+  await assert.rejects(()=>act(f,'estate-clicker-open',{venueId:'hotel'}),/stars/);
+  await assert.rejects(()=>act(f,'estate-clicker-open',{venueId:'not-a-venue'}),/unavailable/);
+  for(let level=2;level<=5;level++)await act(f,'estate-clicker-upgrade',{venueId:'terrace'});
+  await assert.rejects(()=>act(f,'estate-clicker-upgrade',{venueId:'terrace'}),/fully/);
+  Object.assign(f.snapshot.progress.empire.venues,{valet:{level:5},boutique:{level:3}});
+  const racing=await act(f,'estate-clicker-open',{venueId:'grandprix'});
+  assert.equal(racing.cost,240000);
+  assert.equal(Object.keys(f.snapshot.progress.vehicles).length,0);
 });
 
-test('estate collection uses server elapsed time, preserves the cap, and cannot pay twice', async () => {
-  const f = fixture();
-  await act(f, 'arrival', {path: 'owner'});
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  const rate = empireRate(f.snapshot.progress);
-  f.now += 3600000;
-  const collection = await act(f, 'estate-claim', {amount: 1e9, now: NOW + 864000000});
-  assert.equal(collection.amount, 100 + rate);
-  assert.equal(f.snapshot.balance, 100 + rate);
-  await assert.rejects(() => act(f, 'estate-claim'), /No estate/);
-  f.now += 3600000 * 24;
-  assert.equal((await act(f, 'estate-claim')).amount, rate * 8);
-  assert.equal(f.snapshot.progress.empire.lifetimeEarned, 100 + rate * 9);
+test('clicker collection uses server elapsed time, preserves the cap, and cannot pay twice', async () => {
+  const f=fixture({progress:{empire:{venues:{terrace:{level:2,manager:true}}}}});
+  f.now+=3600000;
+  const rate=empireRate(f.snapshot.progress),before=f.snapshot.balance;
+  await assert.rejects(()=>act(f,'estate-clicker-claim',{amount:1e9,now:NOW+864000000}),/calculated/);
+  const collection=await act(f,'estate-clicker-claim');
+  assert.equal(collection.amount,rate);
+  assert.equal(f.snapshot.balance,before+rate);
+  await assert.rejects(()=>act(f,'estate-clicker-claim'),/still earning/);
+  f.now+=3600000*24;
+  assert.equal((await act(f,'estate-clicker-claim')).amount,rate*8);
+  assert.equal(f.snapshot.progress.empire.lifetimeEarned,rate*9);
 });
 
-test('directors require Level 2 and cannot change contract reward directives during a brief', async () => {
-  const f = fixture({balance: 1000000, progress: {story: {index: 2}}});
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  await assert.rejects(() => act(f, 'estate-manager', {venueId: 'terrace'}), /Level 2/);
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  const before = f.snapshot.balance;
-  await act(f, 'estate-manager', {venueId: 'terrace', cost: 0});
-  assert.equal(f.snapshot.balance, before - 2000);
-  await assert.rejects(() => act(f, 'estate-manager', {venueId: 'terrace'}), /unmanaged/);
-  await act(f, 'estate-focus', {venueId: 'terrace', focusId: 'service'});
-  await act(f, 'contract-accept', {contractId: 'calling-card'});
-  await assert.rejects(() => act(f, 'estate-focus', {venueId: 'terrace', focusId: 'yield'}), /locked/);
-  assert.equal(f.snapshot.progress.empire.venues.terrace.focus, 'service');
+test('clicker directors require Level 2 and retained contract directives cannot be repriced by legacy commands', async () => {
+  const f=fixture({balance:1000000,progress:{story:{index:2}}});
+  await act(f,'estate-clicker-open',{venueId:'terrace'});
+  await assert.rejects(()=>act(f,'estate-clicker-manager',{venueId:'terrace'}),/Level 2/);
+  await act(f,'estate-clicker-upgrade',{venueId:'terrace'});
+  const before=f.snapshot.balance;
+  await act(f,'estate-clicker-manager',{venueId:'terrace'});
+  assert.equal(f.snapshot.balance,before-1200);
+  await assert.rejects(()=>act(f,'estate-clicker-manager',{venueId:'terrace'}),/already/);
+  f.snapshot.progress.empire.venues.terrace.focus='service';
+  await act(f,'contract-accept',{contractId:'calling-card'});
+  const reward=f.snapshot.progress.contracts.rewardCash;
+  await assert.rejects(()=>act(f,'estate-focus',{venueId:'terrace',focusId:'yield'}),/Estate has changed/);
+  assert.equal(f.snapshot.progress.empire.venues.terrace.focus,'service');
+  assert.equal(f.snapshot.progress.contracts.rewardCash,reward);
 });
 
-test('staff and permanent specializations enforce operating venues, counts, levels, and one choice', async () => {
-  const f = fixture({balance: 1000000});
-  await assert.rejects(() => act(f, 'estate-staff-hire', {venueId: 'terrace', roleId: 'service'}), /cannot/);
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  const before = f.snapshot.balance;
-  await act(f, 'estate-staff-hire', {venueId: 'terrace', roleId: 'service', count: 25, cost: 0});
-  assert.equal(f.snapshot.balance, before - 1200);
-  assert.equal(f.snapshot.progress.empire.venues.terrace.staff.service, 1);
-  await act(f, 'estate-staff-release', {venueId: 'terrace', roleId: 'service'});
-  await assert.rejects(() => act(f, 'estate-staff-release', {venueId: 'terrace', roleId: 'service'}), /No staff/);
-  const specializationId = EMPIRE_SPECIALIZATIONS.terrace[0].id;
-  await assert.rejects(() => act(f, 'estate-specialization', {venueId: 'terrace', specializationId}), /unavailable/);
-  for (let level = 2; level <= 3; level++) await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  await act(f, 'estate-specialization', {venueId: 'terrace', specializationId});
-  await assert.rejects(() => act(f, 'estate-specialization', {venueId: 'terrace', specializationId}), /unavailable/);
+test('migration preserves staff, specialization and venue investment through clicker service', async () => {
+  const specialization=EMPIRE_SPECIALIZATIONS.terrace[0].id,improvement=EMPIRE_VENUE_IMPROVEMENTS[0].id;
+  const f=fixture({progress:{empire:{venues:{terrace:{level:3,manager:true,purchasedAt:NOW-10000,staff:{service:2},specialization,improvements:{[improvement]:2}}}}}});
+  await act(f,'estate-clicker-serve',{venueId:'terrace'});
+  const entry=f.snapshot.progress.empire.venues.terrace;
+  assert.equal(entry.purchasedAt,NOW-10000);assert.equal(entry.manager,true);
+  assert.equal(entry.staff.service,2);assert.equal(entry.specialization,specialization);assert.equal(entry.improvements[improvement],2);
+  await assert.rejects(()=>act(f,'estate-staff-hire',{venueId:'terrace',roleId:'service'}),/Estate has changed/);
 });
 
-test('headquarters and venue capital projects charge catalog costs and stop at their maximum level', async () => {
-  const f = fixture({balance: 1000000});
-  const upgrade = EMPIRE_HEADQUARTERS_UPGRADES[0], improvement = EMPIRE_VENUE_IMPROVEMENTS[0];
-  await assert.rejects(() => act(f, 'estate-venue-improvement', {venueId: 'terrace', improvementId: improvement.id}), /unavailable/);
-  for (const cost of upgrade.costs) {
-    const before = f.snapshot.balance;
-    const result = await act(f, 'estate-headquarters-upgrade', {upgradeId: upgrade.id, cost: 0});
-    assert.equal(result.cost, cost);
-    assert.equal(f.snapshot.balance, before - cost);
-  }
-  await assert.rejects(() => act(f, 'estate-headquarters-upgrade', {upgradeId: upgrade.id}), /unavailable/);
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  for (let level = 1; level <= 3; level++) {
-    const before = f.snapshot.balance;
-    const result = await act(f, 'estate-venue-improvement', {venueId: 'terrace', improvementId: improvement.id, cost: 0});
-    assert.equal(result.level, level);
-    assert(result.cost > 0);
-    assert.equal(f.snapshot.balance, before - result.cost);
-  }
-  await assert.rejects(() => act(f, 'estate-venue-improvement', {venueId: 'terrace', improvementId: improvement.id}), /unavailable/);
+test('retained headquarters and venue capital projects improve clicker payouts', async () => {
+  const hq=EMPIRE_HEADQUARTERS_UPGRADES[0].id,improvement=EMPIRE_VENUE_IMPROVEMENTS[0].id;
+  const f=fixture({progress:{empire:{headquarters:{[hq]:1},venues:{terrace:{level:2,improvements:{[improvement]:1}}}}}});
+  const served=await act(f,'estate-clicker-serve',{venueId:'terrace'});
+  assert(served.amount>18);
+  assert.equal(f.snapshot.progress.empire.headquarters[hq],1);
+  assert.equal(f.snapshot.progress.empire.venues.terrace.improvements[improvement],1);
+  await assert.rejects(()=>act(f,'estate-headquarters-upgrade',{upgradeId:hq}),/Estate has changed/);
 });
 
-test('marketing, financing, objectives, business weeks, and event choices remain playable with fixed economics', async () => {
-  const f = fixture({balance: 1000000});
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
-  const campaign = EMPIRE_MARKETING_CAMPAIGNS[0], loan = EMPIRE_LOANS[0];
-  let before = f.snapshot.balance;
-  await act(f, 'estate-marketing', {campaignId: campaign.id, cost: 0});
-  assert.equal(f.snapshot.balance, before - campaign.cost);
-  assert.equal(f.snapshot.progress.empire.marketing[0].weeks, campaign.duration);
-  before = f.snapshot.balance;
-  await act(f, 'estate-loan', {loanId: loan.id, credit: 1e9});
-  assert.equal(f.snapshot.balance, before + loan.principal);
-  await assert.rejects(() => act(f, 'estate-loan', {loanId: loan.id}), /already/);
-  const objective = await act(f, 'estate-objective', {objectiveId: 'first-profit', reward: 1e9});
-  assert(objective.amount > 0 && objective.amount < 1e9);
-  await assert.rejects(() => act(f, 'estate-objective', {objectiveId: 'first-profit'}), /claimed/);
-  await act(f, 'estate-week', {cashflow: 1e9});
-  await act(f, 'estate-week');
-  assert.equal(f.snapshot.progress.empire.week, 3);
-  await assert.rejects(() => act(f, 'estate-week'), /Resolve/);
-  const event = EMPIRE_EVENTS.find(item => item.id === f.snapshot.progress.empire.event.id), choice = event.choices[0];
-  before = f.snapshot.balance;
-  await act(f, 'estate-event', {choiceId: choice.id, cost: 0});
-  assert.equal(f.snapshot.balance, before - (choice.cost || 0));
-  assert.equal(f.snapshot.progress.empire.event, null);
-  assert.equal(f.snapshot.progress.empire.eventHistory[0].choice, choice.label);
+test('legacy financing and trading records survive migration while instant week rewards are retired', async () => {
+  const campaign=EMPIRE_MARKETING_CAMPAIGNS[0],loan=EMPIRE_LOANS[0],event=EMPIRE_EVENTS[0];
+  const f=fixture({progress:{empire:{venues:{terrace:{level:1}},week:4,marketing:[{id:campaign.id,weeks:2}],loans:[{id:loan.id,weeks:3}],event:{id:event.id}}}});
+  const before=f.snapshot.balance;
+  for(const action of ['estate-week','estate-loan','estate-objective','estate-marketing','estate-event'])await assert.rejects(()=>act(f,action,{}),/Estate has changed/);
+  assert.equal(f.snapshot.balance,before);assert.equal(f.snapshot.progress.empire.week,4);
+  await act(f,'estate-clicker-serve',{venueId:'terrace'});
+  assert.equal(f.snapshot.progress.empire.loans[0].id,loan.id);
+  assert.equal(f.snapshot.progress.empire.marketing[0].weeks,2);
+  assert.equal(f.snapshot.progress.empire.event.id,event.id);
 });
 
 test('server settlements award XP, daily objectives, achievements, story counters, and bounded history', () => {
@@ -321,7 +288,7 @@ test('reset requires explicit confirmation and clears all games while retaining 
   const f = fixture({balance: 1000000});
   await act(f, 'profile-save', {name: 'Pilot'});
   await act(f, 'settings', {sound: false});
-  await act(f, 'estate-upgrade', {venueId: 'terrace'});
+  await act(f, 'estate-clicker-open', {venueId: 'terrace'});
   round(f, 'Blackjack', true);
   f.snapshot.progress.redeemedCodes = ['claimed-one'];
   f.privateState = {house: {redeemedCodeHashes: ['claimed-two'], rounds: {bj: {bet: 25}}}, football: {hidden: 'match'}, airport: {hidden: 'career'}};
@@ -332,7 +299,8 @@ test('reset requires explicit confirmation and clears all games while retaining 
   assert.equal(f.snapshot.progress.profile.settings.sound, false);
   assert.equal(f.snapshot.stats.sessions, 0);
   assert.deepEqual(f.snapshot.history, []);
-  assert.deepEqual(f.snapshot.progress.empire.venues, {});
+  assert(Object.values(f.snapshot.progress.empire.venues).every(venue => venue.level === 0));
+  assert.equal(f.snapshot.progress.empire.clicker.served,0);
   assert.equal(f.snapshot.progress.campaign, null);
   assert.equal(f.snapshot.progress.arrival.complete, false);
   assert.deepEqual(f.privateState, {house: {redeemedCodeHashes: ['claimed-two', 'claimed-one'], resetAt: NOW}});

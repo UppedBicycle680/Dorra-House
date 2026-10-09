@@ -125,6 +125,13 @@ function values(progress, venue) {
   return {payout, cycleMs:venue.cycleMs, autoPerMinute:entry.manager?payout/venue.cycleMs*60_000:0};
 }
 
+/** A rate lookup never settles income or changes the caller's clock. */
+export function estateAutoPerMinute(progress) {
+  const view={empire:structuredClone(progress.empire||{})};
+  normalizeEstate(view,view.empire.clicker?.lastAccruedAt||0);
+  return ESTATE_VENUES.reduce((sum,venue)=>sum+values(view,venue).autoPerMinute,0);
+}
+
 /** Bank only managed income; elapsed fractions survive snapshots and claims. */
 export function accrueEstate(progress, now=Date.now()) {
   normalizeEstate(progress,now);

@@ -10,7 +10,7 @@ export const localRemove = key => localStorage.removeItem(key);
 export async function createVaultClient(options = {}) {
   await requireAccount();
   const leaseId = crypto.randomUUID();
-  let snapshot, revision = 0, closed = false, blocked = false, lastError = null;
+  let snapshot, revision = 0, closed = false, blocked = false, lastError = null, serverOffset = 0;
   let queue = Promise.resolve();
   const notify = (status, error = null) => {
     document.documentElement.dataset.saveState = status;
@@ -19,7 +19,9 @@ export async function createVaultClient(options = {}) {
   };
   function adopt(value) {
     if (!value?.snapshot || !Number.isSafeInteger(value.revision)) throw new Error('The cloud returned an incomplete save.');
-    snapshot = structuredClone(value.snapshot); revision = value.revision; return value;
+    snapshot = structuredClone(value.snapshot); revision = value.revision;
+    if (Number.isFinite(value.serverNow)) serverOffset = value.serverNow - Date.now();
+    return value;
   }
   async function request(body, retry = true) {
     if (closed || blocked) throw new Error(blocked ? 'This gameplay session ended. Reload to continue on this device.' : 'Cloud save client closed.');
@@ -72,6 +74,7 @@ export async function createVaultClient(options = {}) {
   }
   return Object.freeze({
     get snapshot() { return structuredClone(snapshot); },
+    get serverNow() { return Date.now() + serverOffset; },
     integrityIssue:false,airportWarning:null,dispatch,
     commit:async () => { throw new Error('Browser save uploads are disabled. Use a server-approved gameplay action.'); },
     airportLoad:() => airport('load'),airportCommand:payload => airport('command',payload),withdrawAirportCash:payload => airport('withdraw',payload),

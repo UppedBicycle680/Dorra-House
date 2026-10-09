@@ -9,7 +9,7 @@ const icon = (name, cls='') => `<i class="ti ti-${name} ${cls}" aria-hidden="tru
 const initials = name => name.split(' ').map(part=>part[0]).join('');
 
 /** A single controller keeps service buttons stable between live updates. */
-export function createEstateUI({panel,getState,mutate,notify,cloudStatus,openAccount,now=()=>Date.now()}) {
+export function createEstateUI({panel,getState,mutate,notify,cloudStatus,now=()=>Date.now()}) {
   let view='estate',selected='terrace',busy=false,lastMessage='',feedbackTimer;
   const snapshot = () => {
     const current=getState();
@@ -54,12 +54,12 @@ export function createEstateUI({panel,getState,mutate,notify,cloudStatus,openAcc
     const focusAttr=focus&&Array.from(focus.attributes).find(attr=>attr.name.startsWith('data-estate-'));
     const snap=snapshot(),current=getState(),balance=current.balance,cloud=cloudStatus();
     let venue=snap.venues.find(item=>item.id===selected)||snap.venues[0];
-    panel.innerHTML=`<div class="estate-game" aria-label="Dorra Estate idle game"><div class="estate-summary"><div><small>${cloud.connected?'Cloud Estate balance':'Available balance'}</small><strong data-estate-wallet>${cash(balance)}</strong></div><div><small>Manager income</small><strong data-estate-income>${rate(snap.autoPerMinute)}<em>/min</em></strong></div><div><small>Estate progress</small><strong>${snap.stars}<em>/ 30 stars</em></strong><span>${snap.ownedCount} venues · ${snap.managedCount} managers</span></div><button class="estate-collect" data-estate-claim ${snap.claimable<1?'disabled':''}><span>${icon('wallet')} Collect income</span><strong data-estate-bank>${cash(snap.claimable)}</strong><small data-estate-bank-copy>${snap.bankHours.toFixed(1)} / ${snap.capHours} hours banked</small></button></div>
-      <nav class="estate-nav" aria-label="Estate game sections">${[['estate','building-estate','Your estate'],['managers','users','Managers'],['milestones','target','Milestones']].map(([id,symbol,label])=>`<button data-estate-view="${id}" class="${view===id?'active':''}" aria-pressed="${view===id}">${icon(symbol)}${label}${id==='milestones'&&snap.goals.some(goal=>goal.complete&&!goal.claimed)?'<b class="estate-notification">!</b>':''}</button>`).join('')}<button class="estate-account-trigger" data-estate-account>${icon(cloud.connected?'cloud-check':'cloud')}<span>${cloud.connected?escape(cloud.username||'Cloud connected'):'Connect cloud save'}</span></button></nav>
+    panel.innerHTML=`<div class="estate-game" aria-label="Dorra Estate idle game"><header class="estate-game-heading"><small>Dorra Estate · Idle business game</small><h1 id="estateWorkspaceTitle" tabindex="-1">Small beginnings. Grand ambitions.</h1><p>Serve customers. Hire managers. Build your Dorra.</p></header><div class="estate-summary"><div><small>House balance</small><strong data-estate-wallet>${cash(balance)}</strong></div><div><small>Manager income</small><strong data-estate-income>${rate(snap.autoPerMinute)}<em>/min</em></strong></div><div><small>Estate progress</small><strong>${snap.stars}<em>/ 30 stars</em></strong><span>${snap.ownedCount} venue${snap.ownedCount===1?'':'s'} · ${snap.managedCount} manager${snap.managedCount===1?'':'s'}</span></div><button class="estate-collect" data-estate-claim ${snap.claimable<1?'disabled':''}><span>${icon('wallet')} Collect income</span><strong data-estate-bank>${cash(snap.claimable)}</strong><small data-estate-bank-copy>${snap.bankHours.toFixed(1)} / ${snap.capHours} hours banked</small></button></div>
+      <nav class="estate-nav" aria-label="Estate game sections">${[['estate','building-estate','Your estate'],['managers','users','Managers'],['milestones','target','Milestones']].map(([id,symbol,label])=>`<button data-estate-view="${id}" class="${view===id?'active':''}" aria-pressed="${view===id}">${icon(symbol)}${label}${id==='milestones'&&snap.goals.some(goal=>goal.complete&&!goal.claimed)?'<b class="estate-notification">!</b>':''}</button>`).join('')}<span class="estate-cloud-status ${cloud.status==='error'?'error':''}">${icon(cloud.status==='error'?'cloud-off':cloud.status==='saving'?'cloud-upload':'cloud-check')}<span>${cloud.status==='error'?'Save failed · retry':cloud.status==='saving'?'Saving online…':'Saved online'}</span></span></nav>
       <div class="estate-feedback" role="status" aria-live="polite">${escape(lastMessage||'Open. Serve. Upgrade. Hire a manager. Build the next chapter.')}</div>
       ${view==='estate'?activeVenue(venue,snap,balance)+`<section class="estate-portfolio"><header><div><small>Your growing portfolio</small><h2>Six venues. One Dorra.</h2></div><p>Each upgrade earns a star and opens the way to your next venue.</p></header><div class="estate-venues">${snap.venues.map(venueCard).join('')}</div></section>`:view==='managers'?`<section class="estate-section-heading"><small>Put the House in good hands</small><h2>Your management team</h2><p>Reach Level 2, hire a director, and let them serve customers for you. Collect up to ${snap.capHours} hours of income when you return.</p></section><div class="estate-managers">${snap.venues.map(item=>managerCard(item,balance)).join('')}</div>`:`<section class="estate-section-heading"><small>Something to work towards</small><h2>Little wins. A bigger estate.</h2><p>Build your business and claim each milestone reward once.</p></section><div class="estate-goals">${snap.goals.map(goalCard).join('')}</div>`}
       ${view!=='milestones'&&snap.nextGoal?`<section class="estate-next-goal"><span>${icon('target')}</span><div><small>Next milestone</small><strong>${snap.nextGoal.name}</strong><p>${snap.nextGoal.copy}</p></div><button ${snap.nextGoal.complete?`data-estate-goal="${snap.nextGoal.id}"`:'data-estate-view="milestones"'}>${snap.nextGoal.complete?'Claim '+cash(snap.nextGoal.amount):'View milestones '+(Math.min(snap.nextGoal.value,snap.nextGoal.target))+'/'+snap.nextGoal.target}</button></section>`:''}
-      <footer class="estate-game-footnote"><span>${icon('device-gamepad-2')} Fictional play money</span><span>${cloud.connected?'Account Estate · local casino balance is separate':'Saved on this device · connect your account to play your cloud Estate'}</span><span>Managers earn offline · ${snap.capHours}h cap</span></footer></div>`;
+      <footer class="estate-game-footnote"><span>${icon('device-gamepad-2')} Fictional play money</span><span>Shared House balance · saved to your Dorra account</span><span>Managers earn offline · ${snap.capHours}h cap</span></footer></div>`;
     if(focusAttr) panel.querySelector(`[${focusAttr.name}="${CSS.escape(focusAttr.value)}"]`)?.focus({preventScroll:true});
     if(busy) panel.querySelectorAll('[data-estate-serve],[data-estate-open],[data-estate-upgrade],[data-estate-manager],[data-estate-claim],[data-estate-goal]').forEach(button=>button.disabled=true);
   }
@@ -92,7 +92,6 @@ export function createEstateUI({panel,getState,mutate,notify,cloudStatus,openAcc
 
   async function click(event) {
     const button=event.target.closest('button');if(!button||!panel.contains(button)) return;
-    if(button.hasAttribute('data-estate-account')){openAccount();return;}
     if(button.dataset.estateView){view=button.dataset.estateView;render();return;}
     if(button.dataset.estateSelect){selected=button.dataset.estateSelect;view='estate';render();panel.querySelector('.estate-service-card')?.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
     if(busy||button.disabled) return;
@@ -102,15 +101,9 @@ export function createEstateUI({panel,getState,mutate,notify,cloudStatus,openAcc
     try {
       const result=await mutate(action,action==='goal'?{goalId:arg}:action==='claim'?{}:{venueId:arg});
       if(!result?.ok){if(!result?.retryAfterMs)notify(result?.reason||'That action could not be completed.');return;}
-      feedback(result,action);
-      if(action==='serve'){
-        update();panel.querySelector('[data-estate-wallet]').textContent=cash(getState().balance);
-        // New milestones and affordable upgrades are refreshed without moving
-        // keyboard focus; the service button remains the primary target.
-        render();feedback(result,action);
-      }else render();
+      busy=false;render();feedback(result,action);
     } catch(error){notify(error.message||'Could not save this action. Please retry.');}
-    finally {busy=false;update();const serve=panel.querySelector('[data-estate-serve]');if(serve)serve.disabled=false;}
+    finally {if(busy){busy=false;render();}update();}
   }
   panel.addEventListener('click',click);
   return {render,update,destroy(){panel.removeEventListener('click',click);clearTimeout(feedbackTimer);}};
