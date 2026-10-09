@@ -26,7 +26,7 @@ import {AIRCRAFT_MODELS,drawAircraft} from './aircraft-models.mjs';
 import {GROUND_EQUIPMENT,drawGroundEquipment} from './ground-equipment.mjs';
 import {advancePassengerShuttle} from './passenger-shuttle.mjs';
 import {groundEquipmentPlacements,equipmentOverlaps,equipmentFootprint,aircraftEquipmentExclusion} from './ground-equipment-placement.mjs';
-import {operatingRunway,createFlightPlan,sampleFlight,roundedPath,taxiwayPath,apronConnectors} from './traffic.mjs';
+import {operatingRunway,createFlightPlan,sampleFlight,sampleInteractiveFlight,roundedPath,taxiwayPath,apronConnectors} from './traffic.mjs';
 
 // Presentation only: routes, camera and models cannot change balances or rewards.
 const TAU=Math.PI*2;
@@ -44,10 +44,11 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
   let projXX=1,projXY=-1,projYX=.455,projYY=.455;
   let zoom=1,panX=0,panY=0,drag=null,lastViewTime=performance.now(),serverTime=Date.now(),lastPaint=0;
   let staticDirty=true,worldSignature='',renderedFrames=0,lastFrameMs=0,totalRenderMs=0,routeSignature='';
-  let staticObjects=[],selectedSurfaceId=null;
+  let staticObjects=[],staticHits=[],selectedSurfaceId=null,incidentSnapshot=null;
   let equipment=[],visibleEquipment=[],towEquipment=[],shuttleState={},lastShuttleTime=null;
   const foregroundContext=ctx,staticCanvas=document.createElement('canvas'),staticContext=staticCanvas.getContext('2d',{alpha:false});
-  const assignments=new Map(),parkedCache=new Map(),motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
+  const assignments=new Map(),interactiveAssignments=new Map(),parkedCache=new Map(),motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
+  const allAssignments=()=>[...assignments.values(),...interactiveAssignments.values()];
   let runwaySurfaces=[];
   let reduced=motionQuery.matches;
   const motionChange=e=>{reduced=e.matches};motionQuery.addEventListener('change',motionChange);
@@ -431,11 +432,11 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
     road([[sx+6,outY],[maxStand,outY]],taxiWidth,taxiColour,'#e5ce78');
     road(roundedPath([[sx+22,ry],[sx+6,ry],[sx+6,outY]],8),taxiWidth,taxiColour,'#e5ce78');
     road(roundedPath([[end-15,ry],[end-8,ry],[end-8,inY]],7),taxiWidth,taxiColour,'#e5ce78');
-    for(const oldEnd of new Set([...assignments.values()].map(a=>a.plan?.runway.end[0]).filter(v=>Number.isFinite(v)&&Math.abs(v-end)>.01)))road(roundedPath([[oldEnd-15,ry],[oldEnd-8,ry],[oldEnd-8,inY]],7),taxiWidth,taxiColour,'#e5ce78');
+    for(const oldEnd of new Set(allAssignments().map(a=>a.plan?.runway.end[0]).filter(v=>Number.isFinite(v)&&Math.abs(v-end)>.01)))road(roundedPath([[oldEnd-15,ry],[oldEnd-8,ry],[oldEnd-8,inY]],7),taxiWidth,taxiColour,'#e5ce78');
     }
     const apronPlans=(layout.id==='brisbane'?layout.stands.slice(0,1):layout.stands).map(s=>createFlightPlan(layout,layout.id==='brisbane'?{...airport,routePreview:true}:airport||{},s));
     const pavedPhases=redcliffe?['exit','lineup']:layout.authoredTaxiways&&layout.routeModel!=='terminal-end'?(layout.arrivalBypass?['exit','inbound','lineup']:['exit','lineup']):['exit','inbound','pushback','outbound','lineup'];
-    for(const plan of [...new Map([...apronPlans,...[...assignments.values()].map(a=>a.plan)].map(p=>[JSON.stringify(pavedPhases.map(key=>p[key])),p])).values()])for(const key of pavedPhases){
+    for(const plan of [...new Map([...apronPlans,...allAssignments().map(a=>a.plan)].map(p=>[JSON.stringify(pavedPhases.map(key=>p[key])),p])).values()])for(const key of pavedPhases){
       // Sunshine Coast's A2 turn needs a pavement flare for widebody main gear.
       const width=taxiWidth+(key==='exit'?(layout.routeModel==='terminal-end'?3:layout.arrivalBypass?1:0):0);
       road(plan[key],width,taxiColour);
@@ -647,34 +648,67 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
     }else{parkedCache.delete(key);parkedCache.set(key,sprite)}
     ctx.drawImage(sprite.image,p.x-sprite.originX,p.y-sprite.originY,sprite.cssWidth,sprite.cssHeight);
   }
+  function drawTrafficFlight(pose,id,gate,colour,time){
+    const model=AIRCRAFT_MODELS[id]||AIRCRAFT_MODELS.c172,s=layout.metresToWorld,length=model.length*s,span=model.wingspan*s;
+    const shadow=[];for(let j=0;j<24;j++){const a=j/24*TAU,u=Math.cos(a)*length*.5,v=Math.sin(a)*span*.24;shadow.push([pose.x+u*Math.cos(pose.heading)-v*Math.sin(pose.heading)+pose.altitude*.3,pose.y+u*Math.sin(pose.heading)+v*Math.cos(pose.heading)+pose.altitude*.3])}poly(shadow,pose.altitude?'#2e56441d':'#2e56442c');
+    defer(pose.x,pose.y+pose.altitude,()=>{if(pose.phase==='servicing'){parkedAircraft(id,pose,colour);return}ctx.save();ctx.globalAlpha=pose.opacity;drawAircraft(ctx,{id,x:pose.x,y:pose.y,heading:pose.heading,altitude:pose.altitude,metresToWorld:s,project,colour,time,reducedMotion:reduced,gearDown:pose.phase!=='climb'||(pose.operationPhase?pose.phaseProgress<.85:pose.timeInCycle<pose.period-3)});ctx.restore()});
+    if(pose.reverse&&layout.routeModel!=='archerfield'&&level('handling')>=2){
+      const kind=gate.size>=4&&level('handling')>=5?'heavyTug':'tug',distance=length/2+(GROUND_EQUIPMENT[kind].length/2+.8)*s;
+      const x=pose.x+Math.cos(pose.heading)*distance,y=pose.y+Math.sin(pose.heading)*distance;
+      towEquipment.push({kind,x,y,heading:pose.heading});
+      defer(x,y,()=>vehicle(x,y,pose.heading,kind,'#dfa342'));
+    }
+  }
+  function interactiveFlightHit(flight,pose,id){
+    if(pose.opacity<.15)return;
+    const model=AIRCRAFT_MODELS[id]||AIRCRAFT_MODELS.c172,s=layout.metresToWorld,c=Math.cos(pose.heading),sn=Math.sin(pose.heading);
+    const points=[[-model.length*.5,-model.wingspan*.5],[model.length*.5,-model.wingspan*.5],[model.length*.5,model.wingspan*.5],[-model.length*.5,model.wingspan*.5]].map(([u,v])=>project(pose.x+(u*c-v*sn)*s,pose.y+(u*sn+v*c)*s,pose.altitude));
+    const screen=project(pose.x,pose.y,pose.altitude),padding=13;
+    // Small GA aircraft remain selectable when the whole airfield is in view.
+    points.push({x:screen.x-padding,y:screen.y-padding},{x:screen.x+padding,y:screen.y-padding},{x:screen.x+padding,y:screen.y+padding},{x:screen.x-padding,y:screen.y+padding});
+    hits.push({kind:'flight',id:flight.id,flightId:flight.id,gateId:flight.gateId,label:[flight.airline,model.name||flight.aircraft?.name,flight.destination].filter(Boolean).join(' · '),x:pose.x,y:pose.y,w:0,h:0,points:convexHull(points),screen});
+  }
   function traffic(time){
     flights=[];towEquipment=[];if(!airport?.owned)return;
-    const elapsed=(presentationTime?presentationTime():serverTime+performance.now()-lastViewTime)/1000;
+    const now=presentationTime?presentationTime():serverTime+performance.now()-lastViewTime,elapsed=now/1000;
+    const interactive=airport.operations?.flights||[],occupiedGates=new Set(interactive.map(f=>f.gateId)),liveIds=new Set(interactive.map(f=>f.id));
+    const occupiedPhysicalStands=new Set(interactive.map(f=>f.physicalStandId||`${airport.id}:${f.routePlan?.stand?.referenceStand??f.plotId}`));
+    const controlledRunways=new Set(interactive.map(f=>f.routePlan?.runway?.id||f.runwayId||'main'));
+    for(const id of interactiveAssignments.keys())if(!liveIds.has(id))interactiveAssignments.delete(id);
     const activeGates=['ybsu','hamilton','gold-coast','brisbane-bays'].includes(layout.routeModel)?airport.gates.filter(g=>g.status!=='waiting'&&g.aircraft&&(!['brisbane','gold-coast'].includes(layout.id)||g.active!==false)):airport.gates;
     for(const [i,gate] of activeGates.entries()){
-      const stand=layout.stands.find(s=>s.plotId===gate.plotId);if(!stand||gate.status==='waiting'||!gate.aircraft)continue;
+      const stand=layout.stands.find(s=>s.plotId===gate.plotId);if(!stand||gate.status==='waiting'||!gate.aircraft||occupiedGates.has(gate.id))continue;
       const plane=gate.currentAircraft||gate.aircraft;
       const assignedModel=AIRCRAFT_MODELS[plane.id]||AIRCRAFT_MODELS.c172;
-      let assignment=assignments.get(gate.id),plan=assignment?.plan||createFlightPlan(layout,reduced&&layout.id==='brisbane'?{...airport,routePreview:true}:airport,stand,assignedModel),pose=sampleFlight(plan,elapsed,i,reduced);
-      if(reduced||!assignment||assignment.cycle!==pose.cycle||layout.routeModel==='ybsu'&&assignment.plan.period!==activeGates.length*100||layout.routeModel==='gold-coast'&&assignment.plan.period!==activeGates.length*120){plan=createFlightPlan(layout,reduced&&layout.id==='brisbane'?{...airport,routePreview:true}:airport,stand,assignedModel);pose=sampleFlight(plan,elapsed,i,reduced);assignment={cycle:pose.cycle,id:plane.id||'c172',plan};assignments.set(gate.id,assignment)}
-      if(pose.phase==='queued')continue;
-      const id=assignment.id,model=AIRCRAFT_MODELS[id]||AIRCRAFT_MODELS.c172,s=layout.metresToWorld,length=model.length*s,span=model.wingspan*s;
-      flights.push({...pose,waitingForClearance:plan.routeAvailable===false,id:gate.id,aircraftId:id,screen:project(pose.x,pose.y,pose.altitude)});
-      const shadow=[];for(let j=0;j<24;j++){const a=j/24*TAU,u=Math.cos(a)*length*.5,v=Math.sin(a)*span*.24;shadow.push([pose.x+u*Math.cos(pose.heading)-v*Math.sin(pose.heading)+pose.altitude*.3,pose.y+u*Math.sin(pose.heading)+v*Math.cos(pose.heading)+pose.altitude*.3])}poly(shadow,pose.altitude?'#2e56441d':'#2e56442c');
-      const colour=['#3b9f9d','#e0a461','#698eb8','#9982b8'][i%4];
-      defer(pose.x,pose.y+pose.altitude,()=>{if(pose.phase==='servicing'){parkedAircraft(id,pose,colour);return}ctx.save();ctx.globalAlpha=pose.opacity;drawAircraft(ctx,{id,x:pose.x,y:pose.y,heading:pose.heading,altitude:pose.altitude,metresToWorld:s,project,colour,time,reducedMotion:reduced,gearDown:pose.phase!=='climb'||pose.timeInCycle<pose.period-3});ctx.restore()});
-      if(pose.reverse&&layout.routeModel!=='archerfield'&&level('handling')>=2){
-        const kind=gate.size>=4&&level('handling')>=5?'heavyTug':'tug',distance=length/2+(GROUND_EQUIPMENT[kind].length/2+.8)*s;
-        const x=pose.x+Math.cos(pose.heading)*distance,y=pose.y+Math.sin(pose.heading)*distance;
-        towEquipment.push({kind,x,y,heading:pose.heading});
-        defer(x,y,()=>vehicle(x,y,pose.heading,kind,'#dfa342'));
+      const preview=layout.id==='brisbane'&&(reduced||airport.operations?.present===true||controlledRunways.has(stand.runwayId||layout.primaryRunwayId));
+      let assignment=assignments.get(gate.id),plan=assignment?.plan,pose=plan?sampleFlight(plan,elapsed,i,reduced):null;
+      if(!assignment||!!assignment.preview!==preview||(reduced||preview)&&assignment.id!==plane.id||assignment.cycle!==pose.cycle||layout.routeModel==='ybsu'&&assignment.plan.period!==activeGates.length*100||layout.routeModel==='gold-coast'&&assignment.plan.period!==activeGates.length*120){
+        plan=createFlightPlan(layout,preview?{...airport,routePreview:true}:airport,stand,assignedModel);
+        pose=sampleFlight(plan,elapsed,i,reduced);assignment={cycle:pose.cycle,id:plane.id||'c172',plan,preview};assignments.set(gate.id,assignment);
       }
+      if(occupiedPhysicalStands.has(`${airport.id}:${plan.stand.referenceStand??gate.plotId}`))continue;
+      // Decorative timer loops are parked while this runway is under the
+      // player's control. Only server-cleared spotlight traffic may move on it.
+      if(preview||controlledRunways.has(plan.runway.id))pose={...pose,x:plan.stand.position[0],y:plan.stand.position[1],heading:plan.stand.heading??-Math.PI/2,phase:'servicing',altitude:0,opacity:1,reverse:false,ambientHeld:controlledRunways.has(plan.runway.id)};
+      if(pose.phase==='queued')continue;
+      const id=assignment.id;
+      flights.push({...pose,routePreview:assignment.preview,waitingForClearance:plan.routeAvailable===false,id:gate.id,gateId:gate.id,aircraftId:id,screen:project(pose.x,pose.y,pose.altitude)});
+      drawTrafficFlight(pose,id,gate,['#3b9f9d','#e0a461','#698eb8','#9982b8'][i%4],time);
     }
-    if(layout.id==='brisbane')for(const j of visibleBrisbaneJetways(layout.jetways,new Set(flights.map(f=>airport.gates.find(g=>g.id===f.id)?.plotId)))){
-      const stand=layout.stands.find(s=>s.plotId===j.plotId),gate=airport.gates.find(g=>g.plotId===j.plotId),flight=flights.find(f=>f.id===gate?.id);
+    for(const [i,flight] of interactive.entries()){
+      const gate=airport.gates.find(g=>g.id===flight.gateId),stand=layout.stands.find(s=>s.plotId===(flight.plotId||gate?.plotId));if(!gate||!stand)continue;
+      let assignment=interactiveAssignments.get(flight.id);
+      if(!assignment){const id=flight.aircraftId||flight.aircraft?.id||'c172';assignment={id,plan:flight.routePlan||createFlightPlan(layout,airport,stand,AIRCRAFT_MODELS[id]||AIRCRAFT_MODELS.c172)};interactiveAssignments.set(flight.id,assignment)}
+      const {id,plan}=assignment,pose=sampleInteractiveFlight(plan,flight,now,reduced);
+      flights.push({...pose,id:flight.id,flightId:flight.id,gateId:flight.gateId,plotId:flight.plotId||gate.plotId,aircraftId:id,runwayId:flight.runwayId||plan.runway.id,waitingForClearance:!!flight.blockedReason,paused:!!flight.pausedAt,serviceProgress:flight.serviceProgress,screen:project(pose.x,pose.y,pose.altitude)});
+      drawTrafficFlight(pose,id,gate,['#279e98','#d69d4d','#667ec4'][i%3],time);
+      interactiveFlightHit(flight,pose,id);
+    }
+    if(layout.id==='brisbane')for(const j of visibleBrisbaneJetways(layout.jetways,new Set(flights.map(f=>airport.gates.find(g=>g.id===f.gateId)?.plotId)))){
+      const stand=layout.stands.find(s=>s.plotId===j.plotId),gate=airport.gates.find(g=>g.plotId===j.plotId),flight=flights.find(f=>f.gateId===gate?.id);
       drawBrisbaneJetway(jetwayGeometry(j,stand,flight,layout.metresToWorld),{poly,line,disc,defer,scale});
     }
-    const nextRoutes=[...new Set([...assignments.values()].map(a=>a.plan.runway.end[0]))].sort().join('|');if(nextRoutes!==routeSignature){routeSignature=nextRoutes;staticDirty=true}
+    const nextRoutes=[...new Set(allAssignments().map(a=>`${a.plan.runway.id}:${a.plan.runway.end}`))].sort().join('|');if(nextRoutes!==routeSignature){routeSignature=nextRoutes;staticDirty=true}
   }
   function groundSupport(time){
     // Moving aircraft retain priority over decorative staging at every phase.
@@ -683,13 +717,62 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
     const dt=lastShuttleTime===null?0:(time-lastShuttleTime)/1000;lastShuttleTime=time;
     visibleEquipment=equipment.map(e=>{
       if(!e.shuttleRoute)return e;
-      const gate=airport.gates.find(g=>g.plotId===e.standPlotId),flight=flights.find(f=>f.id===gate?.id);
+      const gate=airport.gates.find(g=>g.plotId===e.standPlotId),flight=flights.find(f=>f.gateId===gate?.id);
       const serviceAvailable=flight?.phase==='servicing'&&gate?.operationType!=='cargo'&&!AIRCRAFT_MODELS[flight.aircraftId]?.cargo;
       const clear=p=>!occupied.some(o=>equipmentOverlaps(equipmentFootprint(p,layout.metresToWorld,.6*layout.metresToWorld),o));
       const pose=advancePassengerShuttle(shuttleState,e.shuttleRoute,reduced?0:dt,serviceAvailable,clear,layout.metresToWorld);
       return {...pose,apronId:e.apronId,footprint:equipmentFootprint(pose,layout.metresToWorld,.6*layout.metresToWorld)};
     }).filter(e=>!occupied.some(p=>equipmentOverlaps(e.footprint,p)));
     for(const e of visibleEquipment)defer(e.x,e.y,()=>vehicle(e.x,e.y,e.heading,e.kind,e.kind==='bus'?'#319aa7':'#dfa342'));
+  }
+  function incident(time){
+    incidentSnapshot=null;
+    const event=airport?.operations?.incident;if(!event)return;
+    const gate=airport.gates.find(g=>g.id===event.gateId),stand=layout.stands.find(s=>s.plotId===(event.plotId||gate?.plotId));if(!stand)return;
+    const plane=flights.find(f=>f.gateId===gate?.id),assignment=interactiveAssignments.get(plane?.flightId)||assignments.get(gate?.id);
+    const position=assignment?.plan.stand.position||stand.position,s=layout.metresToWorld;
+    const model=AIRCRAFT_MODELS[plane?.aircraftId]||AIRCRAFT_MODELS.c172,clearance=Math.max(4,model.wingspan*.55*s);
+    const onPavement=p=>pavement.some(ring=>inside({x:p[0],y:p[1]},ring.map(v=>({x:v[0],y:v[1]}))))&&!(layout.aprons||[]).some(a=>(a.holes||[]).some(h=>inside({x:p[0],y:p[1]},h.map(v=>({x:v[0],y:v[1]})))));
+    const aircraftExclusions=flights.filter(f=>f.altitude<1).map(f=>aircraftEquipmentExclusion(f,AIRCRAFT_MODELS[f.aircraftId]||AIRCRAFT_MODELS.c172,s,.8*s));
+    const clear=p=>!aircraftExclusions.some(ring=>inside({x:p[0],y:p[1]},ring.map(v=>({x:v[0],y:v[1]}))));
+    // Emergency equipment stays beside the stand on existing pavement. The
+    // response has no decorative trip across active runways or other aircraft.
+    const candidates=Array.from({length:24},(_,i)=>{const a=i/24*TAU;return [position[0]+Math.cos(a)*(clearance+3*s),position[1]+Math.sin(a)*(clearance+3*s)]});
+    const support=equipment.filter(e=>e.standPlotId===stand.plotId).map(e=>[e.x,e.y]);
+    const site=[...candidates,...support].find(p=>onPavement(p)&&clear(p))||position;
+    const [x,y]=site,isFire=event.type==='fire'||event.type==='apron-fire'||event.type==='equipment-fire';
+    const heading=stand.heading??-Math.PI/2,kind=isFire?'fire':['fuel','fuel-shortage'].includes(event.type)?'fuel':'baggage';
+    const responseSite=[...support,...candidates].find(p=>{
+      if(!onPavement(p)||!clear(p)||Math.hypot(p[0]-x,p[1]-y)<4*s)return false;
+      const c=Math.cos(heading),sn=Math.sin(heading),footprint=kind==='fire'?[[-2.5,-1.2],[2.5,-1.2],[2.5,1.2],[-2.5,1.2]].map(([u,v])=>[p[0]+(u*c-v*sn)*s,p[1]+(u*sn+v*c)*s]):equipmentFootprint({kind,x:p[0],y:p[1],heading},s,.25*s);
+      return footprint.every(onPavement)&&!layout.runways.some(r=>equipmentOverlaps(footprint,r.protectedPolygon))&&!aircraftExclusions.some(ring=>equipmentOverlaps(footprint,ring));
+    });
+    const now=presentationTime?presentationTime():serverTime+performance.now()-lastViewTime;
+    const resolves=Number(event.resolvesAt),responseStart=Number(event.respondedAt||event.responseStartedAt||event.startedAt);
+    const progress=event.responding&&resolves>responseStart?clamp((now-responseStart)/(resolves-responseStart),0,1):null;
+    incidentSnapshot={...event,position:[...position],site:[...site],responseSite:responseSite?[...responseSite]:null,progress,reducedMotion:reduced};
+    defer(x,y,()=>{
+      disc(x,y,Math.max(1,3*s),isFire?'#d1694544':'#e4aa4455');
+      if(isFire){
+        if(reduced){badge('FIRE',x,y,{colour:'#a63d26',background:'#fff0dc'});}
+        else{
+          for(let i=0;i<3;i++){
+            const drift=Math.sin(time/450+i)*.25,base=project(x+(i-1)*1.2*s,y,0),top=project(x+(i-1)*1.2*s+drift,y,(3.5+Math.sin(time/220+i)*.7)*s);
+            ctx.save();ctx.fillStyle=i===1?'#f3c35b':'#e77940';ctx.beginPath();ctx.moveTo(base.x-2.1*s*scale,base.y);ctx.quadraticCurveTo(top.x-2*s*scale,top.y,top.x,top.y-1.2*s*scale);ctx.quadraticCurveTo(top.x+2*s*scale,top.y,base.x+2.1*s*scale,base.y);ctx.fill();ctx.restore();
+            const smoke=project(x+(i-1)*1.2*s+drift,y,(6+i*2)*s);ctx.save();ctx.fillStyle='#67777b80';ctx.beginPath();ctx.ellipse(smoke.x,smoke.y,(2+i*.4)*s*scale,(1.4+i*.3)*s*scale,0,0,TAU);ctx.fill();ctx.restore();
+          }
+        }
+      }
+      if(event.responding){
+        if(responseSite){
+          const [vehicleX,vehicleY]=responseSite;vehicle(vehicleX,vehicleY,heading,kind,isFire?'#c35d4c':'#dfa342');
+          if(isFire)line([[vehicleX,vehicleY],[x,y]],'#b6d4e2',Math.max(1,scale*.25));
+        }
+        badge(`Responding${progress===null?'':` · ${Math.round(progress*100)}%`}`,x,y-5*s,{colour:'#496b71',background:'#e5f5ffed',small:true});
+      }else badge(isFire?'Dispatch fire crew':event.title||'Service interrupted',x,y-5*s,{colour:'#9c4b2e',background:'#fff1d9ed',small:true});
+    });
+    const p=project(x,y),extent=Math.max(14,5*s*scale);
+    hits.push({kind:'incident',id:event.id,label:event.title||'Airport incident',x,y,w:0,h:0,points:[{x:p.x-extent,y:p.y-extent},{x:p.x+extent,y:p.y-extent},{x:p.x+extent,y:p.y+extent},{x:p.x-extent,y:p.y+extent}]});
   }
   function construction(time){
     for(const task of airport?.constructions||[]){
@@ -699,7 +782,7 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
       const cx=x+w*.75,cy=y+h*.5;line([[cx,cy],[cx,cy,10]],'#c19f5c',Math.max(1,scale*.3));line([[cx-5,cy,10],[cx+5,cy,10]],'#e7c775',Math.max(1,scale*.3));line([[cx+3,cy,10],[cx+3,cy,reduced?4:4+Math.sin(time/1100)]],'#8f957a',.8);
     }
   }
-  function highlight(){const choice=hover||selected,surface=hover?.surfaceId||(!hover&&selectedSurfaceId);const target=hits.find(h=>h.kind===choice?.kind&&h.id===choice?.id&&(!surface||h.surfaceId===surface));if(!target)return;polygon(target.polygons?.[0]||target.points,'#fff9d333','#fffde4',2.2);if(hover)badge(target.label,target.x+target.w/2,target.y-3)}
+  function highlight(){const choice=hover||selected,surface=hover?.surfaceId||(!hover&&selectedSurfaceId);const target=hits.find(h=>h.kind===choice?.kind&&h.id===choice?.id&&(!surface||h.surfaceId===surface));if(!target)return;polygon(target.polygons?.[0]||target.points,'#fff9d333',target.kind==='flight'?'#fff6a0':'#fffde4',target.kind==='flight'?3:2.2);if(hover){if(target.screen){const p=target.screen;ctx.save();ctx.font='700 11px Inter';const label=target.label.slice(0,80),w=ctx.measureText(label).width+16;ctx.fillStyle='#f8fff0f0';ctx.beginPath();ctx.roundRect(clamp(p.x-w/2,8,width-w-8),p.y-36,w,22,6);ctx.fill();ctx.fillStyle='#345e61';ctx.textAlign='center';ctx.fillText(label,clamp(p.x,w/2+8,width-w/2-8),p.y-21);ctx.restore()}else badge(target.label,target.x+target.w/2,target.y-3)}}
   function compass(){
     const [nx,ny]=layout.northVector,p=project(nx*12,ny*12),zero=project(0,0),dx=p.x-zero.x,dy=p.y-zero.y,n=Math.hypot(dx,dy)||1;
     ctx.save();ctx.translate(width-53,height-185);ctx.fillStyle='#fffdf4d9';ctx.beginPath();ctx.arc(0,0,24,0,TAU);ctx.fill();ctx.strokeStyle='#739384';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-dx/n*12,-dy/n*12);ctx.lineTo(dx/n*13,dy/n*13);ctx.stroke();polygon([{x:dx/n*15,y:dy/n*15},{x:-dy/n*4,y:dx/n*4},{x:dy/n*4,y:-dx/n*4}],'#3a8079');ctx.font='800 9px Inter';ctx.textAlign='center';ctx.fillStyle='#4a766e';ctx.fillText('N',dx/n*18,dy/n*18-4);ctx.restore();
@@ -710,12 +793,13 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
     if(staticDirty){
       ctx=staticContext;ctx.setTransform(dpr,0,0,dpr,0,0);hits=[];objects=[];pavement=[];taxiwayPavement=[];
       terrain(time);roads();airfield();stands();scenery();terminal();facilities();aircraftParking();
+      staticHits=[...hits];
       staticObjects=layout.depthSortedTraffic?[...objects]:[];
       if(!layout.depthSortedTraffic)objects.sort((a,b)=>a.depth-b.depth).forEach(object=>object.draw());precinctLabels();
       ctx=foregroundContext;staticDirty=false;
     }
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.drawImage(staticCanvas,0,0,width,height);objects=[...staticObjects];
-    traffic(time);groundSupport(time);objects.sort((a,b)=>a.depth-b.depth).forEach(object=>object.draw());construction(time);highlight();compass();
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.drawImage(staticCanvas,0,0,width,height);objects=[...staticObjects];hits=[...staticHits];
+    traffic(time);groundSupport(time);incident(time);objects.sort((a,b)=>a.depth-b.depth).forEach(object=>object.draw());construction(time);highlight();compass();
     renderedFrames++;lastFrameMs=performance.now()-started;totalRenderMs+=lastFrameMs;
   }
   function updateCamera(){
@@ -745,9 +829,9 @@ export function createAirportRenderer(canvas,{onSelect=()=>{},onCameraChange=()=
   function resize(){const r=canvas.getBoundingClientRect();width=r.width;height=r.height;dpr=Math.min(devicePixelRatio||1,2,Math.sqrt(6_000_000/Math.max(1,width*height)));canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);staticCanvas.width=canvas.width;staticCanvas.height=canvas.height;updateCamera()}
   const observer=new ResizeObserver(resize);observer.observe(canvas);resize();frame=requestAnimationFrame(draw);
   return {
-    setView(next,view){const changed=next?.id!==airport?.id;airport=next;serverTime=view?.serverNow||Date.now();lastViewTime=performance.now();layout=getAirportLayout(next?.id||'redcliffe');if(changed){assignments.clear();routeSignature='';resetCamera();const info=document.querySelector('#sceneLocation');if(info){info.textContent=layout.setting;const caption=info.nextElementSibling;if(caption)caption.textContent=layout.id==='granite-plains'?'FICTIONAL QUEENSLAND MEGA HUB · SIX ACTIVE RUNWAYS':layout.id==='hamilton-island'?'SCENERY © OPENSTREETMAP · TERRAIN © GEOSCIENCE AUSTRALIA':layout.id==='archerfield'?'CHART-ALIGNED GEOGRAPHY · GAME STAND ALLOCATIONS':layout.id==='gold-coast'?'CHART-SCALED AIRPORT · PUBLISHED PARKING POSITIONS':'SCHEMATIC REDEVELOPMENT · RUNWAY LENGTHS COMPRESSED'}}const signature=JSON.stringify([next?.id,next?.owned,next?.runwayLength,next?.buildings?.map(b=>[b.key,b.level]),next?.gates?.map(g=>[g.id,g.plotId,g.size,g.active,g.operationType,!!AIRCRAFT_MODELS[(g.currentAircraft||g.aircraft)?.id]?.cargo]),next?.gatePlots?.map(p=>[p.id,p.occupied])]);if(signature!==worldSignature){worldSignature=signature;equipment=groundEquipmentPlacements(layout,airport);shuttleState={};lastShuttleTime=null;staticDirty=true;if(['brisbane','granite-plains'].includes(layout.id))assignments.clear()}lastPaint=0},
+    setView(next,view){const changed=next?.id!==airport?.id;airport=next;serverTime=view?.serverNow||Date.now();lastViewTime=performance.now();layout=getAirportLayout(next?.id||'redcliffe');if(changed){assignments.clear();interactiveAssignments.clear();incidentSnapshot=null;routeSignature='';resetCamera();const info=document.querySelector('#sceneLocation');if(info){info.textContent=layout.setting;const caption=info.nextElementSibling;if(caption)caption.textContent=layout.id==='granite-plains'?'FICTIONAL QUEENSLAND MEGA HUB · SIX ACTIVE RUNWAYS':layout.id==='hamilton-island'?'SCENERY © OPENSTREETMAP · TERRAIN © GEOSCIENCE AUSTRALIA':layout.id==='archerfield'?'CHART-ALIGNED GEOGRAPHY · GAME STAND ALLOCATIONS':layout.id==='gold-coast'?'CHART-SCALED AIRPORT · PUBLISHED PARKING POSITIONS':'SCHEMATIC REDEVELOPMENT · RUNWAY LENGTHS COMPRESSED'}}const signature=JSON.stringify([next?.id,next?.owned,next?.runwayLength,next?.buildings?.map(b=>[b.key,b.level]),next?.gates?.map(g=>[g.id,g.plotId,g.size,g.active,g.operationType,!!AIRCRAFT_MODELS[(g.currentAircraft||g.aircraft)?.id]?.cargo]),next?.gatePlots?.map(p=>[p.id,p.occupied])]);if(signature!==worldSignature){worldSignature=signature;equipment=groundEquipmentPlacements(layout,airport);shuttleState={};lastShuttleTime=null;staticDirty=true;if(['brisbane','granite-plains'].includes(layout.id))assignments.clear()}lastPaint=0},
     setSelected(value){if(!value||value.kind!==selected?.kind||value.id!==selected?.id)selectedSurfaceId=null;selected=value;lastPaint=0},resize,zoomBy,panBy,resetCamera,focusWorld,
-    getSceneSnapshot(){return {layoutId:layout.id,projection:{offsetX,offsetY},pavementRegions:pavement.map(p=>({polygon:p,holes:layout.aprons.find(a=>a.polygon===p)?.holes||[]})),camera:{zoom,panX,panY},hits:hits.map(h=>({...h})),flights:flights.map(f=>({...f})),groundEquipment:visibleEquipment.map(e=>({...e})),pavement:pavement.map(p=>p.map(v=>[...v])),runways:runwaySurfaces.map(r=>({...r,polygon:r.polygon.map(p=>[...p])})),taxiways:taxiwayPavement.map(t=>({...t,points:t.points.map(p=>[...p])})),bounds:{...layout.bounds},scale,stats:{renderedFrames,lastFrameMs,totalRenderMs}}},
+    getSceneSnapshot(){return {layoutId:layout.id,projection:{offsetX,offsetY},pavementRegions:pavement.map(p=>({polygon:p,holes:layout.aprons.find(a=>a.polygon===p)?.holes||[]})),camera:{zoom,panX,panY},hits:hits.map(h=>({...h})),flights:flights.map(f=>({...f})),incident:incidentSnapshot?{...incidentSnapshot}:null,groundEquipment:visibleEquipment.map(e=>({...e})),pavement:pavement.map(p=>p.map(v=>[...v])),runways:runwaySurfaces.map(r=>({...r,polygon:r.polygon.map(p=>[...p])})),taxiways:taxiwayPavement.map(t=>({...t,points:t.points.map(p=>[...p])})),bounds:{...layout.bounds},scale,stats:{renderedFrames,lastFrameMs,totalRenderMs}}},
     dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();motionQuery.removeEventListener('change',motionChange);for(const [name,listener] of Object.entries({pointerdown,pointermove,pointerup,pointerleave,pointercancel,wheel,keydown}))canvas.removeEventListener(name,listener);document.removeEventListener('click',controls)}
   };
 }

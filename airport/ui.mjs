@@ -20,25 +20,54 @@ const aircraftArtCache=new Map(),aircraftImageCache=new Map();
 // constructing cold high-detail meshes synchronously when opening the fleet.
 const aircraftArt=id=>{if(aircraftArtCache.has(id))return aircraftArtCache.get(id);const m=AIRCRAFT_MODELS[id];if(!m)return '';const image=new Image();image.decoding='async';image.src=new URL(`./previews/${id}.png`,import.meta.url).href;aircraftImageCache.set(id,image);image.decode?.().catch(()=>{});const art=`<img data-aircraft-model="${esc(id)}" src="${esc(image.src)}" alt="${esc(m.name)}" style="display:block;width:100%;height:72px;max-width:180px;object-fit:contain">`;aircraftArtCache.set(id,art);return art};
 const aircraftDimensions=id=>{const m=AIRCRAFT_MODELS[id];return m?`<p class="help-copy aircraft-dimensions" data-aircraft-dimensions="${esc(id)}" title="${esc(m.name)}">${m.length} m long · ${m.wingspan} m wingspan</p>`:''};
-let vault,view,renderer,busy=false,dialog=null,inspector=null,priorFocus=null,pollTimer,clockTimer,toastTimer,disposed=false,pollPending=null;
+let vault,view,renderer,busy=false,dialog=null,inspector=null,priorFocus=null,pollTimer,clockTimer,toastTimer,disposed=false,pollPending=null,sceneVisible=false,presenceDirty=false,entrySequence=0,airportEntryId=null,rendererAirportId=null;
 let boostMultiplier=2,boostDuration=15,fleetFilter='all',serverClockOffset=0;
 let equipmentRear=false;
 const plotSizes=new Map();
+const routeChoices=new Map();
 const airport=()=>view?.selectedAirport||list(view?.airports).find(item=>item.id===view?.selectedAirportId);
 const now=()=>Date.now()+serverClockOffset;
+const operations=()=>airport()?.operations||{};
+const presencePayload=()=>({presenceAirportId:sceneVisible&&!document.hidden&&!disposed?view?.selectedAirportId:null});
+const phaseLabels={'awaiting-landing':'Awaiting landing','arriving':'Landing & taxiing in','servicing':'At the stand · servicing','taxiing-out':'Taxiing to the runway','awaiting-takeoff':'Awaiting takeoff','departing':'Taking off'};
+const routeStrategies={frequent:{name:'Frequent',cash:.9,cycle:.8},standard:{name:'Standard',cash:1,cycle:1},premium:{name:'Premium',cash:1.25,cycle:1.35}};
 const dashboard=createAirportDashboard($('#airportDashboard'));
 
+function rememberFocus(root){const active=document.activeElement;return root?.contains(active)?{id:active.id,tag:active.tagName,dataset:{...active.dataset}}:null}
+function restoreFocus(root,saved){if(!saved)return;const candidate=saved.id?document.getElementById(saved.id):[...root.querySelectorAll(saved.tag.toLowerCase())].find(element=>Object.entries(saved.dataset).every(([key,value])=>element.dataset[key]===value));(candidate&&!candidate.disabled?candidate:root.querySelector('button:not(:disabled)'))?.focus({preventScroll:true})}
+function refreshPresence(){presenceDirty=true;void poll()}
+
 function showDashboard(){
+  entrySequence++;airportEntryId=null;sceneVisible=false;
   closeDialog();closeInspector();
   $('#airportDashboard').hidden=false;$('#airportHud').hidden=true;$('#airportCanvas').inert=true;
   dashboard.render(view);$('#dashboardTitle').focus({preventScroll:true});
+  refreshPresence();
 }
-function enterAirport(){
-  closeDialog();closeInspector();
-  if(!renderer)renderer=createAirportRenderer($('#airportCanvas'),{onSelect:selectInspector});
-  renderer.setView(airport(),view);
-  $('#airportDashboard').hidden=true;$('#airportHud').hidden=false;$('#airportCanvas').inert=false;
-  $('#airportCanvas').focus({preventScroll:true});
+async function enterAirport(){
+  if(busy||disposed||!view)return;
+  const targetId=view.selectedAirportId,sequence=++entrySequence;
+  airportEntryId=targetId;sceneVisible=false;busy=true;dashboard.setBusy(true);saveStatus('saving');
+  closeDialog();closeInspector();$('#airportDashboard').hidden=false;$('#airportHud').hidden=true;$('#airportCanvas').inert=true;
+  const currentEntry=()=>!disposed&&sequence===entrySequence&&airportEntryId===targetId&&view?.selectedAirportId===targetId&&!document.hidden;
+  try{
+    await pollPending;
+    if(!currentEntry())return;
+    presenceDirty=false;
+    const result=await vault.airportLoad({presenceAirportId:targetId});
+    if(disposed)return;
+    applyResult(result);
+    if(!currentEntry())return;
+    if(!renderer)renderer=createAirportRenderer($('#airportCanvas'),{onSelect:selectInspector});
+    renderer.setView(airport(),view);rendererAirportId=targetId;sceneVisible=true;
+    $('#airportDashboard').hidden=true;$('#airportHud').hidden=false;$('#airportCanvas').inert=false;
+    $('#airportCanvas').focus({preventScroll:true});saveStatus('saved');
+  }catch(error){if(!disposed){showDashboard();saveStatus('error');toast(error?.message||'This airport could not be opened.',true)}}
+  finally{
+    if(sequence===entrySequence)airportEntryId=null;
+    busy=false;
+    if(!disposed){dashboard.setBusy(false);if(!sceneVisible)presenceDirty=true;if(presenceDirty)void poll()}
+  }
 }
 
 function warmFleetArt(){
@@ -49,19 +78,21 @@ function toast(message,error=false){const element=$('#airportToast');clearTimeou
 function saveStatus(status,error){dashboard.status(status);const element=$('#airportSaveStatus');element.className=`save-indicator${status==='error'?' error':''}`;element.innerHTML=`<i></i> ${status==='saving'?'Saving your airport…':status==='error'?'Connection interrupted':'Saved locally'}`;if(status==='error'&&error)toast(error.message||'Your save could not be updated.',true)}
 function applyResult(result){
   if(!result?.view)throw new Error('The local server returned an incomplete airport update.');
+  if(disposed||number(result.view.revision)<number(view?.revision))return;
   view=result.view;if(view.serverNow)serverClockOffset=number(view.serverNow)-Date.now();
-  renderHud();dashboard.render(view);renderer?.setView(airport(),view);if(inspector)renderInspector();
+  renderHud();dashboard.render(view);if(sceneVisible&&!airportEntryId&&rendererAirportId===view.selectedAirportId)renderer?.setView(airport(),view);if(inspector)renderInspector();
 }
 async function runCommand(command,success){
-  if(busy||!view)return;busy=true;saveStatus('saving');
-  try{await pollPending;const result=await vault.airportCommand({requestId:crypto.randomUUID(),expectedRevision:view.revision,command});applyResult(result);saveStatus('saved');if(dialog)renderDialog();if(success)toast(success);return result}
-  catch(error){saveStatus('error');toast(error?.message||'This action could not be completed.',true);try{applyResult(await vault.airportLoad())}catch{}}
-  finally{busy=false}
+  if(busy||!view)return;busy=true;dashboard.setBusy(true);saveStatus('saving');const previousAirportId=view.selectedAirportId;
+  try{await pollPending;const result=await vault.airportCommand({requestId:crypto.randomUUID(),expectedRevision:view.revision,command});applyResult(result);if(sceneVisible&&previousAirportId!==view.selectedAirportId)presenceDirty=true;saveStatus('saved');if(dialog)renderDialog(true);if(success)toast(success);return result}
+  catch(error){saveStatus('error');toast(error?.message||'This action could not be completed.',true);try{applyResult(await vault.airportLoad(presencePayload()))}catch{}}
+  finally{busy=false;dashboard.setBusy(false);if(presenceDirty)void poll()}
 }
 async function poll(){
   if(busy||pollPending||disposed||!vault)return;
-  pollPending=(async()=>{try{applyResult(await vault.airportLoad());if(dialog&&dialog!=='idle'&&dialog!=='help')renderDialog(true);saveStatus('saved')}catch(error){saveStatus('error');$('#flightTicker').innerHTML='<span class="live-dot"></span><span>Operations saved · reconnecting to the local server</span>';if(/profile|mismatch|binding/i.test(error.message||''))fatal(error)}})();
-  try{await pollPending}finally{pollPending=null}
+  presenceDirty=false;
+  pollPending=(async()=>{try{const result=await vault.airportLoad(presencePayload());if(disposed)return;applyResult(result);if(dialog&&dialog!=='idle'&&dialog!=='help')renderDialog(true);if(!busy)saveStatus('saved')}catch(error){if(disposed)return;saveStatus('error');$('#flightTicker').innerHTML='<span class="live-dot"></span><span>Operations saved · reconnecting to the local server</span>';if(/profile|mismatch|binding/i.test(error.message||''))fatal(error)}})();
+  try{await pollPending}finally{pollPending=null;if(presenceDirty&&!disposed)queueMicrotask(poll)}
 }
 function renderHud(){
   const a=airport();if(!a)return;
@@ -73,12 +104,28 @@ function renderHud(){
   const levels=list(a.buildings).reduce((sum,b)=>sum+number(b.level),0),max=list(a.buildings).reduce((sum,b)=>sum+number(b.maxLevel),0);
   $('#airportProgress').style.width=`${Math.max(6,max?levels/max*100:6)}%`;
   $('#airportRate').textContent=`$${compact(number(a.rates?.cashPerHour)/60)}`;
+  $('#airportRate').parentElement.title=`Scheduled income: $${exact(a.rates?.fullCashPerHour??a.rates?.cashPerHour)}/hour while visiting · $${exact(a.rates?.unattendedCashPerHour??number(a.rates?.cashPerHour)*.75)}/hour unattended. Interactive bonuses are additional.`;
   $('#airportTraffic').textContent=`${list(a.gates).length} gate${list(a.gates).length===1?'':'s'} · ${exact(number(a.rates?.departuresPerHour))} flights/h`;
   $('#milestoneDot').hidden=!list(a.milestones).some(item=>item.canClaim);
   const activePlanes=[...new Map(list(a.gates).map(g=>g.currentAircraft||g.aircraft).filter(Boolean).map(plane=>[plane.id,plane])).values()];
   const trafficLabel=activePlanes.length>1?`${activePlanes.length} aircraft types on the apron`:activePlanes[0]?`${activePlanes[0].name} services active`:'Upgrade your airport to welcome more aircraft';
   $('#flightTicker').innerHTML=`<span class="live-dot"></span><span>${esc(trafficLabel)} · ${exact(a.stats?.departures)} departures</span>`;
   const boost=$('#boostActive');boost.hidden=!a.boost;if(a.boost){boost.innerHTML=`ϟ ${a.boost.multiplier}× income boost<small data-countdown="${a.boost.endsAt}">${duration(a.boost.endsAt-now())} remaining</small>`}
+  renderFlightDesk();
+}
+
+function renderFlightDesk(){
+  const op=operations(),flights=list(op.flights),landing=flights.find(f=>f.canLand),takeoff=flights.find(f=>f.canTakeoff);
+  const arrivals=flights.filter(f=>f.phase==='awaiting-landing').length,departures=flights.filter(f=>f.phase==='awaiting-takeoff').length;
+  const land=$('#landNext'),depart=$('#takeoffNext');
+  land.disabled=!landing;land.title=landing?`Land ${landing.aircraft?.name||'next aircraft'} · ${landing.airline||'local service'}`:flights.find(f=>f.phase==='awaiting-landing')?.blockedReason||(op.routeSearchPending?'Finding a clear taxi route for your next flight…':'No aircraft is awaiting landing');
+  depart.disabled=!takeoff;depart.title=takeoff?`Clear ${takeoff.aircraft?.name||'next aircraft'} for takeoff`:flights.find(f=>f.phase==='awaiting-takeoff')?.blockedReason||'No aircraft is ready for takeoff';
+  const blocked=flights.find(f=>(f.phase==='awaiting-landing'||f.phase==='awaiting-takeoff')&&f.blockedReason);
+  $('#flightQueueStatus').textContent=flights.length?`${arrivals} awaiting landing · ${departures} ready to depart${blocked?` · ${blocked.blockedReason}`:op.routeSearchPending?' · Routing next flight':` · ${flights.length}/3 flights`}`:op.routeSearchPending?'Finding a clear taxi route for your next flight…':'Flights appear when a compatible stand is available';
+  $('#atcStatus').textContent=op.atc?.owned?op.atc.enabled?'ATC auto':'ATC paused':'Manual ATC';
+  const contract=op.contract;$('#contractProgress').textContent=contract?contract.status==='completed'?'· claim reward':contract.status==='expired'?'· expired':`· ${number(contract.progress)}/${number(contract.target)}`:'';
+  const banner=$('#incidentBanner'),focused=rememberFocus(banner);banner.hidden=!op.incident;
+  if(op.incident){banner.innerHTML=incidentMarkup(op.incident,true);restoreFocus(banner,focused)}else banner.replaceChildren();
 }
 function quoteText(quote={}){return `${number(quote.cashCost)?`$${compact(quote.cashCost)}`:''}${number(quote.researchCost)?`${number(quote.cashCost)?' + ':''}${compact(quote.researchCost)} RP`:''}`||'Free'}
 function quoteAvailability(quote={}){return quote.available!==false&&quote.affordable!==false}
@@ -94,11 +141,14 @@ function plotControls(plot){
   const sizes=list(plot.sizeQuotes),size=plotSizes.get(`${airport().id}:${plot.id}`)||0,selected=sizes.find(item=>item.size===size);
   return `${sizes.length>1?`<label class="form-field">Opening aircraft size<select data-plot-size="${esc(plot.id)}">${sizes.map(item=>`<option value="${item.size}" ${item.size===size?'selected':''}>${esc(item.name)} · ${quoteText(item.quote)}</option>`).join('')}</select></label>`:'<div class="metric-pair"><span>Opening size</span><b>Light aircraft</b></div>'}${quoteButtons(selected?.quote||plot.quote,'build-gate',{'plot-id':plot.id,'size':size},plot.bay?'Purchase bay':'Build gate')}${plot.bay?`<p class="help-copy">${esc(plot.bay.precinct)} · ${esc(plot.bay.referenceCapacity)} envelope. ${plot.bay.conflicts.length?'Shared pavement: conflicting bays cannot operate together. You can switch the active configuration after purchase.':'A separate operating position.'}</p>`:''}`;
 }
-function selectInspector(selection){inspector=selection;renderer?.setSelected(selection);renderInspector()}
-function closeInspector(){inspector=null;renderer?.setSelected(null);$('#buildInspector').hidden=true}
+function selectInspector(selection){if(selection?.kind==='incident')return openDialog('operations');inspector=selection;renderer?.setSelected(selection);renderInspector()}
+function closeInspector(){const panel=$('#buildInspector'),restoreCanvas=panel.contains(document.activeElement)&&sceneVisible&&!dialog&&!document.hidden;inspector=null;renderer?.setSelected(null);panel.hidden=true;if(restoreCanvas)$('#airportCanvas').focus({preventScroll:true})}
 function renderInspector(){
-  const a=airport();if(!a||!inspector)return;let content='';
-  if(inspector.kind==='building'){
+  const a=airport();if(!a||!inspector)return;let content='';const panel=$('#buildInspector'),focused=rememberFocus(panel),scroll=panel.scrollTop;
+  if(inspector.kind==='flight'){
+    const flight=list(operations().flights).find(item=>item.id===inspector.id);if(!flight)return closeInspector();
+    content=`<div class="inspector-art">${aircraftArt(flight.aircraftId||flight.aircraft?.id)}</div><p class="eyebrow">LIVE FLIGHT · ${esc(flight.airline)}</p><h2 id="inspectorTitle">${esc(flight.aircraft?.name||flight.aircraftId)}</h2>${flightDetails(flight)}${flightControls(flight)}<button class="secondary-button" data-action="operations">Open flight desk →</button>`;
+  }else if(inspector.kind==='building'){
     const b=list(a.buildings).find(item=>item.key===inspector.id);if(!b)return closeInspector();const def=BUILDINGS.find(item=>item.key===b.key);
     const task=list(a.constructions).find(item=>item.building===b.key||item.buildingKey===b.key||item.targetId===b.key||item.id===b.upgrading?.id);
     content=`<div class="inspector-art" aria-hidden="true">${symbols[b.key]||'▥'}</div><p class="eyebrow">AIRPORT INFRASTRUCTURE</p><h2 id="inspectorTitle">${esc(b.name||b.label)}</h2><p>${esc(def?.description||'Develop your airport to handle more flights.')}</p>${pips(b.level,b.maxLevel)}<div class="metric-pair"><span>Current</span><b>${esc(b.currentLabel||`Level ${b.level}`)}</b></div>${b.quote?`<div class="metric-pair"><span>Next upgrade</span><b>${esc(b.quote.nextLabel||`Level ${b.quote.nextLevel}`)}</b></div>`:''}${task?taskMarkup(task):b.upgrading?'<p>Construction is underway. Open Build to see its progress.</p>':quoteButtons(b.quote,'upgrade',{'building':b.key})}${b.quote?.durationMs?`<p class="help-copy">◷ ${duration(b.quote.durationMs)} construction · airport stays open</p>`:''}`;
@@ -110,11 +160,11 @@ function renderInspector(){
     content=`<div class="inspector-art" aria-hidden="true">＋</div><p class="eyebrow">${plot.bay?esc(plot.bay.precinct):'ROOM TO GROW'}</p><h2 id="inspectorTitle">${plot.bay?esc(plot.label):'New aircraft gate'}</h2><p>${plot.bay?'Purchase this existing bay to add operating capacity. The apron and parking position are already in place.':'Add another working stand. Your ground crew automatically handles every eligible arrival.'}</p><div class="metric-pair"><span>Plot capacity</span><b>${esc(classInfo(plot.maxSize??a.maxSize).name)}</b></div>${plotControls(plot)}`;
   }
   if(inspector.kind==='building'&&inspector.id==='handling')content+='<button class="secondary-button" data-action="ground-fleet">View ground fleet →</button>';
-  $('#buildInspector').hidden=false;$('#buildInspector').innerHTML=`<button class="inspector-close" data-action="close-inspector" aria-label="Close building inspector">×</button>${content}`;
+  panel.hidden=false;panel.innerHTML=`<button class="inspector-close" data-action="close-inspector" aria-label="Close inspector">×</button>${content}`;restoreFocus(panel,focused);panel.scrollTop=scroll;
 }
 function taskMarkup(task){const end=number(task.endsAt),remaining=Math.max(0,end-now());return `<div class="metric-pair"><span>Under construction</span><b data-countdown="${end}">${duration(remaining)}</b></div><div class="task-progress"><i style="width:${Math.min(100,number(task.progress)*(number(task.progress)<=1?100:1))}%"></i></div><button class="diamond-button" data-action="skip-task" data-task-id="${esc(task.id)}" ${number(view.diamonds)>=number(task.skipDiamonds)?'':'disabled'}>Finish now · ◆ ${exact(task.skipDiamonds)}</button>`}
-function openDialog(type){dialog=type;priorFocus=document.activeElement;$('#airportDialog').hidden=false;renderDialog();$('.dialog-card').focus();closeInspector()}
-function closeDialog(){dialog=null;$('#airportDialog').hidden=true;if(priorFocus?.isConnected)priorFocus.focus()}
+function openDialog(type){if(!dialog)priorFocus=document.activeElement;dialog=type;$('#airportDialog').hidden=false;$('#airportHud').inert=true;$('#airportDashboard').inert=true;$('#airportCanvas').inert=true;renderDialog();$('.dialog-card').focus();closeInspector()}
+function closeDialog(){dialog=null;$('#airportDialog').hidden=true;$('#airportHud').inert=false;$('#airportDashboard').inert=false;$('#airportCanvas').inert=!sceneVisible;if(priorFocus?.isConnected&&!priorFocus.closest('[hidden]'))priorFocus.focus();else if(sceneVisible)$('#airportCanvas').focus({preventScroll:true})}
 function renderDialog(preserveInput=false){
   if(!dialog)return;const body=$('#dialogBody'),scroll=body.scrollTop,active=document.activeElement;
   const focusInfo=preserveInput&&body.contains(active)?{id:active.id,tag:active.tagName,dataset:{...active.dataset},selectionStart:active.selectionStart,selectionEnd:active.selectionEnd}:null;
@@ -124,6 +174,9 @@ function renderDialog(preserveInput=false){
   if(dialog==='buildings'){title='Make room for more';eyebrow='BUILD & EXPAND';html=buildingsMarkup()}
   else if(dialog==='fleet'){title='A world of aircraft';eyebrow='YOUR ARRIVALS BOARD';html=fleetMarkup()}
   else if(dialog==='ground-fleet'){title='Meet your ground fleet';eyebrow='APRON OPERATIONS';html=equipmentFleetMarkup(airport(),equipmentRear)}
+  else if(dialog==='operations'){title='Keep your airport moving';eyebrow='LIVE FLIGHT DESK';html=operationsMarkup()}
+  else if(dialog==='routes'){title='Airlines & routes';eyebrow='CHOOSE YOUR TRAFFIC';html=routesMarkup()}
+  else if(dialog==='contracts'){title='Give today’s flights a purpose';eyebrow='AIRPORT CONTRACTS';html=contractsMarkup()}
   else if(dialog==='research'){title='A smarter airport';eyebrow='RESEARCH & DEVELOPMENT';html=researchMarkup()}
   else if(dialog==='network'){title='Your Australian adventure';eyebrow='AIRPORT NETWORK';html=networkMarkup()}
   else if(dialog==='milestones'){title='Every flight counts';eyebrow='CAREER MILESTONES';html=milestonesMarkup()}
@@ -135,8 +188,47 @@ function renderDialog(preserveInput=false){
   for(const d of body.querySelectorAll('details[data-bay-area]'))d.open=openBayAreas.includes(d.dataset.bayArea);
   for(const input of formValues){const element=document.getElementById(input.id);if(element)element.value=input.value}
   if(preserveInput&&dialog==='withdraw')updateWithdrawPreview();
-  if(focusInfo){const candidate=focusInfo.id?document.getElementById(focusInfo.id):[...body.querySelectorAll(focusInfo.tag.toLowerCase())].find(element=>Object.entries(focusInfo.dataset).every(([key,value])=>element.dataset[key]===value));candidate?.focus({preventScroll:true});if(candidate&&focusInfo.selectionStart!=null)try{candidate.setSelectionRange(focusInfo.selectionStart,focusInfo.selectionEnd)}catch{}}
+  if(focusInfo){const candidate=focusInfo.id?document.getElementById(focusInfo.id):[...body.querySelectorAll(focusInfo.tag.toLowerCase())].find(element=>Object.entries(focusInfo.dataset).every(([key,value])=>element.dataset[key]===value));(candidate&&!candidate.disabled?candidate:$('.dialog-card'))?.focus({preventScroll:true});if(candidate&&focusInfo.selectionStart!=null)try{candidate.setSelectionRange(focusInfo.selectionStart,focusInfo.selectionEnd)}catch{}}
   body.scrollTop=scroll;
+}
+
+function flightDetails(flight){
+  const gate=list(airport().gates).find(g=>g.id===flight.gateId),progress=clampPercent(number(flight.serviceProgress)*(number(flight.serviceProgress)<=1?100:1));
+  return `<p>${esc(flight.airline||'Local service')} → ${esc(flight.destination||'Local circuit')} <span class="simulation-label">SIMULATED</span></p><div class="metric-pair"><span>Stand</span><b>${esc(gate?.label||flight.gateId)}</b></div><div class="metric-pair"><span>Status</span><b>${esc(phaseLabels[flight.phase]||flight.phase)}</b></div>${flight.phase==='servicing'?`<div class="flight-service-progress"><span>Service ${Math.floor(progress)}%${flight.prioritised?' · express crew':''}</span><progress max="100" value="${progress}" aria-label="Service progress"></progress></div>`:''}${flight.pausedAt!==undefined?`<div class="metric-pair"><span>Service paused</span><b>${duration(flight.pausedRemainingMs)} remaining</b></div>`:number(flight.phaseEndsAt)>0?`<div class="metric-pair"><span>Phase remaining</span><b data-countdown="${number(flight.phaseEndsAt)}">${duration(flight.phaseEndsAt-now())}</b></div>`:''}<div class="metric-pair flight-bonus"><span>Extra bonus before boosts</span><b>+$${compact(flight.bonus)}</b></div>`;
+}
+function flightControls(flight){
+  const waitingLand=flight.phase==='awaiting-landing',waitingTakeoff=flight.phase==='awaiting-takeoff',servicing=flight.phase==='servicing';
+  if(!waitingLand&&!waitingTakeoff&&!servicing)return '<p class="help-copy">Movement is cleared. Ground crews continue automatically.</p>';
+  const action=waitingLand?'land-flight':waitingTakeoff?'takeoff-flight':'prioritise-flight',available=waitingLand?flight.canLand:waitingTakeoff?flight.canTakeoff:flight.canPrioritise;
+  const reason=flight.blockedReason||(servicing?(flight.prioritised?'Express service applied to this flight':'The express crew is serving another flight'):'The runway is occupied');
+  return `<button class="primary-button" data-action="${action}" data-flight-id="${esc(flight.id)}" ${available?'':'disabled'} ${!available?`title="${esc(reason)}"`:''}>${waitingLand?'Clear landing':waitingTakeoff?'Clear takeoff':flight.prioritised?'Express service active':'Prioritise service · 20% faster'}</button>${!available?`<p class="help-copy flight-blocked">${esc(reason)}</p>`:''}`;
+}
+function incidentMarkup(incident,compactView=false){
+  const gate=list(airport().gates).find(g=>g.id===incident.gateId),remaining=Math.max(0,number(incident.resolvesAt)-now());
+  const progress=incident.responding?clampPercent((now()-number(incident.responseStartedAt))/(number(incident.resolvesAt)-number(incident.responseStartedAt)||1)*100):0;
+  return `<div class="incident-heading"><span aria-hidden="true">${incident.type==='fire'?'♨':'!'}</span><div><strong>${esc(incident.title||'Operations incident')}</strong><small>${esc(gate?.label||incident.gateId)} · ${incident.responding?'Response underway':'Stand service paused'}</small></div></div>${!compactView?'<p>Other airport operations continue. Dispatch is free; interrupted service resumes afterwards.</p>':''}${incident.responding?`<progress value="${progress}" max="100" aria-label="Incident response progress" data-response-start="${number(incident.responseStartedAt)}" data-response-end="${number(incident.resolvesAt)}"></progress><small>Resolved in <b data-countdown="${number(incident.resolvesAt)}">${duration(remaining)}</b></small>`:`<button class="incident-dispatch" data-action="respond-incident" data-incident-id="${esc(incident.id)}" ${incident.canRespond===false?'disabled':''}>${incident.type==='fire'?'Dispatch fire crew':'Dispatch response'} · Free</button><small>Automatic recovery in <b data-countdown="${number(incident.resolvesAt)}">${duration(remaining)}</b></small>`}`;
+}
+function atcMarkup(){
+  const a=airport(),atc=operations().atc||{};
+  return `<article class="operation-card atc-card"><div class="card-header"><span class="card-symbol" aria-hidden="true">♜</span><span class="status-chip ${atc.owned?'':'gold'}">${atc.owned?'Permanent staff':'Manual clearances'}</span></div><h3>Air traffic control</h3><p>ATC clears landings and takeoffs whenever the runway is available. Hiring restores full unattended scheduled cash. Fires still need your dispatch.</p>${atc.owned?`<button class="secondary-button" data-action="set-atc" data-enabled="${!atc.enabled}" aria-pressed="${!!atc.enabled}">${atc.enabled?'Pause automatic clearances':'Enable automatic clearances'}</button><p class="help-copy">${atc.enabled?'Automatic clearances are running.':'Clear flights manually until you enable ATC again.'} Full unattended income remains unlocked.</p>`:`<button class="primary-button" data-action="hire-atc" ${atc.affordable===false?'disabled':''}>Hire ATC · $${compact(atc.cost)}</button><p class="help-copy">One cash purchase for ${esc(a.name)}. No wages or diamonds.${atc.affordable===false?' Save more airport cash to hire.':''}</p>`}</article>`;
+}
+function operationsMarkup(){
+  const a=airport(),op=operations();
+  return `<p class="dialog-lead">Clear flights, help one service crew work faster, and earn extra departure bonuses. Ordinary scheduled flights keep earning alongside these flights.</p><div class="operations-income"><div><small>Scheduled while visiting</small><strong>$${compact(a.rates?.fullCashPerHour??a.rates?.cashPerHour)} / h</strong></div><div><small>Scheduled unattended</small><strong>$${compact(a.rates?.unattendedCashPerHour??number(a.rates?.cashPerHour)*.75)} / h</strong></div><div><small>Interactive flight bonuses earned</small><strong>$${compact(op.bonusCash)}</strong></div></div>${op.incident?`<article class="incident-panel">${incidentMarkup(op.incident)}</article>`:''}<div class="dialog-grid operations-grid">${atcMarkup()}<article class="operation-card"><span class="card-symbol" aria-hidden="true">✈</span><h3>${exact(op.completedFlights)} interactive flights completed</h3><p>Each completed flight adds 25% of its normal aircraft cash reward, rounded down. Active cash boosts apply to the bonus. One express crew can reduce a flight’s remaining service by 20%.</p><div class="form-actions"><button class="secondary-button" data-action="routes">Choose routes</button><button class="secondary-button" data-action="contracts">Find a contract</button></div></article></div><h3 class="section-label">Flight board · ${list(op.flights).length} / 3</h3><div class="dialog-grid">${list(op.flights).map(flight=>`<article class="operation-card live-flight-card"><div class="card-header"><span class="card-symbol" aria-hidden="true">✈</span><button class="text-button" data-action="inspect-flight" data-flight-id="${esc(flight.id)}">Show on map ↗</button></div><h3>${esc(flight.aircraft?.name||flight.aircraftId)}</h3>${flightDetails(flight)}${flightControls(flight)}</article>`).join('')||`<div class="empty-state"><span>✈</span>${op.routeSearchPending?'Finding a clear taxi route for your next flight…':'Your next flight needs an available, compatible stand. Build or upgrade a gate to welcome more traffic.'}</div>`}</div>`;
+}
+function routeChoice(service){const key=`${airport().id}:${service.id}`;if(!routeChoices.has(key))routeChoices.set(key,{gateId:list(service.eligibleGateIds)[0]||'',strategy:'standard'});const choice=routeChoices.get(key);if(!list(service.eligibleGateIds).includes(choice.gateId))choice.gateId=list(service.eligibleGateIds)[0]||'';return choice}
+function routeRequirements(service){const plane=list(airport().aircraftRequirements).filter(p=>!service.aircraftIds||list(service.aircraftIds).includes(p.id)).sort((a,b)=>list(a.missing).length-list(b.missing).length||number(a.size)-number(b.size))[0];if(!plane)return '';return `<details class="route-requirements" data-bay-area="route-${esc(service.id)}"><summary>Requirements · ${esc(plane.name)}</summary><ul class="requirements">${list(plane.missing).length?plane.missing.map(text=>`<li class="unmet">○ ${esc(text)}</li>`).join(''):'<li class="met">✓ This aircraft meets your airport requirements</li>'}<li>${exact(plane.runwayLength)} m runway · ${esc(SURFACES.find(s=>s.level===plane.surface)?.shortName||'pavement')} · ${esc(classInfo(plane.size).name)} stand</li></ul></details>`}
+function routesMarkup(){
+  const a=airport(),services=list(operations().services);
+  return `<p class="dialog-lead">Assign an airline or service to a compatible stand. New selections affect future flights; current aircraft finish their assignments. Destinations and services are simulated.</p><div class="route-strategy-note"><b>Frequent</b> 90% cash · 80% cycle <span>·</span> <b>Standard</b> current rates <span>·</span> <b>Premium</b> 125% cash · 135% cycle</div><h3 class="section-label">Current stand assignments</h3><div class="route-assignments">${list(a.gates).map(g=>{const service=services.find(s=>s.id===g.serviceId);return `<span><b>${esc(g.label||g.id)}</b> ${esc(service?.name||'Unrestricted traffic')} · ${esc(routeStrategies[g.serviceStrategy]?.name||'Standard')}</span>`}).join('')}</div><h3 class="section-label">Available services</h3><div class="dialog-grid">${services.map(service=>{
+    const choice=routeChoice(service),strategy=routeStrategies[choice.strategy],eligible=list(service.eligibleGateIds),income=service.incomeRange||{},cycle=service.intervalRangeMs||{};
+    return `<article class="operation-card route-card ${eligible.length?'':'locked'}"><span class="status-chip ${eligible.length?'':'locked'}">${eligible.length?`${eligible.length} compatible stand${eligible.length===1?'':'s'}`:'Requirements pending'}</span><h3>${esc(service.name||service.title)}</h3><p>${esc(service.airline||'Local service')} → ${esc(service.destination||'Local circuit')} <span class="simulation-label">SIMULATED</span></p>${service.description?`<p>${esc(service.description)}</p>`:''}<p class="route-aircraft">${list(service.aircraftIds).map(id=>esc(AIRCRAFT_MODELS[id]?.name||id)).join(' · ')||'All eligible aircraft'}</p>${routeRequirements(service)}<label class="form-field">Traffic strategy<select data-route-strategy="${esc(service.id)}">${Object.entries(routeStrategies).map(([id,s])=>`<option value="${id}" ${choice.strategy===id?'selected':''}>${s.name} · ${Math.round(s.cash*100)}% cash / ${Math.round(s.cycle*100)}% cycle</option>`).join('')}</select></label><div class="metric-pair"><span>Scheduled cash / departure</span><b>${eligible.length?`$${compact(number(income.min)*strategy.cash)}–$${compact(number(income.max)*strategy.cash)}`:'—'}</b></div><div class="metric-pair"><span>Scheduled cycle</span><b>${eligible.length?`${duration(number(cycle.min)*strategy.cycle)}–${duration(number(cycle.max)*strategy.cycle)}`:'—'}</b></div><label class="form-field">Assign to stand<select data-route-gate="${esc(service.id)}" ${eligible.length?'':'disabled'}>${eligible.length?eligible.map(id=>`<option value="${esc(id)}" ${id===choice.gateId?'selected':''}>${esc(list(a.gates).find(g=>g.id===id)?.label||id)}</option>`).join(''):'<option>No compatible stand</option>'}</select></label><button class="primary-button" data-action="set-service" data-service-id="${esc(service.id)}" ${eligible.length?'':'disabled'}>Assign to selected stand</button><button class="secondary-button" data-action="apply-service" data-service-id="${esc(service.id)}" ${eligible.length?'':'disabled'}>Apply to compatible stands</button>${service.unavailableReason?`<p class="help-copy">${esc(service.unavailableReason)}</p>`:''}${service.requiresCargo?'<p class="help-copy">Requires cargo infrastructure and an eligible cargo aircraft.</p>':''}</article>`;
+  }).join('')||'<p class="empty-state">Service profiles will appear when your airport is ready.</p>'}</div>`;
+}
+function contractReward(reward){return `$${compact(reward?.cash)} + ${exact(reward?.research)} RP`}
+function contractsMarkup(){
+  const op=operations(),contract=op.contract;
+  return `<p class="dialog-lead">Accept one contract at this airport. Only departures completed after acceptance count, including ATC-controlled flights. Choose a relaxed contract or a 15-minute deadline that runs only while you play this airport.</p>${contract?`<article class="operation-card active-contract"><span class="status-chip ${contract.status==='expired'?'locked':contract.status==='completed'?'gold':''}">${contract.status==='completed'?'Ready to claim':contract.status==='expired'?'Deadline expired':'Accepted contract'}</span><h3>${esc(contract.title)}</h3><div class="metric-pair"><span>Progress</span><b>${exact(contract.progress)} / ${exact(contract.target)}</b></div><progress max="${Math.max(1,number(contract.target))}" value="${Math.min(number(contract.target),number(contract.progress))}" aria-label="Contract progress"></progress>${contract.timed?`<p class="contract-clock">Active-play time left: ${duration(contract.remainingMs)} · pauses when unattended</p>`:'<p class="help-copy">Relaxed contract · no deadline</p>'}<div class="metric-pair"><span>Reward</span><b>${contractReward(contract.reward)}</b></div>${contract.status==='completed'?'<button class="primary-button" data-action="claim-contract">Claim reward</button>':''}<button class="secondary-button" data-action="abandon-contract">${contract.status==='expired'?'Dismiss expired contract':'Abandon without penalty'}</button></article>`:''}<h3 class="section-label">${contract?'Next opportunities':'Choose a contract'}</h3><div class="dialog-grid three">${list(op.contractOffers).map(offer=>`<article class="operation-card contract-offer"><h3>${esc(offer.title)}</h3><p>${esc(offer.description)}</p><div class="metric-pair"><span>Target</span><b>${exact(offer.target)} flights</b></div><div class="metric-pair"><span>Reward</span><b>${contractReward(offer.reward)}</b></div><button class="primary-button" data-action="accept-contract" data-offer-id="${esc(offer.id)}" data-timed="false" ${contract?'disabled':''}>Accept · no deadline</button><button class="secondary-button" data-action="accept-contract" data-offer-id="${esc(offer.id)}" data-timed="true" ${contract?'disabled':''}>Accept · 15 active minutes</button></article>`).join('')||'<p class="empty-state">Open a compatible stand to receive eligible contract offers.</p>'}</div><p class="help-copy">Rewards are quoted when accepted: 50% of the target flights’ normal income and 20 research points. Claim once after completion. Expiry and abandonment carry no fine.</p>`;
 }
 function brisbaneBayList(a){return `<p class="dialog-lead">Purchase each existing bay individually. Overlapping alternatives share operating space. The remote oversize cargo reservation also keeps neighbouring bays clear.</p>${['Domestic','International','General aviation','North remote / taxiway parking','Logistics / Airport South'].map(area=>{const plots=a.gatePlots.filter(p=>p.bay?.precinct===area&&!p.occupied);return `<details data-bay-area="${esc(area)}"><summary class="section-label">${esc(area)} · ${plots.length} bays to purchase</summary><div class="dialog-grid">${plots.map(p=>`<article class="operation-card"><h3>${esc(p.label)}</h3><p>${p.bay.contact?'Terminal contact position':p.bay.area==='north'&&/^R[1-8]/.test(p.bay.bay)?'Former 14/32 runway parking · Closed to takeoff and landing':'Remote / apron position'}${p.bay.oversizeReservation?' · Oversize cargo reserves neighbouring space':''}</p>${plotControls(p)}</article>`).join('')}</div></details>`}).join('')}`}
 function bayOperation(g){return g.bay?`<p class="help-copy">${esc(g.bay.precinct)} · ${g.active?'Operating space active':'Operating space inactive'}</p><button class="secondary-button" data-action="set-gate-active" data-gate-id="${esc(g.id)}" data-active="${!g.active}">${g.active?'Pause bay':'Activate bay'}</button>${!g.active&&g.bay.conflicts.length?'<p class="help-copy">Activating this bay pauses any owned bays that share its parking envelope.</p>':''}`:''}
@@ -164,14 +256,14 @@ function idleMarkup(){
     ${rows.length?`<div id="idleLedger" class="idle-ledger-scroll" role="region" aria-label="Offline earnings by airport" tabindex="0"><table class="idle-ledger"><thead><tr><th scope="col">Airport</th><th scope="col">Local cash</th><th scope="col">Research</th><th scope="col">Diamonds</th><th scope="col">Departures</th></tr></thead><tbody>${rows.map(row=>`<tr data-idle-airport="${esc(row.id)}"><th scope="row">${esc(row.name)}</th><td data-idle-cash data-value="${row.cash}">$${exact(row.cash)}</td><td data-idle-research data-value="${row.research}">${exact(row.research)} RP</td><td data-idle-diamonds data-value="${row.diamonds}">◆ ${exact(row.diamonds)}</td><td data-idle-departures data-value="${row.departures}">${exact(row.departures)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state" data-idle-empty><span>✈</span>No airport departure earnings were recorded for this time away. Your existing airport balances are preserved.</div>'}
     <p class="dialog-lead idle-saved-note">These earnings are already saved. Your cash, research and shared diamonds are ready to use.</p><button class="primary-button" data-action="close-dialog">Back to the apron →</button>`;
 }
-function helpMarkup(){return `<dl class="help-list"><div><dt>01</dt><dd><b>Start small, keep it moving</b>Your first light-aircraft gate is already earning. Upgrade the runway, extend it and build extra gates to grow your traffic.</dd></div><div><dt>02</dt><dd><b>The right airport for the right aircraft</b>Planes need a suitable gate, runway length and surface, taxiways, equipment and certification. Open Aircraft to see exactly what each one needs.</dd></div><div><dt>03</dt><dd><b>Three currencies, one growing network</b>Cash buys infrastructure. Research improves operations. Plane diamonds buy temporary boosts, complete timers, cover shortages and open the next airport early.</dd></div><div><dt>04</dt><dd><b>Your airports keep working</b>All owned airports earn. The local server handles progress; after a complete shutdown it catches up for up to 24 hours. Keep using the same browser profile and Dorra address.</dd></div><div><dt>05</dt><dd><b>Send profits back to Dorra House</b>Withdraw 10 airport cash for 1 Dorra. Airport income is independent, so there are no Dorra deposits.</dd></div><div><dt>⌨</dt><dd><b>Play your way</b>Click buildings in the world or use Build for every keyboard-accessible upgrade. Drag the map to pan and scroll the mouse wheel to zoom. With the map focused, use arrow keys to pan, + / − to zoom and 0 to reset the view. Tab moves between controls; Escape closes a window. Reduced-motion preferences are respected automatically.</dd></div></dl><h3 class="section-label">Local game information</h3><p class="dialog-lead">Run the bundled START DORRA GAME launcher and keep its local server open. An internet connection is not needed. Aircraft movements illustrate operations; rewards and all purchases are calculated by the local server. Airport sizes and aircraft requirements are simplified for gameplay.</p><p class="dialog-lead">Hamilton Island neighbourhood map data: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> (ODbL). Building appearance, gardens and boats are artistic approximations.</p><div class="form-actions"><button class="primary-button" data-action="close-dialog">Let’s build an airport</button><a class="secondary-button" href="index.html" data-return-house>Return to Dorra House ↗</a></div>`}
-function updateClocks(){document.querySelectorAll('[data-countdown]').forEach(element=>{const remaining=number(element.dataset.countdown)-now();element.textContent=remaining>0?duration(remaining):'Finishing…'})}
+function helpMarkup(){return `<dl class="help-list"><div><dt>01</dt><dd><b>Clear your next flight</b>Use Land next and Take off next at the flight desk, or select a plane to inspect its airline, destination and service. Up to three controllable flights operate alongside ordinary scheduled traffic. Their departures add a separate 25% cash bonus, rounded down; cash boosts apply.</dd></div><div><dt>02</dt><dd><b>Give your crew a helping hand</b>Prioritise a servicing flight once to reduce its remaining service time by 20%. One express crew serves this airport and stays occupied until that flight’s service finishes.</dd></div><div><dt>03</dt><dd><b>Hire permanent air traffic control</b>ATC costs 250 × 4 to the airport’s order in local airport cash. It automatically clears landing and takeoff when a runway is available, with no wages or diamonds. Pause its automatic clearances whenever you want to control flights yourself. Fires still need manual dispatch.</dd></div><div><dt>04</dt><dd><b>Choose airlines and routes</b>Open Routes to assign compatible services to stands. Frequent services earn 90% cash with an 80% cycle, standard uses current rates, and premium earns 125% with a 135% cycle. Assignments apply to future flights. Airline profiles and destinations are simulated.</dd></div><div><dt>05</dt><dd><b>Take on a short contract</b>Choose one of three eligible offers, with no deadline or 15 minutes of active play. Deadlines pause on the dashboard, at other airports or when the tab is hidden. New interactive departures count, including ATC-controlled flights. Claim the quoted cash and 20 research points once. Abandonment and expiry have no fine.</dd></div><div><dt>06</dt><dd><b>Respond when the apron needs you</b>Equipment fires, fuel shortages and baggage jams can interrupt one stand after 10–15 minutes of active play. Free dispatch resolves fires in 60 seconds, shortages in 30 and jams in 45. Unanswered incidents recover after five minutes without permanent losses. Your interrupted service resumes; other flights continue. New incidents do not accumulate while you are away.</dd></div><div><dt>07</dt><dd><b>Your airports keep earning</b>Scheduled cash earns at full rate while you visit an airport, including its dialogs. Without ATC, unattended airports earn 75% scheduled cash. Hiring ATC permanently restores full unattended earnings even if automatic clearances are paused. Research, diamonds and scheduled departure statistics keep their existing rules. Shutdown catch-up is capped at 24 hours.</dd></div><div><dt>08</dt><dd><b>Build your airport and send profits home</b>Planes need suitable gates, runways, taxiways, equipment and certification. Cash buys infrastructure; research improves operations; diamonds buy boosts and timer skips. Withdraw 10 airport cash for 1 Dorra. Keep using the same browser profile and Dorra address.</dd></div><div><dt>⌨</dt><dd><b>Play your way</b>Use Operations for every keyboard-accessible flight control and Build for upgrades. Drag the map to pan and scroll to zoom. With the map focused, arrow keys pan, + / − zoom and 0 resets the view. Tab moves between controls; Escape closes a window. Reduced-motion preferences are respected automatically.</dd></div></dl><h3 class="section-label">Local game information</h3><p class="dialog-lead">Run the bundled START DORRA GAME launcher and keep its local server open. An internet connection is not needed. The local server calculates flights, rewards and purchases. Airport sizes, routes and aircraft requirements are simplified for gameplay.</p><p class="dialog-lead">Hamilton Island neighbourhood map data: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> (ODbL). Building appearance, gardens and boats are artistic approximations.</p><div class="form-actions"><button class="primary-button" data-action="close-dialog">Back to the flight desk</button><a class="secondary-button" href="index.html" data-return-house>Return to Dorra House ↗</a></div>`}
+function updateClocks(){document.querySelectorAll('[data-countdown]').forEach(element=>{const remaining=number(element.dataset.countdown)-now();element.textContent=remaining>0?duration(remaining):'Finishing…'});document.querySelectorAll('[data-response-start]').forEach(element=>{element.value=clampPercent((now()-number(element.dataset.responseStart))/(number(element.dataset.responseEnd)-number(element.dataset.responseStart)||1)*100)})}
 function updateWithdrawPreview(){const amount=number($('#withdrawAmount')?.value);$('#withdrawPreviewCash').textContent=`$${exact(amount)}`;$('#withdrawPreviewDorra').textContent=`$${exact(amount/10)} Dorra`}
 async function withdraw(event){
   event.preventDefault();if(busy)return;const amount=Number($('#withdrawAmount')?.value),a=airport();if(!Number.isSafeInteger(amount)||amount<10||amount%10||amount>number(a.cash)){toast('Enter a whole multiple of 10 within this airport’s cash balance.',true);return}
-  busy=true;saveStatus('saving');try{await pollPending;const result=await vault.withdrawAirportCash({requestId:crypto.randomUUID(),airportId:a.id,amountCash:amount,expectedAirportRevision:view.revision});applyResult(result);saveStatus('saved');renderDialog();toast(`$${exact(amount/10)} sent to Dorra House.`)}catch(error){saveStatus('error');toast(error.message||'The withdrawal could not be completed.',true)}finally{busy=false}
+  busy=true;saveStatus('saving');try{await pollPending;const result=await vault.withdrawAirportCash({requestId:crypto.randomUUID(),airportId:a.id,amountCash:amount,expectedAirportRevision:view.revision});applyResult(result);saveStatus('saved');renderDialog();toast(`$${exact(amount/10)} sent to Dorra House.`)}catch(error){saveStatus('error');toast(error.message||'The withdrawal could not be completed.',true)}finally{busy=false;if(presenceDirty)void poll()}
 }
-async function returnHouse(event){event.preventDefault();if(busy){toast('Finishing the current airport action. Try again in a moment.');return}disposed=true;clearInterval(pollTimer);clearInterval(clockTimer);try{await pollPending;await vault?.flush?.();renderer?.dispose();vault?.close();location.href='index.html'}catch(error){disposed=false;pollTimer=setInterval(poll,5000);clockTimer=setInterval(updateClocks,1000);toast(error.message||'Your save is still pending. Please try again.',true)}}
+async function returnHouse(event){event.preventDefault();if(busy){toast('Finishing the current airport action. Try again in a moment.');return}const wasVisible=sceneVisible;disposed=true;clearInterval(pollTimer);clearInterval(clockTimer);try{await pollPending;await vault?.airportLoad?.({presenceAirportId:null});await vault?.flush?.();renderer?.dispose();vault?.close();location.href='index.html'}catch(error){disposed=false;sceneVisible=wasVisible;pollTimer=setInterval(poll,5000);clockTimer=setInterval(updateClocks,1000);refreshPresence();toast(error.message||'Your save is still pending. Please try again.',true)}}
 async function handleClick(event){
   const home=event.target.closest('[data-return-house]');if(home)return returnHouse(event);
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;const action=button.dataset.action;
@@ -181,17 +273,25 @@ async function handleClick(event){
     if(busy)return;
     const target=list(view?.airports).find(a=>a.id===button.dataset.airportId&&a.owned);if(!target)return;
     if(target.id===view.selectedAirportId)return enterAirport();
-    dashboard.setBusy(true);
-    try{const result=await runCommand({type:'select-airport',airportId:target.id});if(result)enterAirport()}
-    finally{dashboard.setBusy(false)}
+    const result=await runCommand({type:'select-airport',airportId:target.id});if(result)await enterAirport();
     return;
   }
-  if(['buildings','fleet','ground-fleet','research','network','milestones','boost','withdraw','help'].includes(action)&&!button.dataset.researchId)return openDialog(action);
+  if(['buildings','fleet','ground-fleet','research','network','milestones','boost','withdraw','help','operations','routes','contracts'].includes(action)&&!button.dataset.researchId)return openDialog(action);
+  if(action==='inspect-flight'){closeDialog();selectInspector({kind:'flight',id:button.dataset.flightId});$('#buildInspector [data-action="close-inspector"]')?.focus({preventScroll:true});return}
   if(action==='equipment-angle'){equipmentRear=button.dataset.rear==='true';return renderDialog()}
   if(action==='fleet-filter'){fleetFilter=button.dataset.filter;return renderDialog()}
   if(action==='boost-multiplier'){boostMultiplier=number(button.dataset.multiplier);return renderDialog()}
   if(action==='withdraw-max'){const amount=$('#withdrawAmount');amount.value=Math.floor(airport().cash/10)*10;return updateWithdrawPreview()}
   if(busy){toast('Saving your last action. Try again in a moment.');return}const a=airport(),base={type:action,airportId:button.dataset.airportId||a?.id};
+  if(action==='land-next'||action==='takeoff-next'){const flight=list(operations().flights).find(f=>action==='land-next'?f.canLand:f.canTakeoff);if(!flight)return;base.type=action==='land-next'?'land-flight':'takeoff-flight';base.flightId=flight.id;return runCommand(base)}
+  if(['land-flight','takeoff-flight','prioritise-flight'].includes(action)){base.flightId=button.dataset.flightId;return runCommand(base,action==='prioritise-flight'?'Express crew assigned. Remaining service is 20% faster.':undefined)}
+  if(action==='hire-atc')return runCommand(base,'ATC hired permanently. Full unattended scheduled income is unlocked.');
+  if(action==='set-atc'){base.enabled=button.dataset.enabled==='true';return runCommand(base,base.enabled?'Automatic flight clearances enabled.':'Automatic flight clearances paused.')}
+  if(action==='set-service'||action==='apply-service'){const service=list(operations().services).find(s=>s.id===button.dataset.serviceId);if(!service)return;const choice=routeChoice(service);base.serviceId=service.id;base.strategy=choice.strategy;if(action==='set-service')base.gateId=choice.gateId;return runCommand(base,'New service assigned to future flights.')}
+  if(action==='accept-contract'){base.offerId=button.dataset.offerId;base.timed=button.dataset.timed==='true';return runCommand(base,'Contract accepted. New completed flights now count.')}
+  if(action==='claim-contract')return runCommand(base,'Contract reward collected.');
+  if(action==='abandon-contract')return runCommand(base,'Contract closed without penalty.');
+  if(action==='respond-incident'){base.incidentId=button.dataset.incidentId;return runCommand(base,'Response crew dispatched. Other airport operations continue.')}
   if(button.dataset.useDiamonds)base.useDiamonds=true;
   if(action==='upgrade'){base.building=button.dataset.building;return runCommand(base,'Your upgrade has started. The airport stays open.')}
   if(action==='build-gate'){base.plotId=button.dataset.plotId;base.size=number(button.dataset.size);return runCommand(base,'A new gate is on its way.')}
@@ -201,23 +301,25 @@ async function handleClick(event){
   if(action==='skip-task'){base.taskId=button.dataset.taskId;return runCommand(base,'Your project is complete.')}
   if(action==='activate-boost'){base.type='boost';base.multiplier=boostMultiplier;base.durationMinutes=boostDuration;return runCommand(base,`${boostMultiplier}× boost is active at ${a.name}.`)}
   if(action==='claim-milestone'){base.milestoneId=button.dataset.milestoneId;return runCommand(base,'Milestone reward collected. Nice flying!')}
-  if(action==='unlock-airport'){const result=await runCommand(base,'Your next airport is open for business.');if(result){closeDialog();closeInspector()}return}
-  if(action==='select-airport'){const result=await runCommand(base);if(result){closeDialog();closeInspector()}return}
+  if(action==='unlock-airport'){const result=await runCommand(base,'Your next airport is open for business.');if(result)await enterAirport();return}
+  if(action==='select-airport'){const result=await runCommand(base);if(result)await enterAirport();return}
 }
 function trapFocus(event){
   if(event.key==='Escape'){if(dialog)closeDialog();else closeInspector();return}
   if(event.key!=='Tab'||!dialog)return;const elements=[...$('.dialog-card').querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el=>el.offsetParent!==null);const first=elements[0],last=elements.at(-1);if(event.shiftKey&&(document.activeElement===first||document.activeElement===$('.dialog-card'))){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
 }
-function fatal(error){$('#airportLoading').hidden=true;$('#airportHud').hidden=true;$('#airportDashboard').hidden=true;$('#airportFatal').hidden=false;$('#airportApp').setAttribute('aria-busy','false');const message=error?.message||'The local airport server could not start.';$('#airportFatalCopy').textContent=/already|another tab|active/i.test(message)?`${message} Close the other Dorra game tab, then try again.`:/profile|mismatch|binding/i.test(message)?`${message} Open the original browser profile and Dorra address to reconnect your airport.`:`${message} Keep the START DORRA GAME launcher running, then try again.`}
+function fatal(error){entrySequence++;airportEntryId=null;sceneVisible=false;presenceDirty=false;$('#airportLoading').hidden=true;$('#airportHud').hidden=true;$('#airportDashboard').hidden=true;$('#airportFatal').hidden=false;$('#airportApp').setAttribute('aria-busy','false');const message=error?.message||'The local airport server could not start.';$('#airportFatalCopy').textContent=/already|another tab|active/i.test(message)?`${message} Close the other Dorra game tab, then try again.`:/profile|mismatch|binding/i.test(message)?`${message} Open the original browser profile and Dorra address to reconnect your airport.`:`${message} Keep the START DORRA GAME launcher running, then try again.`}
 async function initialize(){
   document.addEventListener('click',event=>{handleClick(event).catch(error=>toast(error.message,true))});
   document.addEventListener('keydown',trapFocus);
   document.addEventListener('change',event=>{if(event.target.id==='boostDuration'){boostDuration=number(event.target.value);renderDialog()}else if(event.target.dataset.plotSize){plotSizes.set(`${airport().id}:${event.target.dataset.plotSize}`,number(event.target.value));if(dialog)renderDialog();if(inspector)renderInspector()}});
+  document.addEventListener('change',event=>{const id=event.target.dataset.routeStrategy||event.target.dataset.routeGate;if(!id)return;const service=list(operations().services).find(s=>s.id===id);if(!service)return;const choice=routeChoice(service);if(event.target.dataset.routeStrategy)choice.strategy=Object.hasOwn(routeStrategies,event.target.value)?event.target.value:'standard';else choice.gateId=event.target.value;renderDialog(true)});
+  document.addEventListener('visibilitychange',refreshPresence);
   document.addEventListener('input',event=>{if(event.target.id==='withdrawAmount')updateWithdrawPreview()});
   document.addEventListener('submit',event=>{if(event.target.id==='withdrawForm')withdraw(event)});
-  vault=await createVaultClient({onStatus:saveStatus});
+  vault=await createVaultClient({onStatus:(status,error)=>{if(status==='saved'&&busy)return;saveStatus(status,error)}});
   if(typeof vault.airportLoad!=='function')throw new Error('Restart the Dorra launcher to load the airport update.');
-  const result=await vault.airportLoad();applyResult(result);initialIdle=result;
+  const result=await vault.airportLoad({presenceAirportId:null});applyResult(result);initialIdle=result;
   $('#airportLoading').hidden=true;$('#airportApp').setAttribute('aria-busy','false');showDashboard();saveStatus('saved');
   if(number(result.elapsedMs)>=300_000)openDialog('idle');
   pollTimer=setInterval(poll,5000);clockTimer=setInterval(updateClocks,1000);warmFleetArt();
