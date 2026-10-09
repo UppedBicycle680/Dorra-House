@@ -86,19 +86,18 @@ function eligibleForGate(airport, gate) {
     aircraft.taxiway <= b.taxiway && aircraft.handling <= b.handling && aircraft.terminal <= b.terminal && aircraft.tower <= b.tower && aircraft.cargo <= b.cargo &&
     (!aircraft.certification || airport.researchCompleted.includes(aircraft.certification)));
 }
-function trafficSchedule(airport, gate) {
-  const possible = eligibleForGate(airport, gate), largest = Math.max(0, ...possible.filter(item => !item.cargo).map(item => item.size));
+function trafficSchedule(airport, gate, possible = eligibleForGate(airport, gate)) {
+  const largest = Math.max(0, ...possible.filter(item => !item.cargo).map(item => item.size));
   const weighted = possible.map(aircraft => ({ aircraft, weight: aircraft.cargo ? 1 : aircraft.size === largest ? 5 : aircraft.size === largest - 1 ? 2 : 1 }));
   return Array.from({ length: 5 }, (_, round) => weighted.filter(item => item.weight > round).map(item => item.aircraft)).flat();
-}
-function chooseNextAircraft(airport, gate) {
-  const schedule = trafficSchedule(airport, gate);
-  return schedule.length ? schedule[(gate.departures + hash(`${airport.seed}:${gate.id}:traffic`)) % schedule.length].id : null;
 }
 function gatePlan(airport, gate) {
   const possible = eligibleForGate(airport, gate);
   if (!possible.length) return null;
   const aircraft = possible.find(item => item.id === gate.currentAircraftId) || possible[0];
+  return aircraftPlan(airport, aircraft);
+}
+function aircraftPlan(airport, aircraft) {
   const b = airport.buildings, efficiency = 100 + (b.tower - 1) * 8 + (b.handling - 1) * 4 + (airport.researchCompleted.includes('turnaround') ? 18 : 0);
   const intervalMs = Math.max(20_000, Math.round(aircraft.serviceSeconds * 100_000 / (AIRPORT_BY_ID[airport.id].demand * efficiency)));
   const income = Math.round(aircraft.income * (100 + (b.terminal - 1) * 8 + b.cargo * 2 + (airport.researchCompleted.includes('passenger-service') ? 20 : 0)) / 100);
@@ -129,10 +128,20 @@ function simulateSegment(career, airport, start, end, earnings) {
   if (duration <= 0) return;
   airport.stats.operatingMs += duration;
   for (const gate of airport.gates) {
+    // Infrastructure, research, bay activity and gate size stay fixed between
+    // event boundaries. Cache each aircraft plan and schedule for this segment
+    // instead of rebuilding them for every departure during a long absence.
+    const possible = eligibleForGate(airport, gate);
+    if (!possible.length) { gate.progressMs = 0; continue; }
+    const plans = new Map(possible.map(aircraft => [aircraft.id, aircraftPlan(airport, aircraft)]));
+    const fallback = plans.get(possible[0].id);
+    const schedule = trafficSchedule(airport, gate, possible);
+    const trafficOffset = hash(`${airport.seed}:${gate.id}:traffic`);
+    const recentCutoff = end - 12 * Math.max(...[...plans.values()].map(plan => plan.intervalMs));
+    const recent = [];
     let cursor = start;
     while (cursor < end) {
-      const plan = gatePlan(airport, gate);
-      if (!plan) { gate.progressMs = 0; break; }
+      const plan = plans.get(gate.currentAircraftId) || fallback;
       gate.currentAircraftId = plan.aircraft.id;
       if (gate.intervalMs !== plan.intervalMs) {
         gate.progressMs = Math.floor(gate.progressMs * plan.intervalMs / Math.max(1, gate.intervalMs));
@@ -163,10 +172,16 @@ function simulateSegment(career, airport, start, end, earnings) {
         airport.stats.diamondsFound += diamonds;
       }
       earnings.cash += cash; earnings.research += research; earnings.diamonds += diamonds; earnings.departures++;
-      airport.recentDepartures.push({ id: `${gate.id}:${gate.departures}`, gateId: gate.id, aircraftId: plan.aircraft.id,
-        operationType: cargo ? 'cargo' : 'passenger', cargo, special: plan.aircraft.special || null, at, cash, diamonds });
-      gate.currentAircraftId = chooseNextAircraft(airport, gate);
+      // Anything older than twelve maximum service intervals cannot be among
+      // this gate's final twelve departures, or the airport's final twelve.
+      if (at >= recentCutoff) {
+        recent.push({ id: `${gate.id}:${gate.departures}`, gateId: gate.id, aircraftId: plan.aircraft.id,
+          operationType: cargo ? 'cargo' : 'passenger', cargo, special: plan.aircraft.special || null, at, cash, diamonds });
+        if (recent.length > 12) recent.shift();
+      }
+      gate.currentAircraftId = schedule[(gate.departures + trafficOffset) % schedule.length].id;
     }
+    airport.recentDepartures.push(...recent);
   }
   airport.recentDepartures.sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
   airport.recentDepartures = airport.recentDepartures.slice(0, 12);
@@ -399,25 +414,43 @@ function projectedRates(airport, now) {
 
 /** Public projection is read-only: server settles/persists before projecting.
  * Calling this never generates rewards or advances an RNG. */
-export function projectCareer(career, now = career.lastSettledAt) {
+export function projectCareer(career, now = career.lastSettledAt, {compact = false} = {}) {
   assertCareer(career); validTime(now);
+  let selectedAirport;
+  const publicQuote = price => {
+    if (!compact) return price;
+    // These legacy aliases duplicate the canonical UI fields on every quote.
+    const {cash, research, diamonds, durationSeconds, ...canonical} = price;
+    return canonical;
+  };
+  const publicBay = bay => {
+    if (!compact || !bay) return bay;
+    // Static coordinates and parking polygons already ship with the renderer.
+    // Only the descriptive/operating fields are needed in each cloud update.
+    const {bay: name, area, precinct, referenceCapacity, conflicts, contact, oversizeReservation, label, maxSize} = bay;
+    return {bay: name, area, precinct, referenceCapacity, conflicts, contact, oversizeReservation, label, maxSize};
+  };
   const airports = AIRPORTS.map(meta => {
     const state = career.airports[meta.id], unlock = unlockView(career, meta);
     const base = { ...copy(meta), className: AIRCRAFT_CLASSES[meta.maxSize].name, maxClassName: AIRCRAFT_CLASSES[meta.maxSize].name,
       owned: Boolean(state), unlocked: Boolean(state), available: unlock.available, unlock };
     if (!state) return base;
+    // The online dashboard/network needs balances and income for every location,
+    // while detailed build/fleet state is needed only for the selected airport.
+    if (compact && meta.id !== career.selectedAirportId) return {...base, cash: state.cash, research: state.research,
+      openedAt: state.openedAt, rates: projectedRates(state, now)};
     const buildings = BUILDINGS.map(building => {
       const task = state.constructions.find(item => item.building === building.key);
       if(meta.id===GATEWAY_ID&&building.key==='runwayLength')building={...building,name:'Runway operating length',description:'Certify more of the six 4,500 m runways for larger aircraft.'};
       return { ...building, label: building.name, level: state.buildings[building.key], maxLevel: maximumBuildingLevel(state, building),
-        currentLabel: buildingLabel(building.key, state.buildings[building.key]), quote: getBuildingQuote(state, building.key), upgrading: Boolean(task), taskId: task?.id || null };
+        currentLabel: buildingLabel(building.key, state.buildings[building.key]), quote: publicQuote(getBuildingQuote(state, building.key)), upgrading: Boolean(task), taskId: task?.id || null };
     });
     const gates = state.gates.map(gate => {
       const plan = gatePlan(state, gate), task = state.constructions.find(item => item.gateId === gate.id);
       return { id: gate.id, plotId: gate.plotId, size: gate.size, label: bayFor(meta.id, gate.plotId)?.label || (meta.id===GATEWAY_ID?`Stand ${gatewayPlot(gate.plotId).label}`:`Gate ${gate.id.slice(5)}`),
-        bay: bayFor(meta.id, gate.plotId), active: !['brisbane','gold-coast'].includes(meta.id) || activeBayPlots(state).has(gate.plotId), className: AIRCRAFT_CLASSES[gate.size].name,
-        maxSize: bayFor(meta.id, gate.plotId)?.maxSize ?? meta.maxSize, quote: getGateQuote(state, gate.plotId, gate.size + 1, gate), aircraft: plan ? copy(plan.aircraft) : null,
-        currentAircraft: plan ? copy(plan.aircraft) : null, currentAircraftId: plan?.aircraft.id || null,
+        bay: publicBay(bayFor(meta.id, gate.plotId)), active: !['brisbane','gold-coast'].includes(meta.id) || activeBayPlots(state).has(gate.plotId), className: AIRCRAFT_CLASSES[gate.size].name,
+        maxSize: bayFor(meta.id, gate.plotId)?.maxSize ?? meta.maxSize, quote: publicQuote(getGateQuote(state, gate.plotId, gate.size + 1, gate)), aircraft: plan ? copy(plan.aircraft) : null,
+        ...(!compact ? {currentAircraft: plan ? copy(plan.aircraft) : null} : {}), currentAircraftId: plan?.aircraft.id || null,
         operationType: plan?.aircraft.cargo > 0 ? 'cargo' : 'passenger', special: plan?.aircraft.special || null,
         departures: gate.departures, progress: plan ? gate.progressMs / plan.intervalMs : 0, serviceDurationMs: plan?.intervalMs || 0,
         upgrading: Boolean(task), status: plan ? 'operating' : 'waiting', taskId: task?.id || null };
@@ -425,8 +458,8 @@ export function projectCareer(career, now = career.lastSettledAt) {
     const gatePlots = Array.from({ length: meta.gatePlots }, (_, index) => {
       const id = `plot-${index + 1}`, gate = state.gates.find(item => item.plotId === id), task = state.constructions.find(item => item.plotId === id);
       const bay = bayFor(meta.id, id), maximum = bay?.maxSize ?? meta.maxSize;
-      return { id, label: bay?.label || (meta.id===GATEWAY_ID?`Stand ${gatewayPlot(id).label}`:`Plot ${index + 1}`), bay, maxSize: maximum, occupied: Boolean(gate || task), gateId: gate?.id || task?.gateId || null,
-        quote: getGateQuote(state, id, 0), sizeQuotes: AIRCRAFT_CLASSES.filter(item => item.size <= maximum).map(item => ({ size: item.size, name: item.name, quote: getGateQuote(state, id, item.size) })) };
+      return { id, label: bay?.label || (meta.id===GATEWAY_ID?`Stand ${gatewayPlot(id).label}`:`Plot ${index + 1}`), bay: publicBay(bay), maxSize: maximum, occupied: Boolean(gate || task), gateId: gate?.id || task?.gateId || null,
+        quote: publicQuote(getGateQuote(state, id, 0)), sizeQuotes: compact && (gate || task) ? [] : AIRCRAFT_CLASSES.filter(item => item.size <= maximum).map(item => ({ size: item.size, name: item.name, quote: publicQuote(getGateQuote(state, id, item.size)) })) };
     });
     const constructions = state.constructions.map(task => ({ ...copy(task), remainingMs: Math.max(0, task.endsAt - now),
       progress: Math.min(1, Math.max(0, (now - task.startedAt) / Math.max(1, task.endsAt - task.startedAt))), skipDiamonds: Math.max(1, Math.ceil((task.endsAt - now) / 300_000)) }));
@@ -435,25 +468,30 @@ export function projectCareer(career, now = career.lastSettledAt) {
       return { ...copy(aircraft), className: AIRCRAFT_CLASSES[aircraft.size].name, eligible: missing.length === 0, missing, locationCompatible: aircraft.size <= meta.maxSize };
     });
     const researchProjects = RESEARCH_PROJECTS.map(project => ({ ...copy(project), completed: state.researchCompleted.includes(project.id),
-      active: state.constructions.some(task => task.researchId === project.id), quote: getResearchQuote(state, project) }));
+      active: state.constructions.some(task => task.researchId === project.id), quote: publicQuote(getResearchQuote(state, project)) }));
     const milestones = MILESTONES.map(milestone => {
       const current = milestoneProgress(state, milestone), complete = current >= milestone.target, claimed = state.claimedMilestones.includes(milestone.id);
       return { ...copy(milestone), current, complete, claimed, canClaim: complete && !claimed };
     });
     const rates = projectedRates(state, now);
     const nextUpgrade = buildings.filter(item => item.quote.available && item.quote.affordable).sort((a, b) => a.quote.cashCost - b.quote.cashCost)[0] || null;
-    return { ...base, cash: state.cash, research: state.research, openedAt: state.openedAt, buildings, gates, gatePlots, constructions,
-      researchProjects, researchCompleted: [...state.researchCompleted], milestones, aircraftRequirements, aircraft: aircraftRequirements,
-      eligibleAircraft: aircraftRequirements.filter(item => item.eligible), rates, hourlyRates: rates, stats: copy(state.stats),
+    const detail = { ...base, cash: state.cash, research: state.research, openedAt: state.openedAt, buildings, gates, gatePlots, constructions,
+      researchProjects, researchCompleted: [...state.researchCompleted], milestones, aircraftRequirements,
+      ...(!compact ? {aircraft: aircraftRequirements, eligibleAircraft: aircraftRequirements.filter(item => item.eligible), hourlyRates: rates} : {}), rates, stats: copy(state.stats),
       boost: state.boost ? { ...state.boost, remainingMs: Math.max(0, state.boost.endsAt - now) } : null,
       nextUpgrade: nextUpgrade ? { building: nextUpgrade.key, label: nextUpgrade.name, quote: nextUpgrade.quote } : null,
       recentDepartures: copy(state.recentDepartures), runwayLength: RUNWAY_LENGTHS[state.buildings.runwayLength - 1],
       runwaySurface: state.buildings.runwaySurface, taxiwayLevel: state.buildings.taxiway,
       nextUnlock: AIRPORTS.find(item => item.unlock?.predecessor === meta.id)?.id || null };
+    if (compact) {
+      selectedAirport = detail;
+      return {...base, cash: state.cash, research: state.research, openedAt: state.openedAt, rates};
+    }
+    return detail;
   });
-  const selectedAirport = airports.find(item => item.id === career.selectedAirportId);
+  selectedAirport ||= airports.find(item => item.id === career.selectedAirportId);
   return { version: career.version, revision: career.revision, diamonds: career.diamonds, selectedAirportId: career.selectedAirportId,
-    selectedAirport, airports, locations: airports, lastSettledAt: career.lastSettledAt, createdAt: career.createdAt,
+    selectedAirport, airports, ...(!compact ? {locations: airports} : {}), lastSettledAt: career.lastSettledAt, createdAt: career.createdAt,
     offlineCapHours: 24, boostOptions: copy(BOOST_OPTIONS), aircraftClasses: copy(AIRCRAFT_CLASSES), surfaces: copy(SURFACES),
     rules: { exchangeRate: 10, depositsAllowed: false, boostDescription: 'Cash only; research, departure speed and diamond odds remain unchanged.',
       simulationNotice: 'Airport footprints and aircraft requirements are simplified game rules. The An-225 is a fictional heritage contract.' } };

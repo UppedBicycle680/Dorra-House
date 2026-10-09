@@ -17,7 +17,6 @@ import {
   PLAYABLE_COUNTRIES,
   PARTNER_NETWORK_CODES,
   RESEARCH_BRANCHES,
-  createCampaign,
   getCountry,
   getDoctrine,
   getEquipment,
@@ -28,18 +27,10 @@ import {
   getCompanyPortfolio,
   getDevelopmentNode,
   getDevelopmentTree,
-  unlockDevelopmentNode,
-  signCompanyPartnership,
   getAvailableDecisions,
-  resolveCampaignDecision,
   getTheatreAssessment,
   getStrategyOptions,
-  setTheatrePosture,
-  selectCampaignStrategy,
   getOperationPlan,
-  setOperationPhaseOption,
-  setOperationObjective,
-  selectVictoryPath,
   getCampaignModifiers,
   getTargetProfile,
   getRecommendedTargets,
@@ -47,53 +38,26 @@ import {
   equipmentUnlock,
   equipmentUseRestriction,
   researchCost,
-  researchTechnology,
-  queueProcurement,
   getIndustrialStatus,
   getCampaignRegions,
   getCompatibleFactories,
   calculateBusinessIncome,
-  expandCampaignFactories,
-  buildCampaignFactory,
-  upgradeCampaignFactory,
-  buildCampaignBase,
-  upgradeCampaignBase,
-  recruitCampaignManpower,
-  expandManpowerCapacity,
-  improveManpowerTraining,
-  buildMarketBusiness,
-  upgradeMarketBusiness,
-  startCustomVehicleProgram,
   getCustomVehicleProgramPreview,
-  scoutTarget,
   previewDeployment,
-  resolveDeployment,
   getMapForces,
   getTaskForces,
-  createTaskForce,
-  renameTaskForce,
-  maintainTaskForce,
   getOpponentIntent,
   getRegionalOverview,
   compareDeploymentPlans,
   getVictoryProgress,
   getCommanderRoster,
   getDiplomaticOverview,
-  negotiateCampaignAgreement,
   getSupplyNetwork,
-  reinforceSupplyRoute,
-  assignStrategicAssetToRoute,
-  buildOverseasBase,
-  upgradeOverseasBase,
   getStrategicAssetPortfolio,
-  acquireStrategicAsset,
   getRivalOverview,
   getActiveWorldEvents,
-  resolveWorldEvent,
-  moveCampaignUnit,
-  attackCampaignUnit,
   calculateTurnEconomy,
-  endTurn,
+  endTurn, // Read-only turn projection; its returned state is never saved.
   campaignStatus
  } from './campaign-engine.js?v=20260830-depth10-qa3';
 import {createCampaignGlobe} from './campaign-globe.js?v=20260830-geospatial12';
@@ -142,7 +106,7 @@ function uniqueCountries(values){
 
 export function createCampaignController(options){
  const panel=options.panel,debrief=options.debrief;
- const ui={mode:'operations',previousMode:'operations',operationsView:'strategy',operationStep:null,guideExpanded:false,developmentView:'tree',productionDomain:'all',productionClass:'all',intelligenceView:'overview',networkView:'world',customDomain:'land',customPriority:'balanced',customBudget:1_000_000_000,customCompanyId:'',industryRegion:'',factoryType:'general-assembly',baseType:'land-garrison',overseasBaseType:'forward-logistics',techFocus:null,decisionChoice:null,homeId:'AU',scenarioId:CAMPAIGN_SCENARIOS?.[0]?.id||'open-command',target:null,force:{},teams:[],teamCounter:0,mergeSelection:[],animating:false,operationRoutes:[],strategyFocus:null,planComparison:null,mapMode:false,selectedMapUnit:null,selectedEnemy:null,mapDestination:null,globe:null,globePromise:null,globeSignature:'',worldCountries:[],active:false,mapMessage:'Drag to inspect the globe. Select any country to inspect its casino-rights market.',lastFocus:null,lastPreview:null,overlay:'',tutorialStep:0};
+ const ui={mode:'operations',previousMode:'operations',operationsView:'strategy',operationStep:null,guideExpanded:false,developmentView:'tree',productionDomain:'all',productionClass:'all',intelligenceView:'overview',networkView:'world',customDomain:'land',customPriority:'balanced',customBudget:1_000_000_000,customCompanyId:'',industryRegion:'',factoryType:'general-assembly',baseType:'land-garrison',overseasBaseType:'forward-logistics',techFocus:null,decisionChoice:null,homeId:'AU',scenarioId:CAMPAIGN_SCENARIOS?.[0]?.id||'open-command',target:null,force:{},teams:[],teamCounter:0,mergeSelection:[],animating:false,operationRoutes:[],strategyFocus:null,planComparison:null,mapMode:false,selectedMapUnit:null,selectedEnemy:null,mapDestination:null,globe:null,globePromise:null,globeSignature:'',worldCountries:[],active:false,mapMessage:'Drag to inspect the globe. Select any country to inspect its gaming-rights market.',lastFocus:null,lastPreview:null,overlay:'',tutorialStep:0,busy:false};
 
  const getState=()=>options.getCampaign?.()||null;
  const started=()=>!!getState()?.homeCountryId;
@@ -313,9 +277,20 @@ export function createCampaignController(options){
   return `<section class="campaign-plan-compare ${tone}" aria-live="polite"><header><div><small>Before &amp; after</small><strong>${esc(ui.planComparison.label||'Plan updated')}</strong></div><span>${comparison.improved===true?'Stronger plan':comparison.improved===false?'Trade-off added':'Plan compared'}</span></header>${metrics.length?`<div>${metrics.map(([,label,value,format])=>`<span><small>${esc(label)}</small><strong>${esc(comparisonDelta(value,format))}</strong></span>`).join('')}</div>`:'<p>No material forecast change from this adjustment.</p>'}${reasons.length?`<details><summary>Why this changed</summary><ul>${reasons.map(reason=>`<li><strong>${esc(reason.label||title(reason.type))}</strong> ${esc(reason.detail||'')}</li>`).join('')}</ul></details>`:''}</section>`
  }
 
- function commit(result,reason,{report=false}={}){
-  if(!result?.event?.ok){ui.mapMessage=result?.event?.message||'That command could not be completed.';options.toast?.(ui.mapMessage);render();return false}
-  if(ui.teams.length)normalizeTeams(result.state);else syncForce(result.state);options.commit?.(result.state,result.event,reason);ui.mapMessage=result.event.message;ui.lastPreview=null;if(ui.mode==='operations')ui.operationStep=null;render();if(ui.mode==='operations')focusConsoleStart();options.toast?.(result.event.message);if(report)setTimeout(()=>openDebrief(result.event),30);return true
+ async function command(action,args={}, {report=false}={}){
+  if(ui.busy||ui.animating)return null;
+  ui.busy=true;panel.setAttribute('aria-busy','true');
+  try{
+   const result=await options.dispatch(action,args);
+   if(!result?.event?.ok){ui.mapMessage=result?.event?.message||'That command could not be completed.';options.toast?.(ui.mapMessage);return null}
+   if(report)await animateDeployment(result);
+   if(ui.teams.length)normalizeTeams(result.state);else syncForce(result.state);
+   ui.mapMessage=result.event.message;ui.lastPreview=null;if(ui.mode==='operations')ui.operationStep=null;
+   options.toast?.(result.event.message);if(report)setTimeout(()=>openDebrief(result.event),30);
+   if(result.event.deliveries?.length)options.toast?.(`${result.event.deliveries.length} production order${result.event.deliveries.length===1?'':'s'} delivered.`);
+   return result;
+  }catch(error){ui.mapMessage=error?.message||'The cloud command could not be saved. Retry when connected.';options.toast?.(ui.mapMessage,'error');return null}
+  finally{ui.busy=false;panel.setAttribute('aria-busy','false');render();if(ui.mode==='operations')focusConsoleStart()}
  }
 
  function renderHeading(){
@@ -388,7 +363,7 @@ export function createCampaignController(options){
   const selected=getCountry(ui.homeId),selectedDoctrine=doctrineFor(selected);
   const signatures=getEquipmentForCountry(selected.id).filter(item=>item.tier>=4).slice(-2).map(item=>item.name.replace(' Wing','')).join(' · ');
   const scenario=collection(CAMPAIGN_SCENARIOS).find(item=>item.id===ui.scenarioId);
-  return `<section class="campaign-console-section campaign-setup-panel"><header><h3>Choose your nation</h3><p>Your nation sets the doctrine, industry, and equipment available for the campaign.</p></header>${!tutorialSeen()?`<aside class="campaign-onboarding-offer"><span>${icon('info')}<b>New to Strategic Command?</b><small>Take the optional one-minute tour.</small></span><button class="campaign-secondary" data-campaign-help>How to play</button></aside>`:''}${scenarioStripHTML()}<div class="campaign-home-command"><span><small>Selected command</small><strong>${esc(selected.name)}</strong><em>${esc(selectedDoctrine.shortName)} &middot; ${esc(scenario?.name||'Open campaign')}</em><p>${esc(signatures)}</p></span><button class="campaign-primary campaign-start-button" data-campaign-start>Start campaign</button></div><details class="campaign-setup-disclaimer"><summary>About this simulation</summary><p>Fictional strategy sandbox. It models casino rights, supply, readiness, and influence only; there are no civilian targets or casualty mechanics.</p></details><div class="campaign-subheading campaign-home-subheading"><strong>Available nations</strong><small>Choose on the map or below</small></div><div class="campaign-home-grid">${PLAYABLE_COUNTRIES.map(country=>{let doctrine=doctrineFor(country),countrySignatures=getEquipmentForCountry(country.id).filter(item=>item.tier>=4).slice(-2).map(item=>item.name.replace(' Wing','')).join(' / ');return `<button class="campaign-home-card ${country.id===ui.homeId?'selected':''}" data-campaign-home="${country.id}" aria-pressed="${country.id===ui.homeId}"><small>${esc(doctrine.shortName)} &middot; Industry ${country.industry}</small><strong>${esc(country.name)}</strong><span>${esc(countrySignatures)}</span></button>`}).join('')}</div></section>`
+  return `<section class="campaign-console-section campaign-setup-panel"><header><h3>Choose your nation</h3><p>Your nation sets the doctrine, industry, and equipment available for the campaign.</p></header>${!tutorialSeen()?`<aside class="campaign-onboarding-offer"><span>${icon('info')}<b>New to Strategic Command?</b><small>Take the optional one-minute tour.</small></span><button class="campaign-secondary" data-campaign-help>How to play</button></aside>`:''}${scenarioStripHTML()}<div class="campaign-home-command"><span><small>Selected command</small><strong>${esc(selected.name)}</strong><em>${esc(selectedDoctrine.shortName)} &middot; ${esc(scenario?.name||'Open campaign')}</em><p>${esc(signatures)}</p></span><button class="campaign-primary campaign-start-button" data-campaign-start>Start campaign</button></div><details class="campaign-setup-disclaimer"><summary>About this simulation</summary><p>Fictional strategy sandbox. It models gaming rights, supply, readiness, and influence only; there are no civilian targets or casualty mechanics.</p></details><div class="campaign-subheading campaign-home-subheading"><strong>Available nations</strong><small>Choose on the map or below</small></div><div class="campaign-home-grid">${PLAYABLE_COUNTRIES.map(country=>{let doctrine=doctrineFor(country),countrySignatures=getEquipmentForCountry(country.id).filter(item=>item.tier>=4).slice(-2).map(item=>item.name.replace(' Wing','')).join(' / ');return `<button class="campaign-home-card ${country.id===ui.homeId?'selected':''}" data-campaign-home="${country.id}" aria-pressed="${country.id===ui.homeId}"><small>${esc(doctrine.shortName)} &middot; Industry ${country.industry}</small><strong>${esc(country.name)}</strong><span>${esc(countrySignatures)}</span></button>`}).join('')}</div></section>`
  }
 
  function targetOptions(profile){
@@ -538,7 +513,7 @@ function strategyForecastHTML(preview){
   const targetCopy=right?.status==='secured'?'Rights secured. Open Business opportunities to invest in a revenue-producing site.':report.level?`${report.fields.terrain}. ${report.fields.doctrine!=='Unknown'?report.fields.doctrine+' opposition profile.':'Improve the assessment to reveal doctrine.'}`:'Commit one command point to reveal terrain and narrow the forecast.';
   const scoutIntelCost=report.level>=1?1:0,scoutReady=report.level<3&&right?.status!=='secured'&&state.command>=1&&state.intel>=scoutIntelCost,scoutLabel=report.level>=3?'Assessment complete':state.command<1?'Need 1 command':state.intel<scoutIntelCost?'Need 1 intel':`Assess market · 1 command${scoutIntelCost?' + 1 intel':''}`;
   const forceRows=Object.entries(state.inventory).map(([equipmentId,available])=>{let item=getCampaignEquipment(state,equipmentId),readiness=state.readiness[equipmentId]||100,selected=ui.force[equipmentId]>0,restriction=equipmentUseRestriction(state,item,profile),max=Math.max(1,available);return `<label class="campaign-unit ${selected?'selected':''} ${readiness<30?'unready':''}"><input type="checkbox" data-campaign-unit="${item.id}" ${selected?'checked':''} ${readiness<30?'disabled':''}><span class="campaign-unit-copy"><strong>${esc(item.name)}</strong><small>Tier ${item.tier} ${title(item.category)}${restriction.ok?'':` &middot; ${esc(restriction.message)}`}</small><i class="campaign-meter"><i style="width:${readiness}%"></i></i></span><span class="campaign-unit-meta"><strong>${readiness}% ready</strong><small>${available} groups</small><select data-campaign-unit-quantity="${item.id}" aria-label="${esc(item.name)} groups" ${selected?'':'disabled'}>${Array.from({length:max},(_,index)=>index+1).map(qty=>`<option value="${qty}" ${qty===(ui.force[item.id]||max)?'selected':''}>${qty}</option>`).join('')}</select></span></label>`}).join('');
-  return `<section class="campaign-console-section"><header><small>Operations planning</small><h3>${esc(profile.name)}</h3><p>Select a market, improve the assessment, compose the force, and resolve one deterministic rights operation this turn.</p></header><label class="campaign-field"><span>Target market</span><select data-campaign-target-select>${targetOptions(profile)}</select></label><div class="campaign-inline-actions">${recommendations.map(item=>`<button class="campaign-secondary" data-campaign-target="${item.id}">${item.recommended?'Recommended: ':''}${esc(item.name)}</button>`).join('')}</div><article class="campaign-target-card"><header><div><small>${esc(report.fields.alignment)} network &middot; ${esc(report.fields.terrain)}</small><h4>${esc(profile.name)}</h4></div><span class="campaign-target-badge">${esc(status)}</span></header><p>${esc(targetCopy)}</p><div class="campaign-target-stats"><span><small>Rights control</small><strong>${right?.control||0}%</strong></span><span><small>Opposition</small><strong>${report.estimate?`${number(report.estimate.low)}-${number(report.estimate.high)}`:'Unknown'}</strong></span><span><small>Market value</small><strong>${report.fields.marketValue?credits(report.fields.marketValue):'Assess'}</strong></span></div><div class="campaign-progress"><div><span>Casino operating rights</span><strong>${right?.control||0}/100</strong></div><i><b style="width:${right?.control||0}%"></b></i></div><div class="campaign-inline-actions"><button class="campaign-secondary" data-campaign-scout ${scoutReady?'':'disabled'}>${esc(scoutLabel)}</button><button class="campaign-secondary" data-campaign-mode="intelligence">Open intelligence</button></div></article><div class="campaign-subheading"><strong>Deployment force</strong><small>Selected groups deploy together</small></div><div class="campaign-unit-list">${forceRows||'<p class="campaign-empty">No operational groups are available. Open Development to begin production.</p>'}</div>${forecastHTML(preview)}<div class="campaign-inline-actions"><button class="campaign-primary wide" data-campaign-resolve ${!preview.ok||state.phase==='resolution'?'disabled':''}>${state.phase==='resolution'?'Operation complete - end turn':'Resolve rights operation'}</button></div></section>`
+  return `<section class="campaign-console-section"><header><small>Operations planning</small><h3>${esc(profile.name)}</h3><p>Select a market, improve the assessment, compose the force, and resolve one rights operation this turn.</p></header><label class="campaign-field"><span>Target market</span><select data-campaign-target-select>${targetOptions(profile)}</select></label><div class="campaign-inline-actions">${recommendations.map(item=>`<button class="campaign-secondary" data-campaign-target="${item.id}">${item.recommended?'Recommended: ':''}${esc(item.name)}</button>`).join('')}</div><article class="campaign-target-card"><header><div><small>${esc(report.fields.alignment)} network &middot; ${esc(report.fields.terrain)}</small><h4>${esc(profile.name)}</h4></div><span class="campaign-target-badge">${esc(status)}</span></header><p>${esc(targetCopy)}</p><div class="campaign-target-stats"><span><small>Rights control</small><strong>${right?.control||0}%</strong></span><span><small>Opposition</small><strong>${report.estimate?`${number(report.estimate.low)}-${number(report.estimate.high)}`:'Unknown'}</strong></span><span><small>Market value</small><strong>${report.fields.marketValue?credits(report.fields.marketValue):'Assess'}</strong></span></div><div class="campaign-progress"><div><span>Gaming operating rights</span><strong>${right?.control||0}/100</strong></div><i><b style="width:${right?.control||0}%"></b></i></div><div class="campaign-inline-actions"><button class="campaign-secondary" data-campaign-scout ${scoutReady?'':'disabled'}>${esc(scoutLabel)}</button><button class="campaign-secondary" data-campaign-mode="intelligence">Open intelligence</button></div></article><div class="campaign-subheading"><strong>Deployment force</strong><small>Selected groups deploy together</small></div><div class="campaign-unit-list">${forceRows||'<p class="campaign-empty">No operational groups are available. Open Development to begin production.</p>'}</div>${forecastHTML(preview)}<div class="campaign-inline-actions"><button class="campaign-primary wide" data-campaign-resolve ${!preview.ok||state.phase==='resolution'?'disabled':''}>${state.phase==='resolution'?'Operation complete - end turn':'Resolve rights operation'}</button></div></section>`
  }
 
  function operationsHTML(){
@@ -867,7 +842,7 @@ function industryDevelopmentHTML(){
  function renderTurnBar(){
   const host=panel.querySelector('#campaignTurnBar'),state=getState();host.hidden=!started();if(!started())return;
   const turnPreview=endTurn(state),economy=turnPreview.event.economy,businessEconomy=turnPreview.event.businessEconomy,status=campaignStatus(state),deliveries=turnPreview.event.deliveries.length,programs=turnPreview.event.completedPrograms?.length||0,recovery=turnPreview.event.recovery,decisions=getAvailableDecisions(state),worldEvent=turnPreview.event.newWorldEvent,fundingCopy=turnPreview.event.fullyFunded?`Readiness recovers by ${recovery}.`:`Upkeep is underfunded; readiness falls by ${Math.abs(recovery)}.`;
-  host.innerHTML=`<div><small>Turn ${state.turn} close</small><strong>${signedCredits(economy.balance)} non-cash operations capacity &middot; +${usd(businessEconomy.incomeUsd)} business income</strong><span class="${decisions.length||worldEvent?'campaign-turn-blocked':''}">${decisions.length?`${decisions.length} optional directive${decisions.length===1?' is':'s are'} available. `:''}${worldEvent?`${esc(worldEvent.name)} will require a response. `:''}${deliveries?`${deliveries} vehicle order${deliveries===1?'':'s'} will be delivered. `:''}${programs?`${programs} in-house program${programs===1?'':'s'} will complete. `:''}${fundingCopy} Rights alone produce no income.</span></div><button class="campaign-primary" data-campaign-end-turn ${status.victory?'disabled':''}>${status.victory?'Campaign complete':'End turn'}</button>`
+  host.innerHTML=`<div><small>Turn ${state.turn} close</small><strong>${signedCredits(economy.balance)} non-cash operations capacity &middot; +${usd(businessEconomy.incomeUsd)} business income</strong><span class="${decisions.length||worldEvent?'campaign-turn-blocked':''}">${decisions.length?`${decisions.length} optional directive${decisions.length===1?' is':'s are'} available. `:''}${worldEvent?'A new world event may require a response. ':''}${deliveries?`${deliveries} vehicle order${deliveries===1?'':'s'} will be delivered. `:''}${programs?`${programs} in-house program${programs===1?'':'s'} will complete. `:''}${fundingCopy} Rights alone produce no income.</span></div><button class="campaign-primary" data-campaign-end-turn ${status.victory?'disabled':''}>${status.victory?'Campaign complete':'End turn'}</button>`
  }
 
  function renderOverlay(){
@@ -887,7 +862,7 @@ function industryDevelopmentHTML(){
   }
   if(ui.overlay==='end-turn'){
    const state=getState(),result=endTurn(state),economy=result.event.economy,business=result.event.businessEconomy,deliveries=result.event.deliveries.length,programs=result.event.completedPrograms?.length||0,recovery=result.event.recovery,worldEvent=result.event.newWorldEvent;
-   host.innerHTML=frame(`End turn ${state.turn}`,`<div class="campaign-turn-confirm"><p>Advance the campaign and apply these changes.</p><div class="campaign-turn-summary"><span><small>Ops change</small><strong class="${economy.balance>=0?'positive':'negative'}">${signedCredits(economy.balance)}</strong></span><span><small>Business income</small><strong>+${usd(business.incomeUsd)}</strong></span><span><small>Readiness</small><strong>${recovery>=0?'+':''}${recovery}</strong></span><span><small>Deliveries</small><strong>${deliveries+programs}</strong></span></div>${worldEvent?`<p class="campaign-turn-warning">${esc(worldEvent.name)} will require a response next turn.</p>`:''}<footer><button class="campaign-secondary" data-campaign-overlay-close>Keep playing</button><button class="campaign-primary" data-campaign-end-turn-confirm data-overlay-initial>Confirm end turn</button></footer></div>`);return
+   host.innerHTML=frame(`End turn ${state.turn}`,`<div class="campaign-turn-confirm"><p>Advance the campaign and apply these changes.</p><div class="campaign-turn-summary"><span><small>Ops change</small><strong class="${economy.balance>=0?'positive':'negative'}">${signedCredits(economy.balance)}</strong></span><span><small>Business income</small><strong>+${usd(business.incomeUsd)}</strong></span><span><small>Readiness</small><strong>${recovery>=0?'+':''}${recovery}</strong></span><span><small>Deliveries</small><strong>${deliveries+programs}</strong></span></div>${worldEvent?`<p class="campaign-turn-warning">A new world event may require a response next turn.</p>`:''}<footer><button class="campaign-secondary" data-campaign-overlay-close>Keep playing</button><button class="campaign-primary" data-campaign-end-turn-confirm data-overlay-initial>Confirm end turn</button></footer></div>`);return
   }
  }
 
@@ -907,8 +882,9 @@ function industryDevelopmentHTML(){
   requestAnimationFrame(()=>{const host=panel.querySelector('#campaignConsole');if(!host)return;host.scrollTop=0;host.focus({preventScroll:true});if(matchMedia('(max-width: 980px)').matches)host.closest('.campaign-console')?.scrollIntoView({behavior:'auto',block:'start'})})
  }
 
- function startCampaign(){
-  const result=createCampaign({homeCountryId:ui.homeId,scenarioId:ui.scenarioId,seed:`dorra-house-${ui.homeId.toLowerCase()}-${ui.scenarioId}-campaign-v1`,capitalUsd:options.getBankBalance?.()||0});ui.target=getRecommendedTargets(result.state.homeCountryId)[0];ui.mode='operations';ui.operationsView='strategy';ui.operationStep=null;ui.strategyFocus=null;ui.planComparison=null;seedForce(result.state);commit(result,'campaign-start');ui.globe?.focusCountry(ui.target.id)
+ async function startCampaign(){
+  const result=await command('create',{homeCountryId:ui.homeId,scenarioId:ui.scenarioId});if(!result)return;
+  ui.target=getRecommendedTargets(result.state.homeCountryId)[0];ui.mode='operations';ui.operationsView='strategy';ui.operationStep=null;ui.strategyFocus=null;ui.planComparison=null;seedForce(result.state);render();ui.globe?.focusCountry(ui.target.id)
  }
 
  function setMapMode(active){
@@ -916,7 +892,7 @@ function industryDevelopmentHTML(){
  }
 
  function legacyOpenDebrief(event){
-  if(!debrief||event.type!=='deployment-resolved')return;ui.lastFocus=document.activeElement;const report=event.engagement,preview=event.preview,labels={decisive:'Decisive access gain',success:'Access gained',contested:'Rights remain contested',repelled:'Opposition held'};debrief.className=`campaign-debrief outcome-${report.outcome}`;debrief.hidden=false;document.body.classList.add('modal-open');debrief.querySelector('#campaignDebriefLabel').textContent=`Turn ${report.turn} · ${report.targetName}`;debrief.querySelector('#campaignDebriefTitle').textContent=labels[report.outcome];debrief.querySelector('#campaignDebriefBody').innerHTML=`<div class="campaign-debrief-result"><div><small>Forecast</small><strong>${pct(report.probability)}</strong></div><div><small>Rights change</small><strong>${report.controlDelta>=0?'+':''}${report.controlDelta}</strong></div><div><small>Control after</small><strong>${report.controlAfter}%</strong></div></div><p>${event.log.map(line=>esc(line)).join(' ')}</p>${event.secured?`<div class="campaign-debrief-licensed">Casino operating rights secured. ${credits(preview.target.marketValue)} now enters campaign revenue each turn${event.houseBonus?`, with a $${number(event.houseBonus)} Dorra House licensing bonus` : ''}.</div>`:''}`;setTimeout(()=>debrief.querySelector('#campaignDebriefClose')?.focus(),20)
+  if(!debrief||event.type!=='deployment-resolved')return;ui.lastFocus=document.activeElement;const report=event.engagement,preview=event.preview,labels={decisive:'Decisive access gain',success:'Access gained',contested:'Rights remain contested',repelled:'Opposition held'};debrief.className=`campaign-debrief outcome-${report.outcome}`;debrief.hidden=false;document.body.classList.add('modal-open');debrief.querySelector('#campaignDebriefLabel').textContent=`Turn ${report.turn} · ${report.targetName}`;debrief.querySelector('#campaignDebriefTitle').textContent=labels[report.outcome];debrief.querySelector('#campaignDebriefBody').innerHTML=`<div class="campaign-debrief-result"><div><small>Forecast</small><strong>${pct(report.probability)}</strong></div><div><small>Rights change</small><strong>${report.controlDelta>=0?'+':''}${report.controlDelta}</strong></div><div><small>Control after</small><strong>${report.controlAfter}%</strong></div></div><p>${event.log.map(line=>esc(line)).join(' ')}</p>${event.secured?`<div class="campaign-debrief-licensed">Gaming operating rights secured. ${credits(preview.target.marketValue)} now enters campaign revenue each turn${event.houseBonus?`, with a $${number(event.houseBonus)} Dorra House licensing bonus` : ''}.</div>`:''}`;setTimeout(()=>debrief.querySelector('#campaignDebriefClose')?.focus(),20)
  }
 
  function openDebrief(event){
@@ -959,13 +935,13 @@ function industryDevelopmentHTML(){
   if(event.target.closest('[data-campaign-tutorial-prev]')){ui.tutorialStep=Math.max(0,ui.tutorialStep-1);renderOverlay();return}
   if(event.target.closest('[data-campaign-tutorial-next]')){if(ui.tutorialStep<TUTORIAL_STEPS.length-1){ui.tutorialStep++;renderOverlay();requestAnimationFrame(()=>panel.querySelector('[data-campaign-tutorial-next]')?.focus())}else{completeTutorial();closeOverlay();render()}return}
   if(event.target.closest('[data-campaign-open-world-alerts]')){ui.overlay='';ui.mode='companies';ui.networkView='world';render();focusConsoleStart();return}
-  if(event.target.closest('[data-campaign-end-turn-confirm]')){closeOverlay();let result=endTurn(getState());if(commit(result,'campaign-turn')&&result.event.deliveries?.length)options.toast?.(`${result.event.deliveries.length} production order${result.event.deliveries.length===1?'':'s'} delivered.`);return}
+  if(event.target.closest('[data-campaign-end-turn-confirm]')){closeOverlay();await command('end-turn');return}
   if(event.target.closest('[data-campaign-map-mode]')){const wasOpen=ui.mapMode;setMapMode(!ui.mapMode);if(wasOpen)requestAnimationFrame(()=>panel.querySelector('.campaign-map-tools [data-campaign-map-mode]')?.focus({preventScroll:true}));return}
   const mapUnit=event.target.closest('[data-campaign-map-unit]');if(mapUnit){selectMapUnit({unitId:mapUnit.dataset.campaignMapUnit});return}
   const mapEnemy=event.target.closest('[data-campaign-map-enemy]');if(mapEnemy){selectMapUnit({unitId:mapEnemy.dataset.campaignMapEnemy});ui.globe?.focusCountry(ui.mapDestination?.id,{altitude:1.8});return}
-  if(event.target.closest('[data-campaign-map-issue]')){const state=getState(),unit=getMapForces(state).find(item=>item.id===ui.selectedMapUnit),enemy=getMapForces(state).find(item=>item.id===ui.selectedEnemy);if(!unit||!ui.mapDestination)return;let result;if(unit.countryId!==ui.mapDestination.id){result=moveCampaignUnit(state,unit.id,ui.mapDestination);if(!result.event.ok){commit(result,'campaign-map-move');return}if(enemy&&enemy.countryId===ui.mapDestination.id)result=attackCampaignUnit(result.state,unit.id,enemy.id)}else if(enemy)result=attackCampaignUnit(state,unit.id,enemy.id);else return;if(commit(result,result.event.type==='map-unit-attacked'?'campaign-map-attack':'campaign-map-move')){ui.mapMessage=result.event.message;renderMapCommand();updateGlobe();patchMapStatus()}return}
+  if(event.target.closest('[data-campaign-map-issue]')){if(!ui.selectedMapUnit||!ui.mapDestination)return;await command('map-order',{unitId:ui.selectedMapUnit,targetId:ui.mapDestination.id,enemyId:ui.selectedEnemy||''});return}
   const taskForceUse=event.target.closest('[data-campaign-task-force-use]');if(taskForceUse){const taskForce=getTaskForces(getState()).find(item=>item.id===taskForceUse.dataset.campaignTaskForceUse);if(taskForce){rememberPlanComparison(`Use ${taskForce.name}`);ui.teams=[];ui.mergeSelection=[];ui.force=taskForcePlanUnits(taskForce);syncForce();render();requestAnimationFrame(()=>panel.querySelector(`[data-campaign-task-force-use="${taskForce.id}"]`)?.focus());options.toast?.(`${taskForce.name} loaded into the operation plan.`)}return}
-  const taskForceMaintain=event.target.closest('[data-campaign-task-force-maintain]');if(taskForceMaintain){const id=taskForceMaintain.dataset.campaignTaskForceMaintain;if(commit(maintainTaskForce(getState(),id,'standard'),'campaign-task-force-maintenance'))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-task-force-maintain="${id}"]`)?.focus());return}
+  const taskForceMaintain=event.target.closest('[data-campaign-task-force-maintain]');if(taskForceMaintain){const id=taskForceMaintain.dataset.campaignTaskForceMaintain;if(await command('maintain-task-force',{id}))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-task-force-maintain="${id}"]`)?.focus());return}
   const teamToggle=event.target.closest('[data-campaign-team-toggle]');if(teamToggle){const team=ui.teams.find(item=>item.id===teamToggle.dataset.campaignTeamToggle);if(team){rememberPlanComparison(`${team.deployed?'Remove':'Add'} ${team.name}`);team.deployed=!team.deployed;syncForceFromTeams();render();animateTeamCard(team.id,'selected')}return}
   const teamSplit=event.target.closest('[data-campaign-team-split]');if(teamSplit){const team=ui.teams.find(item=>item.id===teamSplit.dataset.campaignTeamSplit);if(team&&team.quantity>1){const quantity=Math.floor(team.quantity/2);team.quantity-=quantity;const child={...team,id:`team-${++ui.teamCounter}`,name:`${team.name} Two`,quantity};ui.teams.splice(ui.teams.indexOf(team)+1,0,child);syncForceFromTeams();render();animateTeamCard(child.id,'split');options.toast?.(`${team.name} split into two teams.`)}return}
   const teamMerge=event.target.closest('[data-campaign-team-merge]');if(teamMerge){const id=teamMerge.dataset.campaignTeamMerge,index=ui.mergeSelection.indexOf(id);if(index>=0)ui.mergeSelection.splice(index,1);else{const candidate=ui.teams.find(team=>team.id===id),first=ui.teams.find(team=>team.id===ui.mergeSelection[0]);if(first&&candidate&&first.domain!==candidate.domain){options.toast?.('Air, land, and sea teams cannot be mixed.');return}if(first&&candidate&&first.equipmentId!==candidate.equipmentId){options.toast?.('Teams must share both a domain and unit type to merge.');return}ui.mergeSelection=[...ui.mergeSelection.slice(-1),id]}render();return}
@@ -976,15 +952,15 @@ function industryDevelopmentHTML(){
   const mode=event.target.closest('button[data-campaign-mode]');if(mode){if(started()){ui.mode=mode.dataset.campaignMode;ui.previousMode=ui.mode;ui.operationStep=null;ui.decisionChoice=null;render();focusConsoleStart()}return}
   const home=event.target.closest('[data-campaign-home]');if(home){ui.homeId=home.dataset.campaignHome;ui.mapMessage=`${getCountry(ui.homeId).name} selected as home command.`;render();ui.globe?.focusCountry(ui.homeId);return}
   const scenario=event.target.closest('[data-campaign-scenario]');if(scenario&&!started()){ui.scenarioId=scenario.dataset.campaignScenario;render();requestAnimationFrame(()=>panel.querySelector(`[data-campaign-scenario="${ui.scenarioId}"]`)?.focus());return}
-  if(event.target.closest('[data-campaign-start]')){startCampaign();return}
+  if(event.target.closest('[data-campaign-start]')){await startCampaign();return}
   if(event.target.closest('[data-campaign-decisions]')){if(!started())return;if(ui.mode==='decisions'){ui.mode=ui.previousMode||'operations';ui.decisionChoice=null}else{ui.previousMode=ui.mode;ui.mode='decisions'}render();focusConsoleStart();return}
   if(event.target.closest('[data-campaign-decision-back]')){if(ui.overlay==='alerts'){ui.decisionChoice=null;closeOverlay()}else{ui.mode=ui.previousMode||'operations';ui.decisionChoice=null;render();focusConsoleStart()}return}
   const operationsView=event.target.closest('[data-campaign-operations-view]');if(operationsView){ui.operationsView=operationsView.dataset.campaignOperationsView;ui.operationStep=ui.operationsView==='forces'?'forces':'strategy';render();focusConsoleStart();return}
-  const objective=event.target.closest('[data-campaign-operation-objective]');if(objective){const id=objective.dataset.campaignOperationObjective;rememberPlanComparison(`Objective: ${collection(CAMPAIGN_OPERATION_OBJECTIVES).find(item=>item.id===id)?.name||title(id)}`);if(commit(setOperationObjective(getState(),id),'campaign-operation-objective'))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-operation-objective="${id}"]`)?.focus());return}
-  const victoryPath=event.target.closest('[data-campaign-victory-path]');if(victoryPath){const id=victoryPath.dataset.campaignVictoryPath;if(commit(selectVictoryPath(getState(),id),'campaign-victory-path'))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-victory-path="${id}"]`)?.focus());return}
-  const posture=event.target.closest('[data-campaign-posture]');if(posture){const id=posture.dataset.campaignPosture;rememberPlanComparison(`Posture: ${title(id)}`);if(commit(setTheatrePosture(getState(),id),'campaign-posture'))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-posture="${id}"]`)?.focus());return}
-  const strategy=event.target.closest('[data-campaign-strategy]');if(strategy){const id=strategy.dataset.campaignStrategy;rememberPlanComparison(`Strategy: ${title(id)}`);ui.strategyFocus=id;if(commit(selectCampaignStrategy(getState(),id),'campaign-strategy'))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-strategy="${id}"]`)?.focus());return}
-  const operationPhase=event.target.closest('[data-campaign-operation-phase]');if(operationPhase){const phaseId=operationPhase.dataset.campaignOperationPhase,optionId=operationPhase.dataset.campaignOperationOption;rememberPlanComparison(`${title(phaseId)}: ${title(optionId)}`);if(commit(setOperationPhaseOption(getState(),phaseId,optionId),'campaign-operation-phase'))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-operation-phase="${phaseId}"][data-campaign-operation-option="${optionId}"]`)?.focus());return}
+  const objective=event.target.closest('[data-campaign-operation-objective]');if(objective){const id=objective.dataset.campaignOperationObjective;rememberPlanComparison(`Objective: ${collection(CAMPAIGN_OPERATION_OBJECTIVES).find(item=>item.id===id)?.name||title(id)}`);if(await command('set-objective',{id}))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-operation-objective="${id}"]`)?.focus());return}
+  const victoryPath=event.target.closest('[data-campaign-victory-path]');if(victoryPath){const id=victoryPath.dataset.campaignVictoryPath;if(await command('set-victory-path',{id}))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-victory-path="${id}"]`)?.focus());return}
+  const posture=event.target.closest('[data-campaign-posture]');if(posture){const id=posture.dataset.campaignPosture;rememberPlanComparison(`Posture: ${title(id)}`);if(await command('set-posture',{id}))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-posture="${id}"]`)?.focus());return}
+  const strategy=event.target.closest('[data-campaign-strategy]');if(strategy){const id=strategy.dataset.campaignStrategy;rememberPlanComparison(`Strategy: ${title(id)}`);ui.strategyFocus=id;if(await command('set-strategy',{id}))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-strategy="${id}"]`)?.focus());return}
+  const operationPhase=event.target.closest('[data-campaign-operation-phase]');if(operationPhase){const phaseId=operationPhase.dataset.campaignOperationPhase,optionId=operationPhase.dataset.campaignOperationOption;rememberPlanComparison(`${title(phaseId)}: ${title(optionId)}`);if(await command('set-phase',{phaseId,optionId}))requestAnimationFrame(()=>panel.querySelector(`[data-campaign-operation-phase="${phaseId}"][data-campaign-operation-option="${optionId}"]`)?.focus());return}
   const developmentView=event.target.closest('[data-campaign-development-view]');if(developmentView){ui.developmentView=developmentView.dataset.campaignDevelopmentView;render();panel.querySelector('#campaignConsole')?.focus();return}
   const productionDomain=event.target.closest('[data-campaign-production-domain]');if(productionDomain){ui.productionDomain=productionDomain.dataset.campaignProductionDomain;render();requestAnimationFrame(()=>panel.querySelector(`[data-campaign-production-domain="${ui.productionDomain}"]`)?.focus());return}
   const productionClass=event.target.closest('[data-campaign-production-class]');if(productionClass){ui.productionClass=productionClass.dataset.campaignProductionClass;render();requestAnimationFrame(()=>panel.querySelector(`[data-campaign-production-class="${ui.productionClass}"]`)?.focus());return}
@@ -992,43 +968,43 @@ function industryDevelopmentHTML(){
   const networkView=event.target.closest('[data-campaign-network-view]');if(networkView){ui.networkView=networkView.dataset.campaignNetworkView;render();requestAnimationFrame(()=>panel.querySelector(`[data-campaign-network-view="${ui.networkView}"]`)?.focus());return}
   const factoryTypeButton=event.target.closest('[data-campaign-factory-type]');if(factoryTypeButton){ui.factoryType=factoryTypeButton.dataset.campaignFactoryType;render();return}
   const baseTypeButton=event.target.closest('[data-campaign-base-type]');if(baseTypeButton){ui.baseType=baseTypeButton.dataset.campaignBaseType;render();return}
-  if(event.target.closest('[data-campaign-factory-build]')){commit(buildCampaignFactory(getState(),ui.factoryType,ui.industryRegion||getCampaignRegions(currentHome().id)[0]),'campaign-factory');return}
-  const factoryUpgrade=event.target.closest('[data-campaign-factory-upgrade]');if(factoryUpgrade){commit(factoryUpgrade.dataset.campaignFactoryUpgrade?upgradeCampaignFactory(getState(),factoryUpgrade.dataset.campaignFactoryUpgrade):expandCampaignFactories(getState()),'campaign-factory');return}
-  if(event.target.closest('[data-campaign-base-build]')){commit(buildCampaignBase(getState(),ui.baseType,ui.industryRegion||getCampaignRegions(currentHome().id)[0]),'campaign-base');return}
-  const baseUpgrade=event.target.closest('[data-campaign-base-upgrade]');if(baseUpgrade){commit(upgradeCampaignBase(getState(),baseUpgrade.dataset.campaignBaseUpgrade),'campaign-base');return}
-  if(event.target.closest('[data-campaign-recruit]')){commit(recruitCampaignManpower(getState(),1),'campaign-recruit');return}
-  if(event.target.closest('[data-campaign-manpower-capacity]')){commit(expandManpowerCapacity(getState()),'campaign-capacity');return}
-  if(event.target.closest('[data-campaign-training-upgrade]')){commit(improveManpowerTraining(getState()),'campaign-training');return}
+  if(event.target.closest('[data-campaign-factory-build]')){await command('build-factory',{typeId:ui.factoryType,region:ui.industryRegion||getCampaignRegions(currentHome().id)[0]});return}
+  const factoryUpgrade=event.target.closest('[data-campaign-factory-upgrade]');if(factoryUpgrade){await command(factoryUpgrade.dataset.campaignFactoryUpgrade?'upgrade-factory':'expand-factories',factoryUpgrade.dataset.campaignFactoryUpgrade?{id:factoryUpgrade.dataset.campaignFactoryUpgrade}:{});return}
+  if(event.target.closest('[data-campaign-base-build]')){await command('build-base',{typeId:ui.baseType,region:ui.industryRegion||getCampaignRegions(currentHome().id)[0]});return}
+  const baseUpgrade=event.target.closest('[data-campaign-base-upgrade]');if(baseUpgrade){await command('upgrade-base',{id:baseUpgrade.dataset.campaignBaseUpgrade});return}
+  if(event.target.closest('[data-campaign-recruit]')){await command('recruit');return}
+  if(event.target.closest('[data-campaign-manpower-capacity]')){await command('expand-manpower');return}
+  if(event.target.closest('[data-campaign-training-upgrade]')){await command('train-manpower');return}
   const customDomain=event.target.closest('[data-campaign-custom-domain]');if(customDomain){ui.customDomain=customDomain.dataset.campaignCustomDomain;render();return}
   const customCompany=event.target.closest('[data-campaign-custom-company]');if(customCompany){ui.customCompanyId=customCompany.dataset.campaignCustomCompany;render();return}
   const customPriority=event.target.closest('[data-campaign-custom-priority]');if(customPriority){ui.customPriority=customPriority.dataset.campaignCustomPriority;render();return}
   const customPreset=event.target.closest('[data-campaign-custom-preset]');if(customPreset){ui.customBudget=Number(customPreset.dataset.campaignCustomPreset);render();return}
-  if(event.target.closest('[data-campaign-custom-launch]')){commit(startCustomVehicleProgram(getState(),{domain:ui.customDomain,investmentUsd:ui.customBudget,priorityId:ui.customPriority,manufacturerId:ui.customCompanyId}),'campaign-custom');return}
-  const businessBuild=event.target.closest('[data-campaign-business-build]');if(businessBuild){commit(buildMarketBusiness(getState(),businessBuild.dataset.campaignBusinessBuild,businessBuild.dataset.businessType),'campaign-business');return}
-  const businessUpgrade=event.target.closest('[data-campaign-business-upgrade]');if(businessUpgrade){commit(upgradeMarketBusiness(getState(),businessUpgrade.dataset.campaignBusinessUpgrade),'campaign-business');return}
+  if(event.target.closest('[data-campaign-custom-launch]')){await command('custom-program',{domain:ui.customDomain,investmentUsd:ui.customBudget,priorityId:ui.customPriority,manufacturerId:ui.customCompanyId});return}
+  const businessBuild=event.target.closest('[data-campaign-business-build]');if(businessBuild){await command('build-business',{targetId:businessBuild.dataset.campaignBusinessBuild,typeId:businessBuild.dataset.businessType});return}
+  const businessUpgrade=event.target.closest('[data-campaign-business-upgrade]');if(businessUpgrade){await command('upgrade-business',{targetId:businessUpgrade.dataset.campaignBusinessUpgrade});return}
   const openDevelopment=event.target.closest('[data-campaign-open-development]');if(openDevelopment){ui.mode='development';ui.developmentView=openDevelopment.dataset.campaignOpenDevelopment||'industry';render();focusConsoleStart();return}
   if(event.target.closest('[data-campaign-open-businesses]')){ui.mode='intelligence';ui.intelligenceView='businesses';render();focusConsoleStart();return}
   const techStage=event.target.closest('[data-campaign-tech-stage]');if(techStage){ui.techFocus=techStage.dataset.stageTarget||ui.techFocus;render();focusTechnologyNode(ui.techFocus);return}
   const tech=event.target.closest('[data-campaign-tech]');if(tech){ui.techFocus=tech.dataset.campaignTech;render();focusTechnologyNode(ui.techFocus);return}
-  const unlock=event.target.closest('[data-campaign-tech-unlock]');if(unlock){commit(unlockDevelopmentNode(getState(),unlock.dataset.campaignTechUnlock),'campaign-development');return}
-  const company=event.target.closest('[data-campaign-company]');if(company){commit(signCompanyPartnership(getState(),company.dataset.campaignCompany),'campaign-company');return}
-  const negotiate=event.target.closest('[data-campaign-negotiate]');if(negotiate){commit(negotiateCampaignAgreement(getState(),targetProfile(),negotiate.dataset.campaignNegotiate),'campaign-diplomacy');return}
+  const unlock=event.target.closest('[data-campaign-tech-unlock]');if(unlock){await command('unlock-development',{id:unlock.dataset.campaignTechUnlock});return}
+  const company=event.target.closest('[data-campaign-company]');if(company){await command('company-partnership',{id:company.dataset.campaignCompany});return}
+  const negotiate=event.target.closest('[data-campaign-negotiate]');if(negotiate){await command('negotiate',{targetId:targetProfile().id,typeId:negotiate.dataset.campaignNegotiate});return}
   const overseasType=event.target.closest('[data-campaign-overseas-type]');if(overseasType){ui.overseasBaseType=overseasType.dataset.campaignOverseasType;render();return}
-  if(event.target.closest('[data-campaign-overseas-build]')){commit(buildOverseasBase(getState(),targetProfile(),ui.overseasBaseType),'campaign-overseas-base');return}
-  const overseasUpgrade=event.target.closest('[data-campaign-overseas-upgrade]');if(overseasUpgrade){commit(upgradeOverseasBase(getState(),overseasUpgrade.dataset.campaignOverseasUpgrade),'campaign-overseas-base');return}
-  const routeReinforce=event.target.closest('[data-campaign-route-reinforce]');if(routeReinforce){commit(reinforceSupplyRoute(getState(),routeReinforce.dataset.campaignRouteReinforce),'campaign-supply-route');return}
-  const routeAsset=event.target.closest('[data-campaign-route-asset]');if(routeAsset){commit(assignStrategicAssetToRoute(getState(),routeAsset.dataset.campaignRouteAsset),'campaign-supply-route');return}
-  const strategicAcquire=event.target.closest('[data-campaign-strategic-acquire]');if(strategicAcquire){commit(acquireStrategicAsset(getState(),strategicAcquire.dataset.campaignStrategicAcquire),'campaign-strategic-asset');return}
-  const worldChoice=event.target.closest('[data-campaign-world-choice]');if(worldChoice){commit(resolveWorldEvent(getState(),worldChoice.dataset.campaignWorldEvent,worldChoice.dataset.campaignWorldChoice),'campaign-world-event');return}
+  if(event.target.closest('[data-campaign-overseas-build]')){await command('build-overseas-base',{targetId:targetProfile().id,typeId:ui.overseasBaseType});return}
+  const overseasUpgrade=event.target.closest('[data-campaign-overseas-upgrade]');if(overseasUpgrade){await command('upgrade-overseas-base',{id:overseasUpgrade.dataset.campaignOverseasUpgrade});return}
+  const routeReinforce=event.target.closest('[data-campaign-route-reinforce]');if(routeReinforce){await command('reinforce-route',{id:routeReinforce.dataset.campaignRouteReinforce});return}
+  const routeAsset=event.target.closest('[data-campaign-route-asset]');if(routeAsset){await command('assign-route-asset',{id:routeAsset.dataset.campaignRouteAsset});return}
+  const strategicAcquire=event.target.closest('[data-campaign-strategic-acquire]');if(strategicAcquire){await command('acquire-asset',{id:strategicAcquire.dataset.campaignStrategicAcquire});return}
+  const worldChoice=event.target.closest('[data-campaign-world-choice]');if(worldChoice){await command('world-choice',{id:worldChoice.dataset.campaignWorldEvent,choiceId:worldChoice.dataset.campaignWorldChoice});return}
   const decisionChoice=event.target.closest('[data-campaign-decision-choice]');if(decisionChoice){if(decisionChoice.getAttribute('aria-disabled')==='true'){options.toast?.(decisionChoice.querySelector('small')?.textContent||'That directive is not currently available.');return}ui.decisionChoice={decisionId:decisionChoice.dataset.campaignDecisionId,choiceId:decisionChoice.dataset.campaignDecisionChoice};render();requestAnimationFrame(()=>panel.querySelector(`[data-campaign-decision-confirm="${ui.decisionChoice?.decisionId||''}"]`)?.focus());return}
-  const decisionConfirm=event.target.closest('[data-campaign-decision-confirm]');if(decisionConfirm){let result=resolveCampaignDecision(getState(),decisionConfirm.dataset.campaignDecisionConfirm,decisionConfirm.dataset.campaignChoiceId);ui.decisionChoice=null;commit(result,'campaign-decision');return}
+  const decisionConfirm=event.target.closest('[data-campaign-decision-confirm]');if(decisionConfirm){ui.decisionChoice=null;await command('decision',{id:decisionConfirm.dataset.campaignDecisionConfirm,choiceId:decisionConfirm.dataset.campaignChoiceId});return}
   const target=event.target.closest('[data-campaign-target]');if(target){selectTarget(target.dataset.campaignTarget,true);return}
   if(event.target.closest('[data-campaign-map-reset]')){if(ui.mapMode)ui.globe?.showWorld({altitude:2.45});else{let id=started()?targetProfile().id:ui.homeId;ui.globe?.focusCountry(id,{altitude:1.65})}return}
-  if(event.target.closest('[data-campaign-scout]')){commit(scoutTarget(getState(),targetProfile()),'campaign-scout');return}
-  if(event.target.closest('[data-campaign-resolve]')){if(ui.animating)return;const result=resolveDeployment(getState(),plan());if(result?.event?.ok)await animateDeployment(result);commit(result,'campaign-battle',{report:true});return}
-  const procure=event.target.closest('[data-campaign-procure]');if(procure){commit(queueProcurement(getState(),procure.dataset.campaignProcure,1),'campaign-build');return}
-  const research=event.target.closest('[data-campaign-research]');if(research){commit(researchTechnology(getState(),research.dataset.campaignResearch),'campaign-research');return}
-  if(event.target.closest('[data-campaign-end-turn]')){let result=endTurn(getState());if(commit(result,'campaign-turn')&&result.event.deliveries?.length)options.toast?.(`${result.event.deliveries.length} production order${result.event.deliveries.length===1?'':'s'} delivered.`)}
+  if(event.target.closest('[data-campaign-scout]')){await command('scout',{targetId:targetProfile().id});return}
+  if(event.target.closest('[data-campaign-resolve]')){const operation=plan();await command('deploy',{targetId:operation.targetProfile.id,units:operation.units},{report:true});return}
+  const procure=event.target.closest('[data-campaign-procure]');if(procure){await command('procure',{equipmentId:procure.dataset.campaignProcure});return}
+  const research=event.target.closest('[data-campaign-research]');if(research){await command('research',{id:research.dataset.campaignResearch});return}
+  if(event.target.closest('[data-campaign-end-turn]')){await command('end-turn')}
 }
 
  function onChange(event){
@@ -1039,9 +1015,9 @@ function industryDevelopmentHTML(){
   if(event.target.matches('[data-campaign-unit-quantity]')){let id=event.target.dataset.campaignUnitQuantity,item=getCampaignEquipment(getState(),id);rememberPlanComparison(`Adjust ${item?.name||'formation'} groups`);ui.force[id]=Math.max(1,Math.min(getState().inventory[id]||1,Number(event.target.value)||1));render()}
  }
 
- function onSubmit(event){
-  const taskForceForm=event.target.closest('[data-campaign-task-force-form]');if(taskForceForm){event.preventDefault();const data=new FormData(taskForceForm),name=String(data.get('name')||'').trim().slice(0,32),unitIds=data.getAll('unitIds').map(String).filter(Boolean);if(!name||!unitIds.length){options.toast?.('Name the task force and assign at least one available formation.');return}commit(createTaskForce(getState(),{name,unitIds}),'campaign-task-force-create');return}
-  const renameForm=event.target.closest('[data-campaign-task-force-rename]');if(renameForm){event.preventDefault();const data=new FormData(renameForm),name=String(data.get('name')||'').trim().slice(0,32),id=renameForm.dataset.campaignTaskForceRename;if(!name)return;if(commit(renameTaskForce(getState(),id,name),'campaign-task-force-rename'))requestAnimationFrame(()=>panel.querySelector(`[data-task-force-card="${id}"] summary`)?.focus());return}
+ async function onSubmit(event){
+  const taskForceForm=event.target.closest('[data-campaign-task-force-form]');if(taskForceForm){event.preventDefault();const data=new FormData(taskForceForm),name=String(data.get('name')||'').trim().slice(0,32),unitIds=data.getAll('unitIds').map(String).filter(Boolean);if(!name||!unitIds.length){options.toast?.('Name the task force and assign at least one available formation.');return}await command('create-task-force',{name,unitIds});return}
+  const renameForm=event.target.closest('[data-campaign-task-force-rename]');if(renameForm){event.preventDefault();const data=new FormData(renameForm),name=String(data.get('name')||'').trim().slice(0,32),id=renameForm.dataset.campaignTaskForceRename;if(!name)return;if(await command('rename-task-force',{id,name}))requestAnimationFrame(()=>panel.querySelector(`[data-task-force-card="${id}"] summary`)?.focus());return}
   const form=event.target.closest('[data-campaign-team-form]');if(!form)return;event.preventDefault();const data=new FormData(form),equipmentId=String(data.get('equipmentId')||''),item=getCampaignEquipment(getState(),equipmentId),allocated=teamAllocation()[equipmentId]||0,free=Math.max(0,(getState().inventory[equipmentId]||0)-allocated),quantity=Math.max(1,Math.min(free,Math.floor(Number(data.get('quantity'))||1))),name=String(data.get('teamName')||'').trim().slice(0,24);if(!item||!free||!name)return;rememberPlanComparison(`Create ${name}`);const team={id:`team-${++ui.teamCounter}`,name,equipmentId,domain:['air','sea'].includes(item.domain)?item.domain:'land',quantity,deployed:true};ui.teams.push(team);syncForceFromTeams();render();animateTeamCard(team.id,'created');options.toast?.(`${name} created and added to the operation.`)
  }
 

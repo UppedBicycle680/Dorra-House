@@ -1,0 +1,179 @@
+name: Deploy Alpha to GitHub Pages
+
+on:
+  push:
+    branches: [Alpha]
+    paths-ignore:
+      - scripts/check-online.mjs
+      - scripts/check-live-browser.mjs
+      - scripts/ensure-pages-https.mjs
+      - ONLINE-ALPHA.md
+      - README.md
+      - .github/workflows/alpha-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alpha-pages
+  cancel-in-progress: true
+
+jobs:
+  verify-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out backend verification code
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            scripts/check-online.mjs
+            online-config.js
+            package.json
+          sparse-checkout-cone-mode: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify live authentication and cloud saves for every mode
+        run: node scripts/check-online.mjs
+      - name: Preserve backend validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-backend-validation
+          path: work/live-check.json
+          retention-days: 7
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Alpha
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Restore optimized artwork cache
+        uses: actions/cache@v4
+        with:
+          path: work/build-cache
+          key: ${{ runner.os }}-webp-q95-v1-${{ hashFiles('assets/**/*.png', 'airport/**/*.png') }}
+          restore-keys: |
+            ${{ runner.os }}-webp-q95-v1-
+      - name: Validate JavaScript
+        run: npm run check
+      - name: Verify server-approved gameplay
+        run: npm test
+      - name: Select Chromium for browser verification
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          for chromium_command in google-chrome google-chrome-stable chromium chromium-browser; do
+            if chromium_path="$(command -v "$chromium_command")"; then
+              echo "DORRA_CHROMIUM_PATH=$chromium_path" >> "$GITHUB_ENV"
+              "$chromium_path" --version
+              exit 0
+            fi
+          done
+          npx playwright install --only-shell chromium
+      - name: Verify login and real cloud-save client
+        run: npm run test:browser
+      - name: Build static site and optimize original artwork
+        run: npm run build
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: [build, verify-backend]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+  verify-live:
+    needs: deploy
+    if: needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      pages: write
+    steps:
+      - name: Check out live verification code
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            scripts/check-online.mjs
+            scripts/check-live-browser.mjs
+            scripts/ensure-pages-https.mjs
+            online-config.js
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
+      - name: Ensure GitHub Pages enforces HTTPS
+        run: node scripts/ensure-pages-https.mjs
+        env:
+          DORRA_GITHUB_TOKEN: ${{ github.token }}
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install browser verification dependencies
+        run: npm ci --ignore-scripts
+      - name: Select Chromium for live browser verification
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          for chromium_command in google-chrome google-chrome-stable chromium chromium-browser; do
+            if chromium_path="$(command -v "$chromium_command")"; then
+              echo "DORRA_CHROMIUM_PATH=$chromium_path" >> "$GITHUB_ENV"
+              "$chromium_path" --version
+              exit 0
+            fi
+          done
+          npx playwright install --only-shell chromium
+      - name: Verify public signup, saves and device takeover against Supabase
+        run: node scripts/check-online.mjs
+        env:
+          DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
+      - name: Verify published signup, gameplay and cross-device saves in real browsers
+        run: node scripts/check-live-browser.mjs
+        env:
+          DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
+          DORRA_BROWSER_SCREENSHOTS: '1'
+      - name: Preserve live validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-live-validation
+          path: work/live-check.json
+          retention-days: 7
+      - name: Preserve live browser validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-live-browser-validation
+          path: |
+            work/live-browser-report.json
+            work/live-browser-house-*.png
+            work/live-browser-failure.png
+            work/pages-https-report.json
+          retention-days: 7

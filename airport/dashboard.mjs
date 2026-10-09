@@ -63,7 +63,7 @@ export function createAirportDashboard(root) {
   }
   function status(state) {
     const element = root.querySelector('[data-dashboard-status]');
-    element.textContent = state === 'error' ? 'Reconnecting · showing last saved figures' : state === 'saving' ? 'Opening airport…' : 'Live · updates every 5 seconds';
+    element.textContent = state === 'error' ? 'Reconnecting · showing last saved figures' : state === 'saving' ? 'Saving airport…' : 'Live · updates every 30 seconds';
     element.classList.toggle('is-error', state === 'error');
   }
   function setBusy(value) {

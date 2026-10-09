@@ -11,8 +11,6 @@ import {
   resolveEmpireEvent, claimEmpireObjective, advanceEmpireWeek,
 } from './shared/progression-engine.js';
 import {MAX_BALANCE} from './shared/game-limits.js';
-import {ESTATE_CLOUD_ACTIONS,reduceEstateClicker} from './estate.mjs';
-import {normalizeEstate} from './shared/estate-engine.js';
 
 const ACTIONS = new Set([
   'daily-reward', 'arrival', 'profile-save', 'settings', 'reset', 'code-redeem',
@@ -74,7 +72,6 @@ export function initializeHouse(snapshot, now = Date.now()) {
   if (!object(p.daily) || p.daily.date !== dateAt(now)) p.daily = defaultDaily(dateAt(now));
   p.daily.games = Array.isArray(p.daily.games) ? p.daily.games : [];
   normalizeProgression(p, now);
-  normalizeEstate(p, now);
   return snapshot;
 }
 
@@ -188,14 +185,11 @@ const GIFT_CODES = {
 
 /** Whitelisted player intents; all amounts, requirements, and rewards are server-derived. */
 export async function reduceHouseProgression(snapshot, privateState, action, args = {}, now = Date.now()) {
-  if (!ACTIONS.has(action) && !ESTATE_CLOUD_ACTIONS.has(action)) return null;
+  if (!ACTIONS.has(action)) return null;
   demand(object(args), 'Invalid action arguments.');
   initializeHouse(snapshot, now);
   privateState = object(privateState) ? privateState : {};
   privateState.house = object(privateState.house) ? privateState.house : {};
-  const estate = reduceEstateClicker(snapshot,privateState,action,args,now);
-  if (estate) {settleAchievements(estate.snapshot,now);return estate;}
-  demand(!action.startsWith('estate-'), 'The Estate has changed. Refresh and use the new venue controls.');
   const p = snapshot.progress, e = p.empire, c = p.contracts;
   let result = {message: 'Saved.'};
 
