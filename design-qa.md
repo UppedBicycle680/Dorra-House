@@ -1,3 +1,15 @@
+# Homepage illustrated game launches · 2026-10-09
+
+final result: passed
+
+Added generated stadium, strategic globe, and coastal-airport artwork with distinct launch pills. The existing native links and accessible names are preserved. Images are decorative; reduced-motion and keyboard-focus treatments remain available. Source prompts and asset provenance: [assets/HOME-ARTWORK.md](assets/HOME-ARTWORK.md).
+
+In-app browser checks: default home document fits 1440 × 900 and 1366 × 768 exactly. At 390 × 844, the cards stack at 132 px each with no horizontal overflow. All three production WebP images load at their original 1536 × 1024 dimensions. Tab shows the visible focus outline; Enter launches Football Manager. Each card opens its real destination: club creation, strategic nation/scenario setup, and the live airport network. Supabase signup and cloud restoration use a disposable profile; auth and game logic are unchanged.
+
+Evidence: `home-launch-desktop.jpg`, `home-launch-laptop.jpg`, and `home-launch-mobile.jpg` in the task visualizations directory. JavaScript syntax check: 194 modules. Unit tests: 80 passing. Production build: 1217 optimized PNG assets, 302.4 MiB. Existing deployment verification remains enabled.
+
+---
+
 # Dorra House home workspace design QA
 
 final result: passed

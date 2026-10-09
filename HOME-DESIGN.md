@@ -13,6 +13,8 @@ The signed-in homepage uses the Dorra House emerald, soft gold, Manrope, and Cor
 
 ## Functional behavior
 
+- The three standalone world portals now use cinematic stadium, command-globe, and coastal-airport artwork with mint, gold, and cyan launch pills. The full card remains one keyboard-accessible link; no nested interactive controls are introduced. Decorative images have empty alternative text, while the original accessible names and destinations remain intact. This implementation follow-up preserves the Figma workspace layout; the artwork is documented in [assets/HOME-ARTWORK.md](assets/HOME-ARTWORK.md).
+
 - The original game buttons and listeners remain attached. Lower, Main, Premium, and Royal floor filters and case-insensitive search expose the full 13-game library. Locked tables retain the existing level checks and explain their unlock level.
 - The balance and reward button retain their server actions, disabled/claimed states, and emergency refill behavior. No economy, authentication, or database rules change.
 - Membership, XP, current/next access, daily objectives, collection totals/equipped items, and the expandable House record use the existing live renderers.
