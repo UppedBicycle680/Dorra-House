@@ -20,7 +20,7 @@ export function integer(value,min,max,label='Value') {
 }
 export function validate(input) {
   object(input,['operation','args','requestId','previewId','newPassword']);
-  const reads=['status','unlock','lock','dashboard','players','player','reports','report','activity','staff','online','announcements','pulse','dismiss','preview','commit'];
+  const reads=['status','owner-open','unlock','lock','dashboard','players','player','reports','report','activity','staff','online','announcements','pulse','dismiss','preview','commit'];
   if(!reads.includes(input.operation)) fail('Unknown operation.');
   object(input.args||{},['search','status','offset','period','targetId','reportId','kind','code','action','reason','value','amount','direction','sessions','wins','level','airportId','unlockId','enabled','duration','confirmation','title','evidence','resolution','role','flagId','fieldId','saveRevision','message','audience','leaseId','visible','messageId']);
   const args=input.args||{};
