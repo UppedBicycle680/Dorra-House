@@ -4,10 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#080b0b">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
   <title>Dorra House — Offline Casino</title>
   <link rel="stylesheet" href="styles.css?v=20260829-dev11">
   <link rel="stylesheet" href="mac-responsive.css?v=20260807-mac2">
+  <link rel="stylesheet" href="vendor/club-journal/icons/tabler-icons.min.css">
+  <link rel="stylesheet" href="estate.css?v=20261009-estate1">
+  <link rel="stylesheet" href="estate-account.css?v=20261009-estate1">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -29,7 +32,7 @@
         </button>
         <button class="arrival-path path-owner selected" data-arrival-path="owner" role="radio" aria-checked="true">
           <span class="arrival-path-art"><i aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M5 42h38M9 42V21l15-12 15 12v21M15 42V25h18v17M20 42V31h8v11M5 22 24 6l19 16"/></svg></i></span>
-          <span class="arrival-path-copy"><strong>Through the Estate</strong><em>Restore Dorra House, open new venues, and turn a quiet property into a thriving institution.</em><span><small>Venue upgrades</small><small>Offline income</small><small>House directors</small></span></span>
+          <span class="arrival-path-copy"><strong>Through the Estate</strong><em>Serve your first customers, hire managers, and grow six venues into a thriving Dorra estate.</em><span><small>Tap to serve</small><small>Manager automation</small><small>Offline income</small></span></span>
           <b class="arrival-check" aria-hidden="true">✓</b>
         </button>
         <button class="arrival-path path-story" data-arrival-path="story" role="radio" aria-checked="false">
@@ -82,7 +85,7 @@
         <div class="dashboard-main">
           <div class="dashboard-intro">
             <div><h1>Casino Dashboard</h1><p>Your tables, progress, and collection at a glance.</p><button class="explore-house-btn" id="exploreHouseBtn">Explore the Casino <span>→</span></button></div>
-            <div class="balance-panel"><div><span>Available balance</span><strong id="dashboardBalance">$1,000</strong><small>Play money only</small></div><div class="balance-actions"><button id="dailyRewardBtn">Claim $250</button><button id="dashboardBoutiqueBtn">Open boutique</button><button id="dashboardMotorBtn">Motor gallery</button><button id="dashboardOfficeBtn">Dorra Office</button></div></div>
+            <div class="balance-panel"><div><span>Available balance</span><strong id="dashboardBalance">$1,000</strong><small>Play money only</small></div><div class="balance-actions"><button id="dailyRewardBtn">Claim $250</button><button id="dashboardBoutiqueBtn">Open boutique</button><button id="dashboardMotorBtn">Motor gallery</button><button id="dashboardOfficeBtn">Dorra Estate</button></div></div>
           </div>
           <div class="dashboard-progress">
             <div class="progress-copy"><span>Level Progress</span><strong>Level <b id="dashboardLevel">1</b> · <em id="dashboardLevelTitle">New Arrival</em></strong><small id="dashboardXpCopy">0 / 300 XP</small></div>
@@ -188,7 +191,7 @@
           <div><span>Story progress</span><strong id="storyProgress">0 / 8</strong></div>
         </div>
         <nav class="progression-tabs" aria-label="Dorra Office sections" role="tablist">
-          <button id="empireTab" class="active" data-progression-tab="empire" role="tab" aria-controls="empirePanel" aria-selected="true">Casino Empire</button>
+          <button id="empireTab" class="active" data-progression-tab="empire" role="tab" aria-controls="empirePanel" aria-selected="true">Dorra Estate</button>
           <a class="progression-external" href="war-simulation.html">Strategic Command <b aria-hidden="true">↗</b></a>
           <button id="contractsTab" data-progression-tab="contracts" role="tab" aria-controls="contractsPanel" aria-selected="false">VIP Contracts <b id="contractBadge">0</b></button>
           <button id="storyTab" data-progression-tab="story" role="tab" aria-controls="storyPanel" aria-selected="false">Story Mode</button>
@@ -528,6 +531,6 @@
   <script src="vehicle-visual-matrices-v2-modern.js?v=20260807-imagegen1"></script>
   <script src="vehicle-visual-matrices-v2-audi.js?v=20260807-imagegen1"></script>
   <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
-  <script type="module" src="app.js?v=20260826-footballtokens1"></script>
+  <script type="module" src="app.js?v=20261009-estate1"></script>
 </body>
 </html>
