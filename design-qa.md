@@ -1,3 +1,19 @@
+# Dorra House home workspace design QA
+
+final result: passed
+
+Source: editable Figma desktop `61:51` and mobile `61:231`, page `04 · House home`, in `TUbK2IFNYYRcH8lCX57e5L`. Implementation and functional inventory: [HOME-DESIGN.md](HOME-DESIGN.md).
+
+Manual testing used the Codex in-app browser only. The default overview, including a real equipped item, fits 1440 × 900 and 1366 × 768 with document width/height exactly matching the viewport. Phone checks at 390 × 844 and 320 × 740 have no horizontal overflow or buttons outside the content width. Long content, All games, and expanded history remain naturally scrollable.
+
+Evidence saved beside the task's prior visual artifacts: `home-figma-desktop-final.png`, `home-figma-mobile-final.png`, `home-qa-desktop.jpg`, `home-qa-laptop.jpg`, and `home-qa-mobile.jpg`. Figma uses native editable text, auto-layout, vector icons, variables, and reusable open/locked card components. Shared style conflicts, wrapping symbols, and mobile instance layout/property overrides were corrected before the final visual checks.
+
+The disposable profile claimed its daily reward ($1,000 → $1,250; claimed button disabled), completed Blackjack (one round, 22 XP and live objectives/history), purchased and equipped the $300 Oxblood Card Back, and reloaded with the correct $925 balance and collection. Verified 13-game discovery, case-insensitive search, empty-result recovery, level-2 lock feedback, keyboard floor selection, Games menu, mobile profile/settings, directory, estate/back navigation, House story, and motor gallery. All three standalone game links retain their exact destinations and accessible names. No browser console errors were recorded.
+
+JavaScript check: 194 modules. Unit tests: 80 passing. Static production build and diff whitespace check pass. Backend/authentication logic and Supabase schema are unchanged.
+
+---
+
 # Dorra House estate workspace design QA
 
 final result: passed
