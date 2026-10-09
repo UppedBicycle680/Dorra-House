@@ -3,7 +3,8 @@
 Panel: https://uppedbicycle680.github.io/Dorra-House/admin.html
 
 The panel requires an existing Supabase account, an owner-approved staff role,
-and the shared access code. A code alone never grants staff permission. Public
+and, for administrators and moderators, the shared access code. The owner opens
+the panel directly with an active signed-in session. A code alone never grants staff permission. Public
 registration always creates a player. Production has no automatically selected
 owner and no seeded staff accounts.
 
@@ -13,8 +14,8 @@ owner and no seeded staff accounts.
 2. In the **Dorra House** Supabase project's SQL editor, open
    `supabase/admin-owner-setup.sql`, replace `YOUR_EXACT_USERNAME`, and run it
    using your trusted project access. The script refuses to replace an owner.
-3. Sign in to the panel with the same account and enter the privately delivered
-   access code. You can also redeem the code in the game's Codes interface.
+3. Sign in with the same owner account, then open **Profile → Settings → Open admin panel**
+   or the panel URL directly. No access code is required for the owner.
 4. Open **Owner → Staff management**, select an existing player, and use
    **Change staff role** to approve an administrator or moderator. Each change
    requires a reason, preview and confirmation.
@@ -28,8 +29,10 @@ storage. The browser retains the existing Supabase Auth session only.
 
 - Owner grants have no panel countdown. Other staff grants last exactly 30
   minutes from redemption. Both are bound to the verified account, Auth session
-  and current shared code. Requests and polling never extend a timed grant.
-- Lock panel, sign-out, account disabling, suspension, ban, role removal, owner
+  and current grant version. Only non-owner staff redeem the shared code.
+  The owner explicitly opens a new grant using their verified owner session.
+  Requests and polling never extend a timed grant.
+- Lock panel (non-owner staff), sign-out, account disabling, suspension, ban, role removal, owner
   revocation, deleted Auth sessions and code rotation invalidate access.
 - Moderators create/resolve reports, record/resolve manual flags, warn and
   suspend for 24 hours, 7 days or 30 days. Administrators also change resources
