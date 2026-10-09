@@ -4,23 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#071f3b">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
   <title>Queensland Club Manager</title>
   <link rel="stylesheet" href="vendor/club-journal/icons/tabler-icons.min.css?v=3.46.0">
   <link rel="stylesheet" href="football-manager.css?v=20260906-1">
+  <link rel="stylesheet" href="online-shell.css">
 </head>
 <body>
+  <script type="module" src="online-shell.js"></script>
   <div id="footballApp" class="football-app" aria-busy="true">
     <section id="footballLoading" class="football-loading" aria-live="polite">
       <div class="loading-ball" aria-hidden="true"></div>
       <h1>Preparing club operations</h1>
-      <p>Loading your Queensland football world and protected local save.</p>
+      <p>Loading your Queensland football world and protected cloud save.</p>
     </section>
 
     <section id="footballFatal" class="football-fatal" hidden aria-labelledby="footballFatalTitle">
       <div class="football-fatal-mark" aria-hidden="true">Q</div>
       <h1 id="footballFatalTitle">Club operations could not start</h1>
-      <p id="footballFatalCopy">Close any other Dorra House tab, then reload this page.</p>
+      <p id="footballFatalCopy">Check your connection and sign in again, then reload this page.</p>
       <div><button type="button" data-reload-page>Reload</button><a href="index.html">Return to Dorra House</a></div>
     </section>
 
@@ -260,7 +262,7 @@
     </div>
 
     <div id="footballToast" class="football-toast" role="status" aria-live="polite"></div>
-    <div id="footballSaveStatus" class="football-save-status" role="status" aria-live="polite">Saved locally</div>
+    <div id="footballSaveStatus" class="football-save-status" role="status" aria-live="polite">Saved to cloud</div>
   </div>
   <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
   <script type="module" src="football/football-ui.js?v=20260906-1"></script>

@@ -1,7 +1,6 @@
 import { normalizeCampaign } from './campaign-engine.js?v=20260830-depth10-qa3';
 import { createCampaignController } from './campaign-controller.js?v=20260830-development12';
 import { createVaultClient } from './vault-client.js';
-import { MAX_BALANCE } from './game-limits.js';
 
 const $ = selector => document.querySelector(selector);
 const clone = value => structuredClone(value);
@@ -40,59 +39,14 @@ function renderSharedBalance() {
   dom.balance.title = `${money(snapshot?.balance)} available in Dorra House`;
 }
 
-function campaignLedgerLabel(event, delta) {
-  if (event?.type === 'campaign-created') return 'Strategic Command: National command established.';
-  if (event?.type === 'turn-ended' && delta > 0) return `Strategic Command: ${money(delta)} overseas business income.`;
-  if (delta > 0) return `Strategic Command: ${money(delta)} campaign account credit.`;
-  if (delta < 0) return `Strategic Command: ${money(Math.abs(delta))} campaign investment.`;
-  if (event?.type === 'deployment-resolved' && event.secured) return `Strategic Command: Operating rights secured in ${event.preview?.target?.name || event.engagement?.targetName || 'a new market'}.`;
-  return '';
-}
-
-function recordOfficeTransaction(type, amount, label) {
-  snapshot.progress.office = snapshot.progress.office && typeof snapshot.progress.office === 'object' ? snapshot.progress.office : { transactions: [] };
-  snapshot.progress.office.transactions = Array.isArray(snapshot.progress.office.transactions) ? snapshot.progress.office.transactions : [];
-  snapshot.progress.office.transactions.unshift({ type, label, amount: Math.round(Number(amount) || 0), at: Date.now() });
-  snapshot.progress.office.transactions = snapshot.progress.office.transactions.slice(0, 40);
-}
-
-function awardCampaignXp(amount) {
-  snapshot.progress.level = Math.max(1, Math.min(99, Math.floor(Number(snapshot.progress.level) || 1)));
-  snapshot.progress.xp = Math.max(0, Math.floor(Number(snapshot.progress.xp) || 0)) + amount;
-  while (snapshot.progress.level < 99) {
-    const needed = 200 + snapshot.progress.level * 100;
-    if (snapshot.progress.xp < needed) break;
-    snapshot.progress.xp -= needed;
-    snapshot.progress.level++;
-  }
-}
-
-async function persistCampaign(nextCampaign, event, reason = 'campaign') {
-  const previousBalance = Number(snapshot.balance) || 0;
-  const nextBalance = Math.min(MAX_BALANCE, Math.max(0, Math.round(Number(nextCampaign.capitalUsd) || 0)));
-  const delta = nextBalance - previousBalance;
-  campaignState = { ...nextCampaign, capitalUsd: nextBalance, finance: { sharedBankLinked: true } };
-  snapshot.balance = nextBalance;
-  snapshot.progress.campaign = clone(campaignState);
-  if (delta) {
-    const positive = delta > 0;
-    const label = event?.type === 'campaign-created' ? 'National command allocation' : event?.type === 'turn-ended' && positive ? 'Overseas business income' : positive ? 'Campaign account credit' : 'Strategic Command investment';
-    recordOfficeTransaction(positive ? 'income' : 'campaign', delta, label);
-  }
-  if (event?.type === 'deployment-resolved' && event.secured) {
-    const market = event.preview?.target?.name || event.engagement?.targetName || 'New market';
-    awardCampaignXp(180);
-    recordOfficeTransaction('rights', 0, `Commercial rights unlocked · ${market}`);
-  }
-  const ledgerText = campaignLedgerLabel(event, delta);
-  if (ledgerText) snapshot.history = [{ text: ledgerText }, ...(Array.isArray(snapshot.history) ? snapshot.history : [])].slice(0, 8);
+// All finance, progression, rewards, and campaign mutations are committed by
+// the authenticated cloud API before the browser renders the new snapshot.
+async function dispatchCampaign(action, args = {}) {
+  const response = await vault.dispatch('campaign', action, args);
+  snapshot = clone(response.snapshot);
+  campaignState = snapshot.progress?.campaign ? normalizeCampaign(snapshot.progress.campaign) : null;
   renderSharedBalance();
-  try {
-    await vault.commit(snapshot, reason);
-  } catch (error) {
-    console.error('Strategic Command save failed', error);
-    updateSaveStatus('error', error);
-  }
+  return { state: campaignState, event: response.result?.event || response.result };
 }
 
 function showFatal(error) {
@@ -143,7 +97,7 @@ async function initialize() {
     debrief: dom.debrief,
     getCampaign: () => campaignState,
     getBankBalance: () => snapshot.balance,
-    commit: (campaign, event, reason) => { void persistCampaign(campaign, event, reason); },
+    dispatch: dispatchCampaign,
     toast: showToast,
     onError: error => showToast(error?.message || 'The 3D globe could not start.', 'error')
   });
@@ -151,7 +105,6 @@ async function initialize() {
   dom.panel.hidden = false;
   dom.app.setAttribute('aria-busy', 'false');
   controller.setActive(true);
-  if (vault.integrityIssue) showToast('The local vault recovered the last trusted save.', 'error');
 }
 
 initialize().catch(showFatal);

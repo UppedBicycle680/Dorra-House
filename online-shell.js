@@ -1,0 +1,13 @@
+import { loginURL } from './auth-client.js';
+const account=document.createElement('div');account.className='online-account';account.dataset.onlineAccount='';account.hidden=true;
+const name=document.createElement('span');name.dataset.onlineUsername='';
+const out=document.createElement('button');out.type='button';out.dataset.onlineSignout='';out.textContent='Sign out';
+account.append(name,out);document.body.append(account);
+const notice=document.createElement('dialog');notice.className='online-session-notice';
+const title=document.createElement('h2');title.textContent='Your session has ended';
+const copy=document.createElement('p');
+const resume=document.createElement('button');resume.textContent='Continue on this device';resume.onclick=()=>location.reload();
+const login=document.createElement('a');login.textContent='Return to sign in';login.href=loginURL();
+notice.append(title,copy,resume,login);document.body.append(notice);
+window.addEventListener('dorra-session-ended',event=>{copy.textContent=event.detail.error.message;notice.showModal();});
+window.addEventListener('offline',()=>{document.documentElement.dataset.saveState='error';});

@@ -1,0 +1,4 @@
+Manrope variable Latin font, @fontsource-variable/manrope version 5.3.0.
+Source: https://www.npmjs.com/package/@fontsource-variable/manrope/v/5.3.0
+Original file: files/manrope-latin-wght-normal.woff2
+Licensed under the SIL Open Font License 1.1; see LICENSE.txt.

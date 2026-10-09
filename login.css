@@ -1,0 +1,180 @@
+@font-face {
+  font-family: Manrope;
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('vendor/manrope/manrope-latin-variable.woff2') format('woff2');
+}
+
+:root {
+  color-scheme: dark;
+  --login-canvas: #101113;
+  --login-field: #191b1e;
+  --login-border: #686d76;
+  --login-primary: #f4f4f2;
+  --login-secondary: #a8abb2;
+  --login-emerald: #0c4939;
+  --login-hover: #12614c;
+  --login-pressed: #093b2e;
+  --login-focus: #96c6b8;
+  --login-radius: 8px;
+  --entrance-easing: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--login-canvas);
+  color: var(--login-primary);
+  font: 400 16px/24px Manrope, Arial, sans-serif;
+}
+button, input { font: inherit; }
+button { cursor: pointer; }
+.entrance {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 140px 24px 40px;
+}
+.account { width: 100%; max-width: 400px; }
+.account-header { display: grid; gap: 40px; margin-bottom: 48px; text-align: center; }
+.brand { margin: 0; font-weight: 600; letter-spacing: 3.4px; }
+.intro { display: grid; gap: 12px; }
+h1 { margin: 0; font-size: 40px; font-weight: 500; line-height: 48px; letter-spacing: -1.2px; }
+#formCopy { margin: 0; color: var(--login-secondary); }
+form { display: grid; gap: 28px; }
+.fields { display: grid; gap: 24px; }
+.field-group { display: grid; gap: 10px; }
+label { font-size: 14px; font-weight: 500; line-height: 20px; }
+input {
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  padding: 15px 16px;
+  border: 1px solid var(--login-border);
+  border-radius: var(--login-radius);
+  background: var(--login-field);
+  color: var(--login-primary);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+input::placeholder { color: var(--login-secondary); opacity: 1; }
+#password::placeholder { color: var(--login-primary); }
+input:focus {
+  outline: none;
+  border-color: var(--login-focus);
+  box-shadow: inset 0 0 0 1px var(--login-focus);
+}
+input:autofill { box-shadow: inset 0 0 0 100px var(--login-field); }
+.field-group small { color: var(--login-secondary); font-size: 12px; line-height: 20px; }
+.password-wrap { position: relative; display: block; }
+.password-wrap input { padding-right: 72px; }
+#showPassword {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+img { display: block; }
+.text-button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--login-primary);
+  font-size: 14px;
+  line-height: 20px;
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
+.recovery-link { justify-self: end; }
+.primary {
+  min-height: 56px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--login-radius);
+  background: var(--login-emerald);
+  color: var(--login-primary);
+  font-weight: 600;
+  transition: background-color 160ms ease, gap 160ms ease;
+}
+.primary:hover:not(:disabled) { background: var(--login-hover); gap: 16px; }
+.primary:active:not(:disabled) { background: var(--login-pressed); gap: 10px; transition-duration: 90ms; }
+.primary:disabled { cursor: wait; }
+button:focus-visible { outline: 2px solid var(--login-focus); outline-offset: 4px; }
+.account-tabs {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 28px;
+  color: var(--login-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+.account-help { display: grid; justify-items: center; gap: 20px; }
+.account-help:has(button:not([hidden])) { margin-top: 28px; }
+.message {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--login-focus);
+  border-radius: var(--login-radius);
+  background: var(--login-field);
+  color: var(--login-primary);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.message.error { border-color: #d19b97; color: #f2c1bd; }
+.entrance-footer {
+  width: 100%;
+  max-width: 400px;
+  margin: auto 0 0;
+  padding-top: 64px;
+  color: var(--login-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* Figma's shared 2-second timeline plays once when the page opens. */
+.brand { animation: wordmark-opacity 2s linear both, wordmark-translate 2s linear both; }
+.intro { animation: intro-opacity 2s linear both, intro-translate 2s linear both; }
+#emailField { animation: identity-opacity 2s linear both, identity-translate 2s linear both; }
+#passwordField { animation: password-opacity 2s linear both, password-translate 2s linear both; }
+.primary { animation: action-opacity 2s linear both, action-translate 2s linear both; }
+.account-tabs { animation: profile-opacity 2s linear both, profile-translate 2s linear both; }
+.entrance-footer { animation: footer-opacity 2s linear both; }
+@keyframes wordmark-opacity { 0% { animation-timing-function: var(--entrance-easing); opacity: 0; } 16%, 100% { opacity: 1; } }
+@keyframes wordmark-translate { 0% { animation-timing-function: var(--entrance-easing); translate: 0 8px; } 16%, 100% { translate: 0 0; } }
+@keyframes intro-opacity { 0% { opacity: 0; } 3% { animation-timing-function: var(--entrance-easing); opacity: 0; } 25%, 100% { opacity: 1; } }
+@keyframes intro-translate { 0% { translate: 0 12px; } 3% { animation-timing-function: var(--entrance-easing); translate: 0 12px; } 25%, 100% { translate: 0 0; } }
+@keyframes identity-opacity { 0% { opacity: 0; } 9% { animation-timing-function: var(--entrance-easing); opacity: 0; } 30%, 100% { opacity: 1; } }
+@keyframes identity-translate { 0% { translate: 0 10px; } 9% { animation-timing-function: var(--entrance-easing); translate: 0 10px; } 30%, 100% { translate: 0 0; } }
+@keyframes password-opacity { 0% { opacity: 0; } 13% { animation-timing-function: var(--entrance-easing); opacity: 0; } 34%, 100% { opacity: 1; } }
+@keyframes password-translate { 0% { translate: 0 10px; } 13% { animation-timing-function: var(--entrance-easing); translate: 0 10px; } 34%, 100% { translate: 0 0; } }
+@keyframes action-opacity { 0% { opacity: 0; } 17% { animation-timing-function: var(--entrance-easing); opacity: 0; } 38%, 100% { opacity: 1; } }
+@keyframes action-translate { 0% { translate: 0 8px; } 17% { animation-timing-function: var(--entrance-easing); translate: 0 8px; } 38%, 100% { translate: 0 0; } }
+@keyframes profile-opacity { 0% { opacity: 0; } 21% { animation-timing-function: var(--entrance-easing); opacity: 0; } 42%, 100% { opacity: 1; } }
+@keyframes profile-translate { 0% { translate: 0 6px; } 21% { animation-timing-function: var(--entrance-easing); translate: 0 6px; } 42%, 100% { translate: 0 0; } }
+@keyframes footer-opacity { 0% { opacity: 0; } 23% { animation-timing-function: var(--entrance-easing); opacity: 0; } 41%, 100% { opacity: 1; } }
+
+@media (max-width: 600px), (max-height: 850px) {
+  .entrance { padding-top: 56px; padding-bottom: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

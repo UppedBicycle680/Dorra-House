@@ -1,6 +1,6 @@
 import * as FootballEngine from './football-engine.js';
 import { createVaultClient } from '../vault-client.js';
-import { MAX_BALANCE, MAX_PROTECTED_PROGRESS_BYTES } from '../game-limits.js';
+import { MAX_BALANCE } from '../game-limits.js';
 import {
   ACADEMY_FEE_BANDS,
   ACADEMY_RANKINGS_2026,
@@ -905,12 +905,12 @@ function showToast(message, tone = '') {
 function updateSaveStatus(status, error) {
   if (!dom.saveStatus) return;
   dom.saveStatus.dataset.state = status;
-  dom.saveStatus.textContent = status === 'saving' ? 'Saving locally…' : status === 'error' ? 'Save needs attention' : 'Saved locally';
+  dom.saveStatus.textContent = status === 'saving' ? 'Saving to cloud…' : status === 'error' ? 'Save needs attention' : 'Saved to cloud';
   if (dom.mastheadSave) {
     dom.mastheadSave.dataset.state = status;
     dom.mastheadSave.innerHTML = `<i class="ti ${status === 'saving' ? 'ti-cloud-upload' : status === 'error' ? 'ti-cloud-exclamation' : 'ti-cloud-check'}" aria-hidden="true"></i> <b>${status === 'saving' ? 'Saving' : status === 'error' ? 'Save issue' : 'Saved'}</b>`;
   }
-  if (status === 'error' && error) showToast(error.message || 'Local save failed.', 'error');
+  if (status === 'error' && error) showToast(error.message || 'Cloud save failed.', 'error');
 }
 
 function setBusy(value, label = 'Working…') {
@@ -923,42 +923,17 @@ function setBusy(value, label = 'Working…') {
   dom.content.setAttribute('aria-busy', String(busy));
 }
 
-function extractState(result) {
-  if (!result || typeof result !== 'object') return footballState;
-  for (const key of ['state', 'footballState', 'footballManager', 'nextState']) {
-    if (result[key] && typeof result[key] === 'object') return result[key];
-  }
-  if ('club' in result || 'week' in result || 'schemaVersion' in result || 'senior' in result || 'firstTeam' in result) return result;
-  return footballState;
-}
-
 function normalizeState(value, options = {}) {
   if (typeof FootballEngine.normalizeFootballState !== 'function') return value;
   return FootballEngine.normalizeFootballState(value, options);
 }
 
-function ensureProgressSize(progress) {
-  const bytes = new TextEncoder().encode(JSON.stringify(progress)).byteLength;
-  if (bytes > MAX_PROTECTED_PROGRESS_BYTES) {
-    const size = (bytes / 1_000_000).toFixed(2);
-    const limit = (MAX_PROTECTED_PROGRESS_BYTES / 1_000_000).toFixed(1);
-    const hasCustomCrest = Boolean(progress?.footballManager?.club?.logoData);
-    throw new Error(`The protected save is ${size} MB and exceeds the ${limit} MB local limit.${hasCustomCrest ? ' Removing the uploaded crest may reduce it.' : ' No uploaded crest is stored; long-running archive data is using the space.'}`);
-  }
-}
-
-async function persist(reason = 'football', nextBalance = snapshot?.balance) {
-  if (!vault || !snapshot || !footballState) return;
-  if (!Number.isSafeInteger(nextBalance) || nextBalance < 0 || nextBalance > MAX_BALANCE) {
-    throw new Error('The resulting Dorra balance is outside the supported range.');
-  }
-  const nextSnapshot = clone(snapshot);
-  nextSnapshot.progress = nextSnapshot.progress && typeof nextSnapshot.progress === 'object' ? nextSnapshot.progress : {};
-  nextSnapshot.progress.footballManager = clone(footballState);
-  nextSnapshot.balance = nextBalance;
-  ensureProgressSize(nextSnapshot.progress);
-  await vault.commit(nextSnapshot, reason);
-  snapshot = nextSnapshot;
+async function dispatchFootball(action, args = []) {
+  const response = await vault.dispatch('football', action, { args });
+  snapshot = clone(response.snapshot);
+  const saved = snapshot?.progress?.footballManager;
+  footballState = saved ? normalizeState(saved) : null;
+  return response.result;
 }
 
 async function runEngine(action, args = [], options = {}) {
@@ -970,10 +945,8 @@ async function runEngine(action, args = [], options = {}) {
   }
   setBusy(true, options.busyLabel || 'Updating…');
   try {
-    const result = await fn(footballState, ...args);
+    const result = await dispatchFootball(action, args);
     if (result?.ok === false) throw new Error(result.message || result.error || result.event?.message || `${options.label || titleCase(action)} could not be completed.`);
-    footballState = normalizeState(extractState(result));
-    await persist(options.reason || action);
     syncWorkspaceHeader();
     renderActiveView(false);
     if (options.success) showToast(options.success, 'success');
@@ -1059,23 +1032,19 @@ async function transferOwnerFunds(direction) {
     showToast('That withdrawal would exceed the supported Dorra balance.', 'error');
     return;
   }
-  const oldState = footballState;
   setBusy(true, 'Transferring…');
   try {
-    const result = await operation(footballState, amount);
+    const result = await dispatchFootball(isInvestment ? 'investOwnerFunds' : 'withdrawOwnerFunds', [amount]);
     if (result?.ok === false) throw new Error(result.message || result.error || result.event?.message || 'The club rejected that transfer.');
     const expectedDelta = isInvestment ? -amount : amount;
     if (Number.isSafeInteger(result?.walletDeltaAud) && result.walletDeltaAud !== expectedDelta) {
       throw new Error('The engine returned an unexpected Dorra wallet movement.');
     }
-    footballState = normalizeState(extractState(result));
-    await persist(isInvestment ? 'football-invest' : 'football-withdraw', isInvestment ? oldBalance - amount : oldBalance + amount);
     syncWorkspaceHeader();
     renderActiveView(false);
     showToast(isInvestment ? `${formatMoney(amount)} invested in the club.` : `${formatMoney(amount)} returned to Dorra.`, 'success');
     showBankruptcyIfNeeded();
   } catch (error) {
-    footballState = oldState;
     showToast(error?.message || 'The owner-funding transfer failed.', 'error');
   } finally {
     setBusy(false);
@@ -1091,17 +1060,7 @@ async function declareBankruptcy() {
   }
   setBusy(true, 'Closing club…');
   try {
-    if (typeof FootballEngine.declareBankruptcy === 'function') {
-      const result = await FootballEngine.declareBankruptcy(footballState);
-      if (result?.ok === false) throw new Error(result.message || 'Bankruptcy could not be declared.');
-    }
-    const nextSnapshot = clone(snapshot);
-    nextSnapshot.progress = nextSnapshot.progress && typeof nextSnapshot.progress === 'object' ? nextSnapshot.progress : {};
-    delete nextSnapshot.progress.footballManager;
-    ensureProgressSize(nextSnapshot.progress);
-    await vault.commit(nextSnapshot, 'football-bankruptcy');
-    snapshot = nextSnapshot;
-    footballState = null;
+    await dispatchFootball('declareBankruptcy');
     closeDialog();
     showOnboarding();
     showToast('The bankrupt club was closed. Other Dorra progress was preserved.', 'success');
@@ -1124,13 +1083,7 @@ async function resetFootballProgress() {
   if (busy || !footballState) return;
   setBusy(true, 'Resetting…');
   try {
-    const nextSnapshot = clone(snapshot);
-    nextSnapshot.progress = nextSnapshot.progress && typeof nextSnapshot.progress === 'object' ? nextSnapshot.progress : {};
-    delete nextSnapshot.progress.footballManager;
-    ensureProgressSize(nextSnapshot.progress);
-    await vault.commit(nextSnapshot, 'football-reset');
-    snapshot = nextSnapshot;
-    footballState = null;
+    await dispatchFootball('resetFootballProgress');
     activeView = 'overview';
     closeDialog();
     showOnboarding();
@@ -1529,7 +1482,7 @@ function weekPlannerMarkup() {
 
 function nextFixtureMarkup() {
   const fixture = nextFixture('senior');
-  if (!fixture) return '<div class="empty-state"><strong>Season complete</strong><p>Use the season review when every fixture has been played.</p></div>';
+  if (!fixture) return '<div class="empty-state"><strong>No first-team fixture waiting</strong><p>Continue the week to progress training and the football calendar.</p></div>';
   const homePlayer = fixture.home.isPlayer;
   const kickoff = fixture.date ? new Date(fixture.date) : null;
   const kickoffLabel = kickoff && !Number.isNaN(kickoff.getTime())
@@ -1556,7 +1509,7 @@ function overviewPriorities() {
   const net = finance.income - finance.expenses;
   const first = fixture
     ? { icon: 'ti-clipboard-text', tone: selectedCount === 11 ? 'ready' : 'urgent', title: selectedCount === 11 ? 'Confirm the match plan' : `Choose the starting XI · ${selectedCount}/11`, copy: `${fixture.home.isPlayer ? 'Home' : 'Away'} to ${fixture.home.isPlayer ? fixture.away.name : fixture.home.name} in ${fixture.competition}.`, view: 'match-centre', action: selectedCount === 11 ? 'Review' : 'Select team' }
-    : { icon: 'ti-trophy', tone: 'ready', title: 'Review the completed schedule', copy: 'There is no first-team fixture waiting this week.', view: 'competitions', action: 'Open competitions' };
+    : { icon: 'ti-calendar', tone: 'ready', title: 'Plan the next club week', copy: 'There is no first-team fixture waiting this week. Review the calendar before continuing.', view: 'calendar', action: 'Open calendar' };
   const second = unavailable
     ? { icon: 'ti-heart-rate-monitor', tone: 'warning', title: `${unavailable} player${unavailable === 1 ? '' : 's'} need load management`, copy: `Squad fitness is averaging ${averageFitness}%. Adjust recovery before match day.`, view: 'training', action: 'Adjust training' }
     : { icon: 'ti-heart-rate-monitor', tone: 'ready', title: 'Squad availability is healthy', copy: `${averageFitness}% average fitness with no urgent availability flags.`, view: 'first-team', action: 'Review squad' };
@@ -2225,7 +2178,8 @@ function peopleView() {
   const activePromises = asArray(dynamics.promises).filter(item => item.status === 'active');
   const promiseMarkup = activePromises.length ? activePromises.map(item => {
     const player = playerById.get(item.playerId) || {};
-    return `<li><div class="case-head"><span><strong>${escapeHtml(player.name || 'Player commitment')}</strong><small>${escapeHtml(titleCase(item.type))} · due S${number(item.dueSeason)} W${number(item.dueWeek)}</small></span><span class="status-pill warning">Active</span></div><p>${escapeHtml(item.detail)}</p><div class="promise-actions"><button type="button" class="fm-button primary" data-resolve-player-promise="${escapeHtml(item.id)}" data-promise-outcome="fulfilled">Mark kept</button><button type="button" class="fm-button danger" data-resolve-player-promise="${escapeHtml(item.id)}" data-promise-outcome="broken">Mark broken</button></div></li>`;
+    const targetMet = item.type !== 'other' && number(item.progress) >= number(item.target, 1);
+    return `<li><div class="case-head"><span><strong>${escapeHtml(player.name || 'Player commitment')}</strong><small>${escapeHtml(titleCase(item.type))} · due S${number(item.dueSeason)} W${number(item.dueWeek)}</small></span><span class="status-pill warning">Active</span></div><p>${escapeHtml(item.detail)}</p><small>${item.type === 'other' ? 'Qualitative commitments can be cancelled or marked broken.' : targetMet ? 'The promised target has been achieved.' : 'Complete a new recorded game action to meet this commitment.'}</small><div class="promise-actions"><button type="button" class="fm-button primary" data-resolve-player-promise="${escapeHtml(item.id)}" data-promise-outcome="fulfilled" ${targetMet ? '' : 'disabled'}>Mark kept</button><button type="button" class="fm-button" data-resolve-player-promise="${escapeHtml(item.id)}" data-promise-outcome="cancelled">Cancel promise</button><button type="button" class="fm-button danger" data-resolve-player-promise="${escapeHtml(item.id)}" data-promise-outcome="broken">Mark broken</button></div></li>`;
   }).join('') : '<li><div class="case-head"><span><strong>No promises outstanding</strong><small>Only make commitments you are prepared to keep.</small></span></div></li>';
   const medicalMarkup = medicalCases.length ? medicalCases.map(player => {
     const injury = player.medical?.injury;
@@ -2507,7 +2461,7 @@ async function setView(view) {
   activeView = view;
   const dueConstruction = view === 'facilities' && asArray(footballState?.projects).some(project => number(project.completesAtMs) <= Date.now());
   if (dueConstruction && typeof FootballEngine.reconcileConstruction === 'function') {
-    const result = await runEngine('reconcileConstruction', [Date.now()], { reason: 'football-build' });
+    const result = await runEngine('reconcileConstruction', [], { reason: 'football-build' });
     closeMobileNav();
     if (result) return;
   }
@@ -3150,19 +3104,25 @@ function refreshHalftimeAdvice(fixture) {
   if (button) button.disabled = incomplete || noKeeper;
 }
 
-function previewVisualHalf(fixture, half, halftime = null) {
+async function previewVisualHalf(fixture, half, halftime = null) {
+  if (busy) return null;
   const squad = fixture.squad || (fixture.team === 'senior' ? 'first' : fixture.team);
-  const result = FootballEngine.previewMatchHalf?.(footballState, { squad, half, halftime });
-  if (!result?.ok) {
-    showToast(result?.message || 'The live match phase could not be prepared.', 'error');
+  setBusy(true, 'Preparing match…');
+  try {
+    const result = await dispatchFootball('previewMatchHalf', [{ squad, half, ...(halftime ? { halftime } : {}) }]);
+    if (!result?.ok) throw new Error(result?.message || 'The live match phase could not be prepared.');
+    return half === 1 && result.halftime ? { ...result.result, savedHalftime: result.halftime } : result.result;
+  } catch (error) {
+    showToast(error?.message || 'The live match phase could not be prepared.', 'error');
     return null;
+  } finally {
+    setBusy(false);
   }
-  return result.result;
 }
 
 async function completeFixtureSimulation(fixture, liveOptions = {}) {
   const squad = fixture.squad || (fixture.team === 'senior' ? 'first' : fixture.team);
-  const result = await runEngine('simulateMatch', [{ squad, firstHalf: liveOptions.firstHalf || null, halftime: liveOptions.halftime || null }], { busyLabel: 'Playing…', reason: 'football-match' });
+  const result = await runEngine('simulateMatch', [{ squad, visual: Boolean(liveOptions.firstHalf), ...(liveOptions.halftime ? { halftime: liveOptions.halftime } : {}) }], { busyLabel: 'Playing…', reason: 'football-match' });
   if (result) {
     liveMatchState = null;
     openDialog({ label: fixture.competition, title: 'Full time', body: matchReportBody(result, fixture) });
@@ -3176,12 +3136,21 @@ async function simulateFixture(id, forceVisual = false) {
   if (!fixture.canSimulate) return showToast(`This fixture is scheduled for week ${fixture.week}.`, 'error');
   matchSpeed = forceVisual || activeView === 'coach-desk' ? 'visual' : ($('[data-match-speed]')?.value || matchSpeed);
   if (matchSpeed === 'instant') return completeFixtureSimulation(fixture);
-  const firstHalf = previewVisualHalf(fixture, 1);
+  const firstHalf = await previewVisualHalf(fixture, 1);
   if (!firstHalf) return null;
   liveMatchState = { fixtureId: fixture.id, squad: fixture.squad || (fixture.team === 'senior' ? 'first' : fixture.team), firstHalf, secondHalf: null, halftime: null };
   const completed = await playVisualHalf(fixture, 1, firstHalf);
   if (completed && !dom.dialog.hidden && liveMatchState?.fixtureId === fixture.id) {
     openDialog({ label: fixture.competition, title: 'Halftime decisions', body: halftimeBody(fixture, firstHalf) });
+    if (firstHalf.savedHalftime) {
+      const saved = firstHalf.savedHalftime;
+      for (const [selector, value] of [['[data-live-style]', saved.styleId], ['[data-live-formation]', saved.formation], ['[data-live-sub-out]', saved.outId], ['[data-live-sub-in]', saved.inId]]) {
+        const control = $(selector);
+        if (control) { if (value !== undefined) control.value = value; control.disabled = true; }
+      }
+      const button = $('[data-finish-live-match]');
+      if (button) button.textContent = 'Resume saved second half';
+    }
     refreshHalftimeAdvice(fixture);
   }
 }
@@ -3348,7 +3317,7 @@ async function handleWorkspaceClick(event) {
     if (!playerId || !detail) return showToast('Choose a player and write a clear commitment.', 'error');
     return runOptionalEngine(['createPlayerPromise'], [playerId, { type, detail, targetWeeks, source: 'manager' }], { reason: 'football-player-promise', success: 'Player promise recorded.' });
   }
-  if (target.dataset.resolvePlayerPromise) return runOptionalEngine(['resolvePlayerPromise'], [target.dataset.resolvePlayerPromise, target.dataset.promiseOutcome || 'fulfilled', 'Manager decision'], { reason: 'football-player-promise', success: target.dataset.promiseOutcome === 'broken' ? 'Promise marked as broken.' : 'Promise marked as kept.' });
+  if (target.dataset.resolvePlayerPromise) return runOptionalEngine(['resolvePlayerPromise'], [target.dataset.resolvePlayerPromise, target.dataset.promiseOutcome || 'fulfilled', 'Manager decision'], { reason: 'football-player-promise', success: target.dataset.promiseOutcome === 'broken' ? 'Promise marked as broken.' : target.dataset.promiseOutcome === 'cancelled' ? 'Promise cancelled.' : 'Promise marked as kept.' });
   if (target.dataset.setRehab) return runOptionalEngine(['setPlayerRehabilitation'], [target.dataset.setRehab, target.dataset.rehabPlan || 'standard'], { reason: 'football-medical', success: 'Rehabilitation plan updated.' });
   if (target.dataset.startContractTalks) return runOptionalEngine(['startContractNegotiation'], [target.dataset.startContractTalks], { reason: 'football-contract-talks', success: 'Formal contract talks opened.' });
   if (target.dataset.submitContractOffer) {
@@ -3418,7 +3387,7 @@ async function handleWorkspaceClick(event) {
     const fixture = nextFixture('senior');
     const opponent = fixture ? (fixture.home.isPlayer ? fixture.away : fixture.home) : null;
     if (!opponent) return showToast('There is no opponent ready to analyse.', 'error');
-    return runOptionalEngine(['createOpponentReport', 'requestOpponentReport'], [{ ...opponent, id: opponent.id || opponent.clubId || target.dataset.requestOpponentReport, clubId: opponent.clubId || opponent.id || target.dataset.requestOpponentReport, scoutQuality: Math.min(100, 45 + number(pick(footballState, ['staff.recruitment', 'staffLevels.recruitment'], 1)) * 10) }], { reason: 'football-opposition', success: 'Opponent report prepared.' });
+    return runOptionalEngine(['createOpponentReport', 'requestOpponentReport'], [{ clubId: opponent.clubId || opponent.id || target.dataset.requestOpponentReport }], { reason: 'football-opposition', success: 'Opponent report prepared.' });
   }
   if (target.dataset.renewPlayerContract) {
     const terms = { weeklyWage: number($('[data-player-contract-wage]')?.value, 0), seasons: number($('[data-player-contract-years]')?.value, 2), squadRole: $('[data-player-contract-role]')?.value || 'rotation' };
@@ -3540,7 +3509,7 @@ async function handleWorkspaceClick(event) {
     if ((outId && !inId) || (!outId && inId)) return showToast('Choose both players for a halftime substitution, or leave both blank.', 'error');
     if (!liveMatchState || liveMatchState.fixtureId !== fixture.id) return showToast('The first-half state is no longer available. Restart the visual match.', 'error');
     const halftime = { styleId: style || '', formation: $('[data-live-formation]')?.value || '', outId: outId || '', inId: inId || '' };
-    const secondHalf = previewVisualHalf(fixture, 2, halftime);
+    const secondHalf = await previewVisualHalf(fixture, 2, halftime);
     if (!secondHalf) return null;
     liveMatchState.halftime = halftime;
     liveMatchState.secondHalf = secondHalf;
@@ -3647,8 +3616,8 @@ async function handleWorkspaceClick(event) {
     if (result) applyVisualSettings(true);
     return result;
   }
-  if (target.dataset.startConstruction) return runEngine('startConstruction', [target.dataset.startConstruction, { nowMs: Date.now() }], { reason: 'football-build', success: 'Construction project started.' });
-  if (target.dataset.skipConstruction) return runEngine('skipConstruction', [target.dataset.skipConstruction, Date.now()], { reason: 'football-build', success: 'Football tokens completed the construction project.' });
+  if (target.dataset.startConstruction) return runEngine('startConstruction', [target.dataset.startConstruction], { reason: 'football-build', success: 'Construction project started.' });
+  if (target.dataset.skipConstruction) return runEngine('skipConstruction', [target.dataset.skipConstruction], { reason: 'football-build', success: 'Football tokens completed the construction project.' });
   if (target.dataset.cancelConstruction) return runEngine('cancelConstruction', [target.dataset.cancelConstruction], { reason: 'football-build', success: 'Construction project cancelled.' });
   if (target.dataset.claimObjective) return runEngine('claimFootballObjective', [target.dataset.claimObjective], { reason: 'football-objective', success: 'Objective reward claimed.' });
   if (target.dataset.upgradeStaff) return runOptionalEngine(['upgradeStaff', 'hireStaff'], [target.dataset.upgradeStaff], { reason: 'football-staff', success: 'Staff structure upgraded.', unavailable: 'Staff hiring will unlock when the football engine exposes that operation.' });
@@ -3901,15 +3870,11 @@ async function createClub(event) {
       startupLoanAud: setup.startupLoan,
       academyFeeAud: setup.academyFee,
       weeklyFirstTeamBudget: setup.wageBudget,
-      playingStyle: setup.playingStyle,
-      seed: Math.floor((Date.now() ^ setup.name.length ^ site.id.length) >>> 0),
-      nowMs: CLUB_SEASON_START.getTime()
+      playingStyle: setup.playingStyle
     };
-    const result = await FootballEngine.startClub(payload);
+    const result = await dispatchFootball('startClub', [payload]);
     if (result?.ok === false) throw new Error(result.message || result.error || result.event?.message || 'The club could not be created.');
     if (Number.isSafeInteger(result?.walletDeltaAud) && result.walletDeltaAud !== -setup.ownerInvestment) throw new Error('The engine returned an unexpected startup investment movement.');
-    footballState = normalizeState(extractState(result));
-    await persist('football-create', snapshot.balance - setup.ownerInvestment);
     activeView = 'overview';
     showWorkspace();
     showToast(`${setup.name} is ready for its first week.`, 'success');
@@ -3938,13 +3903,11 @@ async function initialize() {
   snapshot = clone(vault.snapshot);
   const saved = snapshot?.progress?.footballManager;
   if (saved) {
-    footballState = normalizeState(saved, { nowMs: Date.now() });
-    if (JSON.stringify(saved) !== JSON.stringify(footballState)) await persist('football-reconcile');
+    footballState = normalizeState(saved);
     showWorkspace();
   } else {
     showOnboarding();
   }
-  if (vault.integrityIssue) showToast('The local vault recovered the last trusted save.', 'error');
 }
 
 initialize().catch(showFatal);

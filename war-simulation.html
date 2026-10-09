@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#07100f">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
   <title>Dorra Strategic Command</title>
   <link rel="stylesheet" href="styles.css?v=20260829-dev11">
   <link rel="stylesheet" href="war-simulation.css?v=20260830-development12">
+  <link rel="stylesheet" href="online-shell.css">
 </head>
 <body class="strategic-page">
+  <script type="module" src="online-shell.js"></script>
   <div class="strategic-app" id="strategicApp" aria-busy="true">
     <header class="strategic-global-header">
       <a class="strategic-brand" href="index.html" data-return-house aria-label="Return to Dorra House">
@@ -40,7 +42,7 @@
     <section id="strategicFatal" class="strategic-fatal" hidden aria-labelledby="strategicFatalTitle">
       <div class="strategic-fatal-mark" aria-hidden="true">D</div>
       <h1 id="strategicFatalTitle">Strategic command could not start</h1>
-      <p id="strategicFatalCopy">Close any other Dorra House tab, then reload this page.</p>
+      <p id="strategicFatalCopy">Check your connection and sign in again, then reload this page.</p>
       <div><button type="button" data-reload-page>Reload</button><a href="index.html" data-return-house>Return to Dorra House</a></div>
     </section>
 
