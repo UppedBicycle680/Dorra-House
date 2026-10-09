@@ -52,10 +52,10 @@ export function createAirportBridge({getSnapshot, getRevision, install, appendLe
   function result(extra = {}) {
     return {...extra, snapshot:getSnapshot(), revision:getRevision(), payoutSequence:getSnapshot().airportBridge.consumedSequence};
   }
-  async function load() {
+  async function load(payload = {}) {
     await ensureIdentity();
     await reconcile();
-    const response = await api('load');
+    const response = await api('load', {presenceAirportId:payload.presenceAirportId ?? null});
     await bind(response.installationId);
     return result(response);
   }

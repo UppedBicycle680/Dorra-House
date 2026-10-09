@@ -126,7 +126,7 @@ export async function createVaultClient(options = {}) {
     integrityIssue: Boolean(load.integrityIssue),
     airportWarning: load.airportWarning || null,
     commit,
-    airportLoad: () => airportOperation('airport-load'),
+    airportLoad: payload => airportOperation('airport-load', payload),
     airportCommand: payload => airportOperation('airport-command', payload),
     withdrawAirportCash: payload => airportOperation('airport-withdraw', payload),
     flush: async () => { await writeQueue; if (lastWriteError) throw lastWriteError; },

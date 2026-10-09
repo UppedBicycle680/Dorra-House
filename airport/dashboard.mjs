@@ -3,6 +3,7 @@ import {getAirportLayout, rectPolygon} from './layouts.mjs';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[char]));
 const amount = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
 const money = value => `$${Math.floor(amount(value)).toLocaleString('en-AU')}`;
+const unattendedRate = airport => airport.rates?.unattendedCashPerHour ?? amount(airport.rates?.cashPerHour) * (airport.operations?.atc?.owned || airport.atcOwned ? 1 : .75);
 const previewCache = new Map();
 
 // Small, static maps use the same airport geometry as the simulation.
@@ -35,7 +36,7 @@ function airportMap(id) {
 }
 
 export function createAirportDashboard(root) {
-  let signature = '';
+  let signature = '', busy = false;
   function render(view) {
     const airports = view.airports || [], owned = airports.filter(a => a.owned);
     const nextSignature = JSON.stringify(airports.map(a => [a.id, a.owned]));
@@ -44,21 +45,23 @@ export function createAirportDashboard(root) {
       root.querySelector('[data-airport-cards]').innerHTML = airports.map(a => `<article class="destination-card ${a.owned ? 'is-open' : 'is-locked'}" data-destination="${esc(a.id)}" aria-labelledby="destination-${esc(a.id)}">
         <div class="destination-map">${airportMap(a.id)}<span class="destination-code">${esc(a.code)}</span><span class="destination-status">${a.owned ? '<i></i> Open' : 'Locked'}</span><span class="destination-map-label">AIRFIELD OVERVIEW</span></div>
         <div class="destination-body"><p class="destination-region">${esc(a.region)}${a.fictional ? ' · Fictional' : ''}</p><h3 id="destination-${esc(a.id)}">${esc(a.name)}</h3>
-          <dl class="destination-money"><div><dt>Est. income / hour</dt><dd data-income>—</dd></div><div><dt>Cash balance</dt><dd data-cash>—</dd></div></dl>
-          ${a.owned ? `<button class="destination-visit" data-action="visit-airport" data-airport-id="${esc(a.id)}" aria-label="Visit ${esc(a.name)}"><span>Visit airport</span><span aria-hidden="true">↗</span></button>` : '<div class="destination-unavailable">Not open yet</div>'}
+          <dl class="destination-money"><div><dt>Unattended / hour</dt><dd data-income>—</dd></div><div><dt>Cash balance</dt><dd data-cash>—</dd></div></dl><p class="destination-full-rate" data-full-rate></p>
+          ${a.owned ? `<button class="destination-visit" data-action="visit-airport" data-airport-id="${esc(a.id)}" aria-label="Visit ${esc(a.name)}" ${busy?'disabled':''}><span>Visit airport</span><span aria-hidden="true">↗</span></button>` : '<div class="destination-unavailable">Not open yet</div>'}
           <p class="destination-note" data-note></p>
         </div></article>`).join('');
       signature = nextSignature;
       if (focusedId) [...root.querySelectorAll('[data-airport-id]')].find(el => el.dataset.airportId === focusedId)?.focus({preventScroll:true});
     }
-    root.querySelector('[data-network-income]').textContent = money(owned.reduce((sum, a) => sum + amount(a.rates?.cashPerHour), 0));
+    root.querySelector('[data-network-income]').textContent = money(owned.reduce((sum, a) => sum + amount(unattendedRate(a)), 0));
     root.querySelector('[data-network-cash]').textContent = money(owned.reduce((sum, a) => sum + amount(a.cash), 0));
     root.querySelector('[data-network-count]').textContent = `${owned.length} / ${airports.length}`;
     for (const a of airports) {
       const card = [...root.querySelectorAll('[data-destination]')].find(el => el.dataset.destination === a.id);
-      card.querySelector('[data-income]').textContent = a.owned ? money(a.rates?.cashPerHour) : '—';
+      card.querySelector('[data-income]').textContent = a.owned ? money(unattendedRate(a)) : '—';
       card.querySelector('[data-cash]').textContent = a.owned ? money(a.cash) : '—';
-      card.querySelector('[data-note]').textContent = a.owned ? (a.id === view.selectedAirportId ? 'Last visited airport' : 'Earning in the background') : 'Unlock through airport progression';
+      const atc = a.operations?.atc?.owned || a.atcOwned;
+      card.querySelector('[data-full-rate]').textContent = a.owned ? `${money(a.rates?.fullCashPerHour ?? a.rates?.cashPerHour)} / hour while visiting · bonuses extra` : '';
+      card.querySelector('[data-note]').textContent = a.owned ? atc ? 'ATC hired · full unattended income' : 'Manual ATC · 75% unattended income' : 'Unlock through airport progression';
     }
   }
   function status(state) {
@@ -67,6 +70,7 @@ export function createAirportDashboard(root) {
     element.classList.toggle('is-error', state === 'error');
   }
   function setBusy(value) {
+    busy = value;
     root.setAttribute('aria-busy', String(value));
     root.querySelectorAll('[data-action="visit-airport"]').forEach(button => { button.disabled = value; });
   }

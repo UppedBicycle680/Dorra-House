@@ -27,6 +27,7 @@
 .destination-unavailable{display:grid;place-items:center;min-height:42px;font-size:13px;color:#748477;background:#f1f4f0;border-radius:8px}.destination-note{font-size:11px;text-align:center;color:#748477;margin:9px 0 0;line-height:1.5}
 .is-locked .destination-map{filter:saturate(.5);background:#dfe7da}.is-locked .destination-status{color:#667566}.is-locked .destination-money dd{color:#88968b}
 .dashboard-footnote{font-size:12px;color:#6c8176;line-height:1.7;margin:22px 0 0}
+.destination-full-rate{font-size:10px;color:#6b8475;line-height:1.6;margin:-9px 0 13px;min-height:16px}.destination-full-rate:empty{display:none}
 @media(min-width:1700px){.airport-dashboard{padding-inline:60px}.destination-map{height:155px}.destination-body h3{font-size:19px}}
 @media(max-width:1200px){.airport-dashboard{padding-inline:26px}.destination-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard-heading{align-items:start}.dashboard-live{padding-top:10px}}
 @media(max-width:850px){.destination-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-heading{display:block}.dashboard-live{margin-top:12px;display:block}.dashboard-totals>div{padding-inline:16px}.dashboard-totals dd{font-size:26px}}
