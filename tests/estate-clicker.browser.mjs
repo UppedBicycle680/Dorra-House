@@ -5,6 +5,7 @@ import {validateBody,commandDigest} from '../supabase/functions/dorra-api/protoc
 import {initializeHouse} from '../supabase/functions/dorra-api/house-progression.mjs';
 import {reduceHouse} from '../supabase/functions/dorra-api/house.mjs';
 import {encodeResult,decodeResult} from '../supabase/functions/dorra-api/response-codec.mjs';
+import {sessionRefresh} from '../supabase/functions/dorra-api/session-refresh.mjs';
 import {baseURL,supabaseHost,responseHeaders,launchBrowser,serveSource} from './browser-helpers.mjs';
 
 // Exercise the published page's real Auth SDK, controller, protocol and reducer.
@@ -54,6 +55,7 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
       return reply({snapshot:saved.snapshot,revision:saved.revision,username:'EstateTest',serverNow});
     }
     assert.equal(body.leaseId,saved.leaseId);
+    if(body.scope==='session'&&body.action==='refresh')return reply(sessionRefresh(saved,body.expectedRevision,serverNow,body.args.ifChanged===true));
     const digest=await commandDigest(body);
     const replay=saved.recentRequests.find(item=>item.id===body.requestId);
     if(replay){
@@ -184,6 +186,14 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
         if(width===390&&view==='estate'&&process.env.DORRA_ESTATE_MOBILE_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_MOBILE_SCREENSHOT,fullPage:true});
       }
     }
+    // The real House controller redraws an externally changed wallet without
+    // a reload, including the active Estate page and shared header.
+    const activeLease=saved.leaseId;
+    saved.snapshot.balance=12000;saved.revision++;
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await waitWallet(saved.snapshot.balance);
+    assert.equal(await page.locator('#balance').textContent(),'$'+saved.snapshot.balance.toLocaleString());
+    assert.equal(saved.leaseId,activeLease);
     assert.deepEqual(runtimeErrors,[]);
     assert.ok(consoleErrors.every(message=>/503/.test(message)),'only the intentionally rejected save may produce a console error: '+consoleErrors.join('; '));
     for(const request of requests.filter(body=>body.action.startsWith('estate-clicker-'))){

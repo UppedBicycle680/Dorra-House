@@ -148,6 +148,15 @@ export async function checkOnline(fetchImpl = fetch) {
     assert.equal(unchanged.revision, revisionBeforeForgery, 'Rejected tampering advanced the save revision.');
     assert(JSON.stringify(unchanged.snapshot) === beforeForgery, 'Rejected tampering changed the save.');
     passed('Forged save and score uploads rejected without mutation');
+    stage = 'Automatic save refresh';
+    const conditional = requireSuccess(await api(command('session','refresh',{ifChanged:true})), 'Conditional save refresh');
+    assert.equal(conditional.unchanged,true,'Unchanged polling did not return a compact response.');
+    assert.equal(conditional.revision,current.revision,'Polling changed the save revision.');
+    assert(!Object.hasOwn(conditional,'snapshot')&&!Object.hasOwn(conditional,'privateState'),'Unchanged polling returned save contents.');
+    const staleRefresh = saved(requireSuccess(await api({...command('session','refresh',{ifChanged:true}),expectedRevision:current.revision-1}), 'Stale save refresh'), 'Stale save refresh');
+    assert.equal(staleRefresh.revision,current.revision,'Stale refresh changed the revision.');
+    assert.equal(JSON.stringify(staleRefresh.snapshot),beforeForgery,'Stale refresh did not restore the latest save.');
+    passed('Conditional polling and stale save refresh restore state without mutation');
 
     stage = 'Second-device restoration and session replacement';
     const oldDevice = current, savedSnapshot = JSON.stringify(current.snapshot);
