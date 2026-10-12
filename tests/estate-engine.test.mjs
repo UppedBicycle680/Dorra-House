@@ -212,9 +212,9 @@ test('malformed nested data cannot produce invalid money and normalization is st
   const progress={empire:{pending:Infinity,venues:{terrace:{level:99,manager:true,improvements:{unknown:99}}},clicker:{lastAccruedAt:NOW,venues:{terrace:{served:-3,customers:NaN,cycleElapsedMs:Infinity}},claimedGoals:['missing','regulars','regulars']}}};
   normalizeEstate(progress,NOW);
   assert.equal(progress.empire.pending,0);
-  assert.equal(progress.empire.venues.terrace.level,5);
+  assert.equal(progress.empire.venues.terrace.level,99);
   assert.deepEqual(progress.empire.clicker.claimedGoals,['regulars']);
-  assert.equal(estateSnapshot(progress,NOW).venues[0].baseTapValue,85);
+  assert.equal(Number.isSafeInteger(estateSnapshot(progress,NOW).venues[0].baseTapValue),true);
   const saved=JSON.stringify(progress);
   normalizeEstate(progress,NOW);
   assert.equal(JSON.stringify(progress),saved);
@@ -233,7 +233,7 @@ test('purchase commands validate wallet, unlocks, limits, and duplicate managers
   assert.equal(hireEstateManager(progress,'terrace',1_200,NOW).ok,true);
   assert.equal(hireEstateManager(progress,'terrace',10_000,NOW).ok,false);
   for (let level=2;level<5;level++) assert.equal(upgradeEstateVenue(progress,'terrace',1_000_000,NOW).ok,true);
-  assert.equal(upgradeEstateVenue(progress,'terrace',1_000_000,NOW).ok,false);
+  assert.equal(upgradeEstateVenue(progress,'terrace',1_000_000,NOW).ok,true);
 });
 
 test('milestones are claimable once, survive JSON saves, and do not change the wallet themselves',()=>{
@@ -261,7 +261,7 @@ test('all six venues expose finite action metrics and require no external casino
   assert.ok(snapshot.autoPerMinute>0&&Number.isFinite(snapshot.autoPerMinute));
   for (const venue of snapshot.venues) {
     assert.equal(venue.status,'automated');
-    assert.equal(venue.upgradeCost,0);
+    assert.ok(venue.upgradeCost>0);
     assert.ok(venue.tapValue>0&&Number.isSafeInteger(venue.tapValue));
   }
   assert.equal(estateGoals(progress).find(goal=>goal.id==='thirty-stars').complete,true);

@@ -73,14 +73,13 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
   const page=await context.newPage();
   page.on('pageerror',error=>runtimeErrors.push(error.message));
   page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text())});
-  const waitWallet=amount=>page.waitForFunction(expected=>document.querySelector('[data-estate-wallet]')?.textContent==='$'+expected.toLocaleString(),amount);
+  const waitWallet=amount=>page.waitForFunction(expected=>document.querySelector('[data-estate-wallet]')?.textContent==='$'+new Intl.NumberFormat('en',{notation:expected>=1e6?'compact':'standard',maximumFractionDigits:expected<100?2:1}).format(expected),amount);
   const ready=()=>page.waitForFunction(()=>document.documentElement.dataset.saveState==='saved');
   const action=async(selector,name)=>{
-    const count=commits.length;
+    const count=commits.filter(c=>c.action===name).length;
     await page.locator(selector).click();
     await page.waitForFunction(()=>document.documentElement.dataset.saveState==='saved');
-    assert.equal(commits.length,count+1,name+' should commit once');
-    assert.equal(commits.at(-1).action,name);
+    assert.equal(commits.filter(c=>c.action===name).length,count+1,name+' should commit once');
     await waitWallet(saved.snapshot.balance);
   };
   try{
@@ -95,10 +94,16 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.equal(saved.snapshot.balance,4_750);
     assert.equal(await page.locator('[data-estate-serve="terrace"]').isEnabled(),true);
     await action('[data-estate-serve="terrace"]','estate-clicker-serve');
-    assert.equal(saved.snapshot.balance,4_762);
+    assert.equal(saved.snapshot.balance,4_750,'starting a timer must not pay immediately');
+    assert.equal(await page.locator('[data-estate-serve="terrace"]').isDisabled(),true);
+    await page.waitForFunction(()=>parseFloat(document.querySelector('[data-cycle-fill="terrace"]')?.style.width)>0);
+    serverNow+=5_000;
+    await waitWallet(4_762);
     assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true,'an affordable upgrade must re-enable after serving');
-    assert.equal(await page.locator('[data-estate-goal="first-service"]').isEnabled(),true,'a newly earned milestone must be claimable immediately');
+
+    await page.locator('[data-estate-view="milestones"]').first().click();
     await action('[data-estate-goal="first-service"]','estate-clicker-goal');
+    await page.locator('[data-estate-view="estate"]').click();
     assert.equal(saved.snapshot.balance,4_837);
     await action('[data-estate-upgrade="terrace"]','estate-clicker-upgrade');
     assert.equal(saved.snapshot.balance,3_937);
@@ -106,20 +111,17 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     await action('[data-estate-manager="terrace"]','estate-clicker-manager');
     assert.equal(saved.snapshot.balance,2_737);
     assert.match(await page.locator('[data-estate-income]').textContent(),/\$216/);
-    await page.waitForFunction(()=>document.querySelector('[data-estate-bank]')?.textContent!=='$0');
-    assert.equal(saved.snapshot.balance,2_737,'the live forecast cannot credit the account wallet');
     serverNow+=60_000;
-    await action('[data-estate-claim]','estate-clicker-claim');
-    assert.equal(commits.at(-1).result.amount,216);
-    assert.equal(saved.snapshot.balance,2_953);
+    await waitWallet(2_953);
+    assert.equal(saved.snapshot.balance,2_953,'managed income is banked automatically');
     assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true);
-    assert.equal(await page.locator('[data-estate-serve="terrace"]').isEnabled(),true);
+    assert.equal(await page.locator('[data-estate-serve="terrace"]').isDisabled(),true,'managers repeat the timer automatically');
 
     await page.reload();
     await page.locator('#lobby').waitFor({state:'visible'});
     await page.locator('#lobby [data-home-estate="empire"]').click();
     await waitWallet(2_953);
-    assert.match(await page.locator('.estate-service-card>header').textContent(),/Level 2/);
+    assert.match(await page.locator('.estate-service-card>header').first().textContent(),/Level 2/);
     assert.match(await page.locator('.estate-on-duty').textContent(),/Hired/);
     await page.locator('[data-estate-view="milestones"]').first().click();
     assert.equal(await page.locator('[data-estate-goal="first-service"]').isDisabled(),true);
@@ -127,21 +129,35 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     await page.locator('[data-estate-view="estate"]').click();
 
     // A rejected cloud action must leave both the receipt and server state alone.
-    const balanceBefore=saved.snapshot.balance,servedBefore=saved.snapshot.progress.empire.clicker.served;
-    failNext='estate-clicker-serve';
-    await page.locator('[data-estate-serve="terrace"]').click();
+    const balanceBefore=saved.snapshot.balance,levelBefore=saved.snapshot.progress.empire.venues.terrace.level;
+    failNext='estate-clicker-upgrade';
+    await page.locator('[data-estate-upgrade="terrace"]').click();
     await page.waitForFunction(()=>document.documentElement.dataset.saveState==='error');
     await page.locator('.estate-cloud-status.error').waitFor({state:'visible'});
     await waitWallet(balanceBefore);
-    assert.equal(saved.snapshot.balance,balanceBefore);
-    assert.equal(saved.snapshot.progress.empire.clicker.served,servedBefore);
-    assert.equal(await page.locator('[data-estate-serve="terrace"]').isEnabled(),true,'a failed save must allow a retry');
-    serverNow+=1_000;
-    await page.waitForTimeout(425);
-    await action('[data-estate-serve="terrace"]','estate-clicker-serve');
-    assert.equal(saved.snapshot.balance,balanceBefore+18);
-    assert.equal(saved.snapshot.progress.empire.clicker.served,servedBefore+1);
+    assert.equal(saved.snapshot.progress.empire.venues.terrace.level,levelBefore);
+    assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true,'a failed save must allow a retry');
+    await action('[data-estate-upgrade="terrace"]','estate-clicker-upgrade');
+    assert.equal(saved.snapshot.balance,balanceBefore-2200);
+    assert.equal(saved.snapshot.progress.empire.venues.terrace.level,3);
     await ready();
+
+    // Fixture-only high-level state exercises the real controller and normalizer.
+    saved.snapshot.balance=200_000_000_000;
+    saved.snapshot.progress.empire.venues.terrace.level=100;
+    saved.snapshot=initializeHouse(saved.snapshot,serverNow);
+    await page.reload();
+    await page.locator('#lobby').waitFor({state:'visible'});
+    await page.locator('#lobby [data-home-estate="empire"]').click();
+    await page.locator('.business-cycle.continuous').waitFor({state:'visible'});
+    assert.equal(await page.locator('[data-cycle-fill="terrace"]').evaluate(e=>e.style.width),'100%');
+    assert.match(await page.locator('[data-cycle-label="terrace"]').textContent(),/Continuous/i);
+    assert.match(await page.locator('.estate-service-card>header').first().textContent(),/Level 100/);
+    await page.locator('[data-estate-quantity="10"]').click();
+    assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true);
+    await action('[data-estate-upgrade="terrace"]','estate-clicker-upgrade');
+    assert.equal(saved.snapshot.progress.empire.venues.terrace.level,110);
+    await page.locator('[data-estate-quantity="1"]').click();
 
     if(process.env.DORRA_ESTATE_SCREENSHOT){
       await page.waitForFunction(()=>!document.querySelector('#toast')?.classList.contains('show'));
@@ -171,7 +187,7 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.deepEqual(runtimeErrors,[]);
     assert.ok(consoleErrors.every(message=>/503/.test(message)),'only the intentionally rejected save may produce a console error: '+consoleErrors.join('; '));
     for(const request of requests.filter(body=>body.action.startsWith('estate-clicker-'))){
-      assert.deepEqual(Object.keys(request.args),request.action.endsWith('-claim')?[]:[request.action.endsWith('-goal')?'goalId':'venueId']);
+      assert.deepEqual(Object.keys(request.args).sort(),/-(claim|tick)$/.test(request.action)?[]:request.action.endsWith('-upgrade')?['quantity','venueId']: [request.action.endsWith('-goal')?'goalId':'venueId']);
       assert.ok(!Object.hasOwn(request,'snapshot')&&!Object.hasOwn(request,'balance'));
     }
   }finally{await browser.close()}
