@@ -417,6 +417,18 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await visible(mobile, '#airportHud');
     await visible(mobile, '#airportCanvas');
     await exactText(mobile, '#airportName', 'Redcliffe Airport');
+    await visible(mobile, '#landNext');
+    await visible(mobile, '#takeoffNext');
+    await mobile.locator('#landNext').waitFor({state: 'visible', timeout: TIMEOUT});
+    await mobile.waitForFunction(() => !document.querySelector('#landNext')?.disabled, null, {timeout: TIMEOUT});
+    const landing = await perform(mobile, 'airport', 'command', () => mobile.locator('#landNext').click(), 200,
+      body => body.args?.command?.type === 'land-flight');
+    ensure(landing.result?.view?.selectedAirport?.operations?.flights?.some(flight => flight.phase === 'arriving'));
+    await mobile.locator('#airportHud [data-action="contracts"]').click();
+    await visible(mobile, '#airportDialog');
+    ensure(await mobile.locator('#dialogBody [data-action="accept-contract"]').count() === 6);
+    await mobile.keyboard.press('Escape');
+    passed('Published interactive landing is persisted by Supabase and contract controls are available');
     await mobile.locator('#airportHud [data-action="buildings"]').click();
     const upgrade = await perform(mobile, 'airport', 'command', () => mobile.locator('#dialogBody button[data-action="upgrade"][data-building="runwaySurface"]:not([data-use-diamonds])').click(), 200,
       body => body.args?.command?.type === 'upgrade' && body.args?.command?.building === 'runwaySurface');

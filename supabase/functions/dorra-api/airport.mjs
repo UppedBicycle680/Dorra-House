@@ -1,4 +1,4 @@
-import {createCareer, settleCareer, applyCommand, projectCareer, MAX_CURRENCY} from './shared/airport/engine.mjs';
+import {createCareer, settleCareer, applyCommand, projectCareer, renewPresence, MAX_CURRENCY} from './shared/airport/engine.mjs';
 import {MAX_BALANCE} from './shared/game-limits.js';
 
 const has = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -47,7 +47,7 @@ export async function reduceAirport(snapshot, privateState, action, args = {}, n
   if (!['load', 'command', 'withdraw'].includes(action)) {
     fail('UNKNOWN_ACTION', 'That airport action is not available.', 403);
   }
-  checkArgs(args, action === 'load' ? [] : action === 'command'
+  checkArgs(args, action === 'load' ? ['presenceAirportId'] : action === 'command'
     ? ['requestId', 'expectedRevision', 'command']
     : ['requestId', 'expectedAirportRevision', 'airportId', 'amountCash']);
 
@@ -64,7 +64,11 @@ export async function reduceAirport(snapshot, privateState, action, args = {}, n
   let career = report.career;
   let nextSnapshot = snapshot;
   let receipt;
-  if (action === 'command') {
+  if (action === 'load') {
+    // Settle the previous lease before renewing it; timestamps and airport
+    // ownership remain server controlled. An omitted presence clears the lease.
+    career = renewPresence(career, args.presenceAirportId ?? null, now);
+  } else if (action === 'command') {
     // The pure engine independently rejects every command field outside its
     // whitelist and calculates costs, eligibility, timers and rewards itself.
     career = applyCommand(career, args.command, now);
@@ -85,7 +89,9 @@ export async function reduceAirport(snapshot, privateState, action, args = {}, n
     receipt = {airportId: args.airportId, amountCash: args.amountCash, amountDorra, at: now};
     nextSnapshot = {...snapshot, balance: snapshot.balance + amountDorra};
   }
-  career.revision = existing.revision + ((action !== 'load' || report.elapsedMs > 0) ? 1 : 0);
+  // Even a same-timestamp load can change a lease or spawn a flight. Every
+  // successful airport transaction must invalidate decisions based on its predecessor.
+  career.revision = existing.revision + 1;
   const nextPrivateState = {...privateState, airport: career};
   return {snapshot: nextSnapshot, privateState: nextPrivateState, result: response(career, report, now, receipt)};
 }

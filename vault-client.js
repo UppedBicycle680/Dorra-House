@@ -77,7 +77,7 @@ export async function createVaultClient(options = {}) {
     get serverNow() { return Date.now() + serverOffset; },
     integrityIssue:false,airportWarning:null,dispatch,
     commit:async () => { throw new Error('Browser save uploads are disabled. Use a server-approved gameplay action.'); },
-    airportLoad:() => airport('load'),airportCommand:payload => airport('command',payload),withdrawAirportCash:payload => airport('withdraw',payload),
+    airportLoad:payload => airport('load',payload),airportCommand:payload => airport('command',payload),withdrawAirportCash:payload => airport('withdraw',payload),
     flush:async () => { await queue; if(lastError)throw lastError; },getRevision:() => revision,
     close() { closed = true; stopPulse(); }
   });

@@ -22,7 +22,7 @@ test('a cloud account starts once and resumes the same persisted career on anoth
   assert.deepEqual(first.privateState.anotherMode, {retained: true});
   const second = await reduceAirport(first.snapshot, structuredClone(first.privateState), 'load', {}, START + 90_000);
   assert.equal(second.privateState.airport.seed, first.privateState.airport.seed);
-  assert.equal(second.result.view.selectedAirport.cash, 508);
+  assert.equal(second.result.view.selectedAirport.cash, 506);
   assert.equal(second.result.earnings.departures, 1);
   assert.equal(second.result.view.serverNow, START + 90_000);
   assert.equal(second.snapshot.balance, 1_000);

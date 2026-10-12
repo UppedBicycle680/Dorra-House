@@ -6,9 +6,26 @@ import {createArcherfieldPlan,sampleArcherfieldFlight} from './archerfield-traff
 // Presentation routes only. This module never calculates or changes game rewards.
 // All coordinates share the airport's ground plane; heading 0 is +X, PI/2 is +Y.
 import {createYbsuPlan,sampleYbsuFlight} from './ybsu-traffic.mjs';
+import {operationRouteReference} from './operations-routing.mjs';
+import {BRISBANE_ROUTE_ADJUSTMENTS} from './brisbane-route-adjustments.mjs';
+import {bayRouteSignature} from './brisbane-traffic.mjs';
 const mix=(a,b,t)=>a+(b-a)*t;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const distance=(a,b)=>Math.hypot(b[0]-a[0],b[1]-a[1]);
+
+/** Expand a server-issued compact route into the same authored presentation
+ * curves. The original runway snapshot survives later airport upgrades. */
+export function resolveInteractiveFlightPlan(layout,airport,stand,model,snapshot){
+  if(snapshot?.version!==1)return snapshot||createFlightPlan(layout,airport,stand,model);
+  const ref=operationRouteReference(snapshot);
+  if(!ref||ref.airportId!==layout.id||ref.plotId!==stand.plotId||ref.aircraftId!==model.id)return null;
+  const view={...airport,runwayLength:ref.runwayLength,operationRouteCompiled:true};
+  if(layout.id==='brisbane'){
+    const adjustment=BRISBANE_ROUTE_ADJUSTMENTS[`${stand.plotId}:${model.id}`];
+    view.routeTurnFactor=adjustment?.signature===bayRouteSignature(stand)&&adjustment.taxiwayVersion===layout.taxiwayVersion?adjustment.turnFactor??.3:.3;
+  }
+  return createFlightPlan(layout,view,stand,model);
+}
 
 export function roundedPath(points,radius=6){
   const result=[points[0]];
@@ -172,4 +189,48 @@ export function sampleFlight(plan,elapsedSeconds,index=0,reducedMotion=false){
   else{phase='climb';pose=at('climb',period-6,period);altitude=(t-(period-6))/6*18}
   const opacity=phase==='approach'?clamp(t/1.3,0,1):phase==='climb'?clamp((period-t)/1.8,0,1):1;
   return {...pose,altitude,phase,reverse,opacity,cycle:Math.floor((elapsedSeconds+index*40)/period),timeInCycle:t,period};
+}
+
+// Interactive traffic follows the engine's current phase, never the decorative
+// repeating clock. A late poll holds the last confirmed endpoint until the
+// engine supplies the next phase, and an incident freezes only that flight.
+export function sampleInteractiveFlight(plan,flight,now,reducedMotion=false){
+  const started=Number(flight.phaseStartedAt)||0,ends=Number(flight.phaseEndsAt)||started;
+  const clock=Number.isFinite(flight.pausedAt)?Math.min(now,flight.pausedAt):now;
+  const progress=ends>started?clamp((clock-started)/(ends-started),0,1):0;
+  const base={operationPhase:flight.phase,phaseProgress:progress,altitude:0,opacity:1,reverse:false};
+  const stand={x:plan.stand.position[0],y:plan.stand.position[1],heading:plan.stand.heading??-Math.PI/2};
+  const at=(key,t)=>samplePath(plan[key],t);
+  if(flight.phase==='awaiting-landing')return {...base,...at('approach',0),altitude:14,phase:'awaiting-landing'};
+  if(flight.phase==='servicing')return {...base,...stand,phase:'servicing'};
+  if(flight.phase==='awaiting-takeoff')return {...base,...at('outbound',1),phase:'holding'};
+  const kind=plan.routeModel;
+  const arrival=kind==='gold-coast'?[8,10,12,15]:kind==='archerfield'?[8,10,10,12]
+    :['hamilton','ybsu'].includes(kind)?[8,10,7,15]:[8,6,6,12];
+  const taxi=kind==='gold-coast'?[10,24]:kind==='hamilton'?[8,14]
+    :['archerfield','ybsu'].includes(kind)?[8,18]:[6,8];
+  const departure=kind==='gold-coast'?[7,8,4]:kind==='hamilton'?[8,5,5]
+    :['archerfield','ybsu'].includes(kind)?[4,7,5]:[4,10,6];
+  let names,weights,labels;
+  if(flight.phase==='arriving'){names=['approach','landing','exit','inbound'];weights=arrival;labels=['approach','landing','runway-exit','taxi-in']}
+  else if(flight.phase==='taxiing-out'){names=['pushback','outbound'];weights=taxi;labels=['pushback','taxi-out']}
+  else if(flight.phase==='departing'){names=['lineup','takeoff','climb'];weights=departure;labels=['line-up','takeoff','climb']}
+  else return {...base,...stand,phase:'servicing'};
+  // Reduced motion uses a static, meaningful location for each confirmed phase.
+  if(reducedMotion){
+    if(flight.phase==='arriving')return {...base,...stand,phase:'taxi-in'};
+    if(flight.phase==='taxiing-out')return {...base,...at('outbound',1),phase:'taxi-out'};
+    return {...base,...at('takeoff',1),phase:'takeoff'};
+  }
+  const total=weights.reduce((sum,n)=>sum+n,0),elapsed=progress*total;
+  let offset=0,index=0;
+  while(index<weights.length-1&&elapsed>=offset+weights[index]){offset+=weights[index];index++}
+  const local=clamp((elapsed-offset)/weights[index],0,1),phase=labels[index],pose=at(names[index],local);
+  if(phase==='pushback'){pose.heading+=Math.PI;base.reverse=true}
+  if(phase==='approach')base.altitude=14*(1-local);
+  if(phase==='climb'){base.altitude=18*local;base.opacity=clamp((1-local)*4,0,1)}
+  // Match the authored stand heading at the end of taxi-in, including bays whose
+  // parking orientation differs from their final steering tangent.
+  if(flight.phase==='arriving'&&progress===1)pose.heading=stand.heading;
+  return {...base,...pose,phase};
 }

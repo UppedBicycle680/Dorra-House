@@ -1,7 +1,7 @@
 import {randomBytes, randomUUID, createHash} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {AirportStore} from './store.mjs';
-import {createCareer, settleCareer, applyCommand, projectCareer, MAX_CURRENCY, MAX_DIAMONDS} from './engine.mjs';
+import {createCareer, settleCareer, applyCommand, projectCareer, renewPresence, MAX_CURRENCY, MAX_DIAMONDS} from './engine.mjs';
 
 const DORRA_CAP = 9_000_000_000_000_000;
 const UUID = /^[a-zA-Z0-9_-]{8,80}$/;
@@ -40,10 +40,10 @@ export async function createAirportService({directory, clock} = {}) {
     document = next;
   }
 
-  function response(report = {}, replayed = false) {
+  function response(at, report = {}, replayed = false) {
     return {
       installationId: document.installationId,
-      view: {...projectCareer(document.career, now()), revision: document.career.revision, serverNow: now()},
+      view: {...projectCareer(document.career, at), revision: document.career.revision, serverNow: at},
       earnings: report.earnings || [], elapsedMs: report.elapsedMs || 0, capped: !!report.capped,
       recovered: store.recovered, replayed
     };
@@ -60,8 +60,8 @@ export async function createAirportService({directory, clock} = {}) {
     if (!integer(value, 0, Number.MAX_SAFE_INTEGER) || value !== document.career.revision) fail('Your airport changed. Refresh its latest state and try again.', 'STALE_REVISION', 409);
   }
 
-  function settle() {
-    const report = settleCareer(document.career, now());
+  function settle(at) {
+    const report = settleCareer(document.career, at);
     const next = structuredClone(document);
     next.career = report.career;
     next.career.revision = document.career.revision + 1;
@@ -69,25 +69,29 @@ export async function createAirportService({directory, clock} = {}) {
   }
 
   const handle = (route, body) => serialized(async () => {
+    // One queued request has one simulation time, including its earnings report
+    // and any command, presence lease, or withdrawal receipt it creates.
+    const at = now();
+    const respond = (report = {}, replayed = false) => response(at, report, replayed);
     if (route === 'developer') {
       checkBody(body, ['profileId', 'installationId', 'accessCode', 'requestId', 'airportId', 'currency', 'amount']);
       const fingerprint = createHash('sha256').update(String(body.accessCode || '')).digest('hex');
       if (fingerprint !== '6478b528fdca7473baeae8136c9ae854936669dad4e476cacdf2e46e8a84fd34') fail('Unlock a developer session to change airport resources.', 'FORBIDDEN', 403);
       owned(body);
-      if (body.currency === undefined) return response();
+      if (body.currency === undefined) return respond();
       if (!['cash', 'diamonds', 'research'].includes(body.currency)) fail('Choose a supported airport resource.');
       const cap = body.currency === 'diamonds' ? MAX_DIAMONDS : MAX_CURRENCY;
       if (!integer(body.amount, 1, cap)) fail('Enter a positive whole amount within the resource limit.');
       if (!Object.hasOwn(document.career.airports, body.airportId || '')) fail('Choose an owned airport.');
       const {digest, previous} = requestEntry(body, {kind: route, airportId: body.airportId, currency: body.currency, amount: body.amount});
-      if (previous) return response({}, true);
-      const {next, report} = settle();
+      if (previous) return respond({}, true);
+      const {next, report} = settle(at);
       const target = body.currency === 'diamonds' ? next.career : next.career.airports[body.airportId];
       if (body.amount > cap - target[body.currency]) fail('That amount would exceed the resource balance limit.');
       target[body.currency] += body.amount;
       next.requests[body.requestId] = {digest, revision: next.career.revision};
       await persist(next);
-      return response(report);
+      return respond(report);
     }
     if (route === 'bridge/status') {
       checkBody(body, ['profileId', 'installationId']);
@@ -96,50 +100,53 @@ export async function createAirportService({directory, clock} = {}) {
       return {active: true, installationId: document.installationId, ackSequence: document.ackSequence, receipts: document.payouts.filter(receipt => receipt.sequence > document.ackSequence)};
     }
     if (route === 'load') {
-      checkBody(body, ['profileId', 'installationId']);
+      checkBody(body, ['profileId', 'installationId', 'presenceAirportId']);
       if (!document) {
         if (body.installationId) fail('The airport save is missing. Restore the original server save before continuing.', 'SAVE_MISSING', 409);
-        const career = createCareer(now(), randomBytes(4).readUInt32LE());
+        const career = renewPresence(createCareer(at, randomBytes(4).readUInt32LE()), body.presenceAirportId ?? null, at);
         career.revision = 1;
         await persist({version: 1, installationId: randomUUID(), ownerId: body.profileId, career, payouts: [], ackSequence: 0, requests: {}});
-        return response();
+        return respond();
       }
       owned(body);
-      const {next, report} = settle();
+      const {next, report} = settle(at);
+      // Account for the old lease before extending it. Browser clocks never
+      // determine how long an airport receives active-play income.
+      next.career = renewPresence(next.career, body.presenceAirportId ?? null, at);
       await persist(next);
-      return response(report);
+      return respond(report);
     }
     if (route === 'command') {
       checkBody(body, ['profileId', 'installationId', 'requestId', 'expectedRevision', 'command']);
       owned(body);
       const {digest, previous} = requestEntry(body, {kind: route, command: body.command});
-      if (previous) return response({}, true);
+      if (previous) return respond({}, true);
       expectedRevision(body.expectedRevision);
-      const {next, report} = settle();
-      next.career = applyCommand(next.career, body.command, now());
+      const {next, report} = settle(at);
+      next.career = applyCommand(next.career, body.command, at);
       next.career.revision = document.career.revision + 1;
       next.requests[body.requestId] = {digest, revision: next.career.revision};
       await persist(next);
-      return response(report);
+      return respond(report);
     }
     if (route === 'withdraw') {
       checkBody(body, ['profileId', 'installationId', 'requestId', 'expectedRevision', 'airportId', 'amountCash', 'walletHeadroom']);
       owned(body);
       const {digest, previous} = requestEntry(body, {kind: route, airportId: body.airportId, amountCash: body.amountCash});
-      if (previous) return {...response({}, true), receipt: document.payouts.find(item => item.sequence === previous.sequence)};
+      if (previous) return {...respond({}, true), receipt: document.payouts.find(item => item.sequence === previous.sequence)};
       expectedRevision(body.expectedRevision);
       if (!integer(body.amountCash, 10, Number.MAX_SAFE_INTEGER) || body.amountCash % 10 !== 0) fail('Withdraw airport cash in whole multiples of 10.');
       const amountDorra = body.amountCash / 10;
       if (!integer(body.walletHeadroom, 0, DORRA_CAP) || amountDorra > body.walletHeadroom) fail('Your Dorra wallet does not have enough capacity for this withdrawal.', 'WALLET_FULL', 409);
-      const {next, report} = settle(), airport = next.career.airports[body.airportId];
+      const {next, report} = settle(at), airport = next.career.airports[body.airportId];
       if (!airport || !Object.hasOwn(next.career.airports, body.airportId)) fail('This airport is not owned.');
       if (airport.cash < body.amountCash) fail('This airport does not have enough cash.', 'INSUFFICIENT_CASH', 409);
       airport.cash -= body.amountCash;
-      const receipt = {sequence: next.payouts.length + 1, requestId: body.requestId, profileId: document.ownerId, installationId: document.installationId, airportId: body.airportId, amountCash: body.amountCash, amountDorra, at: now()};
+      const receipt = {sequence: next.payouts.length + 1, requestId: body.requestId, profileId: document.ownerId, installationId: document.installationId, airportId: body.airportId, amountCash: body.amountCash, amountDorra, at};
       next.payouts.push(receipt);
       next.requests[body.requestId] = {digest, revision: next.career.revision, sequence: receipt.sequence};
       await persist(next);
-      return {...response(report), receipt};
+      return {...respond(report), receipt};
     }
     if (route === 'bridge/ack') {
       checkBody(body, ['profileId', 'installationId', 'sequence']);

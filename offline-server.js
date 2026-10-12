@@ -1,11 +1,11 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const {createHash} = require('crypto');
-const {spawn} = require('child_process');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import {createHash} from 'node:crypto';
+import {spawn} from 'node:child_process';
 
-const root = __dirname, host = '127.0.0.1';
+const root = import.meta.dirname, host = '127.0.0.1';
 const port = Number(process.env.DORRA_PORT || 4173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('DORRA_PORT must be a port between 1024 and 65535.');
 const origin = `http://${host}:${port}`;
