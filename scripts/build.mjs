@@ -10,7 +10,10 @@ const destination = path.join(root, 'dist');
 const cache = path.join(root, 'work/build-cache/webp-q95-v1');
 const publicFolders = new Set(['assets', 'airport', 'football', 'vendor']);
 const ignoredFolders = new Set(['qa', 'work', 'node_modules', '.git']);
-const ignoredFiles = new Set(['offline-server.js', 'save-worker.js', 'server.mjs', 'store.mjs', 'vault-bridge.mjs']);
+const ignoredFiles = new Set(['offline-server.js', 'save-worker.js', 'server.mjs', 'store.mjs', 'vault-bridge.mjs',
+  'airport-browser-operations-regression.mjs', 'airport-operations-regression.test.mjs',
+  'airport-service-regression.test.mjs', 'airport-traffic-operations-regression.test.mjs',
+  'airport-operation-routing-regression.test.mjs', 'operations-route-compiler.mjs']);
 const textExtensions = new Set(['.html', '.css', '.js', '.mjs', '.json', '.geojson', '.svg', '.txt']);
 const fileExtensions = new Set([...textExtensions, '.png', '.webp', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.otf', '.mp3', '.wav', '.ogg', '.mp4']);
 const sizeLimit = 900 * 1024 * 1024;

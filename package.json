@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "serve": "node scripts/serve.mjs",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs airport-operations-regression.test.mjs airport-service-regression.test.mjs airport-traffic-operations-regression.test.mjs airport-operation-routing-regression.test.mjs",
+    "test:airport:browser": "node airport-browser-operations-regression.mjs",
     "test:browser": "node --test tests/*.browser.mjs",
     "check": "node scripts/check.mjs",
     "bundle:server": "node scripts/bundle-server.mjs"
