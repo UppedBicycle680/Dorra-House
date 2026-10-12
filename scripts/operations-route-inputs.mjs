@@ -13,7 +13,7 @@ export async function operationsRouteSourceHashes(){
   while(pending.length){
     const path=pending.pop();if(excluded.has(path)||hashes[path])continue;
     const url=new URL(path,root),source=await readFile(url,'utf8');
-    hashes[path]=createHash('sha256').update(source).digest('hex');
+    hashes[path]=createHash('sha256').update(source.replace(/\r\n?/g,'\n')).digest('hex');
     for(const match of source.matchAll(/\bfrom\s+['"](\.[^'"]+\.mjs)['"]/g)){
       const dependency=new URL(match[1],url),relative=decodeURIComponent(dependency.href.slice(root.href.length));
       if(dependency.href.startsWith(root.href))pending.push(relative);
