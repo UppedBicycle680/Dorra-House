@@ -6,6 +6,7 @@ import {reduceAirport} from './airport.mjs';
 import {reduceFootball} from './football.mjs';
 import {reduceCampaign} from './campaign.mjs';
 import {encodeResult,decodeResult} from './response-codec.mjs';
+import {sessionRefresh} from './session-refresh.mjs';
 
 const origins=new Set(['https://uppedbicycle680.github.io','http://localhost:4173','http://127.0.0.1:4173']);
 const admin=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -38,11 +39,12 @@ Deno.serve(async req=>{
       const saved=await rpc('dorra_acquire_session',{...identity,p_initial:fresh(now,'Member')});
       return reply({snapshot:saved.snapshot,revision:saved.revision,username:saved.username,serverNow:now});
     }
-    const saved=await rpc('dorra_read_state',identity),digest=await commandDigest(body);
+    const saved=await rpc('dorra_read_state',identity);
+    if(body.scope==='session'&&body.action==='refresh')return reply(sessionRefresh(saved,body.expectedRevision,now,body.args.ifChanged===true));
+    const digest=await commandDigest(body);
     const cached=saved.recentRequests.find((r:any)=>r.id===body.requestId.toLowerCase());
     if(cached){if(cached.digest!==digest)fail('Request identifier already used.','REQUEST_REUSED',409);return reply({snapshot:saved.snapshot,revision:saved.revision,result:await decodeResult(cached.result),replayed:true,serverNow:now});}
     if(saved.revision!==body.expectedRevision)fail('Your save changed. Reload its latest state and retry.','STALE_REVISION',409);
-    if(body.scope==='session'&&body.action==='refresh')return reply({snapshot:saved.snapshot,revision:saved.revision,result:{},serverNow:now});
     const reducer=reducers[body.scope];if(!reducer)fail('Unknown gameplay command.');
     const output=await reducer(structuredClone(saved.snapshot),structuredClone(saved.privateState),body.action,body.args,now);
     if(!Number.isSafeInteger(output.snapshot.balance)||output.snapshot.balance<0||output.snapshot.balance>9_000_000_000_000_000)fail('The action would exceed the wallet limit.');

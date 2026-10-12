@@ -105,6 +105,12 @@ async function initialize() {
   dom.panel.hidden = false;
   dom.app.setAttribute('aria-busy', 'false');
   controller.setActive(true);
+  vault.subscribe(value => {
+    snapshot = clone(value);
+    campaignState = snapshot.progress?.campaign ? normalizeCampaign(snapshot.progress.campaign) : null;
+    renderSharedBalance();
+    controller.render();
+  });
 }
 
 initialize().catch(showFatal);

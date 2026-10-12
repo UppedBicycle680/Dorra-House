@@ -3908,6 +3908,13 @@ async function initialize() {
   } else {
     showOnboarding();
   }
+  vault.subscribe(value => {
+    snapshot = clone(value);
+    const saved = snapshot?.progress?.footballManager;
+    footballState = saved ? normalizeState(saved) : null;
+    if (footballState) { if (dom.workspace.hidden) showWorkspace(); else { syncWorkspaceHeader(); renderActiveView(false); } }
+    else showOnboarding();
+  });
 }
 
 initialize().catch(showFatal);

@@ -42,6 +42,23 @@ The build uses valid same-model/trim/paint artwork for one corrupt upstream Tayc
 
 Free-plan capacity depends on active-player traffic, save sizes and Supabase’s current quotas. Monitor Database size, Edge Function invocations, CPU and egress in the project dashboard. Accounts with large football careers and active market history cost more storage than fresh accounts. The code bounds archives and replay data, but no fixed player capacity is promised.
 
+## Automatic cloud refresh
+
+Visible game pages check for external save changes every 15 seconds and when
+the player returns to the tab or reconnects. Conditional refresh responses omit
+the snapshot when its revision is unchanged. A changed wallet updates the House,
+Estate, Football, Strategic Command and the airport withdrawal balance without
+reloading or acquiring a new gameplay lease.
+
+If an owner update races with a gameplay command, the client fetches the latest
+save. View/load commands retry once; purchases, wagers and other decisions ask
+the player to review the updated state and retry. Network retries keep the same
+request identifier, and replaced/revoked sessions remain blocked.
+
+Release the backward-compatible `dorra-api` function before publishing the new
+client. No database migration or Realtime publication is required. Older clients
+continue receiving full snapshots for unconditional session refresh requests.
+
 ## Validation
 
 Regression tests cover all thirteen house activities, authoritative costs and rewards, hidden information, market settlement, airport catch-up/withdrawals, football season progression and visual match authority, campaign commands, and malformed/forged payloads.

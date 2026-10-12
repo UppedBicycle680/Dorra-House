@@ -148,7 +148,9 @@ try {
         return reply({snapshot:cloudSave.snapshot,revision:cloudSave.revision,serverNow:clock});
       }
       if(sessionReplaced)return reply({error:'Another device started a gameplay session.',code:'SESSION_REPLACED'},409);
-      assert.equal(body.leaseId,cloudSave.leaseId);assert.equal(body.scope,'airport');
+      assert.equal(body.leaseId,cloudSave.leaseId);
+      if(body.scope==='session'&&body.action==='refresh')return reply(body.args.ifChanged===true&&body.expectedRevision===cloudSave.revision?{unchanged:true,revision:cloudSave.revision,serverNow:clock}:{snapshot:cloudSave.snapshot,revision:cloudSave.revision,result:{},serverNow:clock});
+      assert.equal(body.scope,'airport');
       const digest=await commandDigest(body),cached=cloudSave.recentRequests.find(r=>r.id===body.requestId);
       if(cached){
         assert.equal(cached.digest,digest);latest=await decodeResult(cached.result);
