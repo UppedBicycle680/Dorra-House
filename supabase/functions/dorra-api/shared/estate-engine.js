@@ -1,6 +1,9 @@
 // Shared, DOM-free Dorra Estate rules. Wallet changes belong to the caller so
 // the same commands can run in the local vault and the authoritative cloud API.
-export const ESTATE_SCHEMA_VERSION = 1;
+export const ESTATE_SCHEMA_VERSION = 2;
+export const ESTATE_CONTINUOUS_MS = 120;
+const MAX_ESTATE_PRICE = 9_000_000_000_000; // Fits the existing shared House wallet.
+const MAX_CYCLE_PAYOUT = 1_000_000_000;
 export const ESTATE_TAP_INTERVAL_MS = 300;
 export const ESTATE_RUSH_EVERY = 10;
 export const ESTATE_VIP_EVERY = 25;
@@ -63,7 +66,7 @@ const GOALS = [
   {id:'hundred-services', name:'The personal touch', copy:'Serve 100 customers yourself.', target:100, amount:1_000, metric:'served'},
   {id:'management-team', name:'In good hands', copy:'Hire managers for three venues.', target:3, amount:5_000, metric:'managed'},
   {id:'estate-complete', name:'The whole House', copy:'Open all six Dorra venues.', target:6, amount:25_000, metric:'owned'},
-  {id:'thirty-stars', name:'A Dorra institution', copy:'Reach Level 5 in all six venues.', target:30, amount:50_000, metric:'stars'}
+  {id:'thirty-stars', name:'A Dorra institution', copy:'Reach Level 5 in all six venues.', target:30, amount:50_000, metric:'foundationStars'}
 ];
 
 /** Preserve the old estate and add a separate, versioned clicker save. */
@@ -76,7 +79,7 @@ export function normalizeEstate(progress, now=Date.now()) {
   empire.lifetimeEarned=integer(empire.lifetimeEarned);
   for (const venue of ESTATE_VENUES) {
     const entry=empire.venues[venue.id]=isObject(empire.venues[venue.id])?empire.venues[venue.id]:{};
-    entry.level=integer(entry.level,5);
+    entry.level=integer(entry.level);
     entry.manager=entry.level>0 && !!entry.manager;
     entry.focus=['balanced','yield','service','prestige'].includes(entry.focus)?entry.focus:'balanced';
     entry.purchasedAt=integer(entry.purchasedAt);
@@ -101,7 +104,11 @@ export function normalizeEstate(progress, now=Date.now()) {
     const activity=clicker.venues[venue.id]=isObject(clicker.venues[venue.id])?clicker.venues[venue.id]:{};
     activity.served=integer(activity.served);
     activity.customers=integer(activity.customers);
-    activity.cycleElapsedMs=bounded(activity.cycleElapsedMs,venue.cycleMs-1);
+    activity.cycleElapsedMs=bounded(activity.cycleElapsedMs,estateCycleMs(venue,empire.venues[venue.id].level));
+    activity.manualStartedAt=integer(activity.manualStartedAt);
+    activity.manualEndsAt=integer(activity.manualEndsAt);
+    activity.manualPayout=integer(activity.manualPayout,MAX_CYCLE_PAYOUT*5);
+    activity.manualVip=!!activity.manualVip;
     activity.rushUntil=integer(activity.rushUntil);
   }
   empire.lastAccruedAt=clicker.lastAccruedAt;
@@ -118,11 +125,20 @@ function incomeMultiplier(progress, venue) {
   return focus*(1+projects*.025+headquarters*.01+(typeof entry.specialization==='string'&&entry.specialization.length ? .05 : 0));
 }
 
+export function estateCycleMs(venue,level) {
+  return Math.max(1,venue.cycleMs*Math.pow(.96,Math.max(0,level-5))/Math.pow(2,Math.min(30,Math.floor(level/25))));
+}
+export function estateUpgradePrice(venue,level) {
+  return level<5?venue.costs[level]:Math.min(MAX_ESTATE_PRICE,Math.ceil(venue.costs[4]*Math.pow(1.12,Math.min(600,level-4))));
+}
+export function estateLevelPayout(venue,level) {
+  return level<=5?(venue.payouts[Math.max(0,level-1)]||0):Math.min(MAX_CYCLE_PAYOUT,Math.round(venue.payouts[4]*(1+.15*(level-5))*Math.pow(2,Math.min(30,Math.floor(level/25)))));
+}
 function values(progress, venue) {
   const entry=progress.empire.venues[venue.id];
-  const payout=entry.level?Math.max(1,Math.round(venue.payouts[entry.level-1]*incomeMultiplier(progress,venue))):0;
-  // Stable cycle lengths mean upgrading cannot reprice an unfinished cycle.
-  return {payout, cycleMs:venue.cycleMs, autoPerMinute:entry.manager?payout/venue.cycleMs*60_000:0};
+  const payout=entry.level?Math.min(MAX_CYCLE_PAYOUT,Math.max(1,Math.round(estateLevelPayout(venue,entry.level)*incomeMultiplier(progress,venue)))):0;
+  const cycleMs=estateCycleMs(venue,entry.level);
+  return {payout, cycleMs, autoPerMinute:entry.manager?payout/cycleMs*60_000:0};
 }
 
 /** A rate lookup never settles income or changes the caller's clock. */
@@ -137,6 +153,18 @@ export function accrueEstate(progress, now=Date.now()) {
   normalizeEstate(progress,now);
   now=timestamp(now);
   const empire=progress.empire, clicker=empire.clicker;
+  // A manual run is a saved server timer. Its frozen payout survives upgrades,
+  // reloads and manager hiring, and completes exactly once even while away.
+  for(const venue of ESTATE_VENUES) {
+    const activity=clicker.venues[venue.id];
+    if(activity.manualEndsAt&&now>=activity.manualEndsAt) {
+      empire.pending=bounded(empire.pending+activity.manualPayout);
+      clicker.manualEarned=bounded(clicker.manualEarned+activity.manualPayout);
+      activity.served=integer(activity.served+1);activity.customers=integer(activity.customers+1);clicker.served=integer(clicker.served+1);
+      if(activity.served%ESTATE_RUSH_EVERY===0)activity.rushUntil=activity.manualEndsAt+ESTATE_RUSH_MS;
+      activity.manualStartedAt=0;activity.manualEndsAt=0;activity.manualPayout=0;activity.manualVip=false;
+    }
+  }
   if (now<=clicker.lastAccruedAt) return Math.floor(empire.pending);
   const managers=ESTATE_VENUES.filter(venue=>empire.venues[venue.id].manager);
   const elapsed=managers.length?Math.min(now-clicker.lastAccruedAt,Math.max(0,capMs(progress)-clicker.bankMs)):0;
@@ -162,7 +190,7 @@ export function estateGoals(progress) {
   normalizeEstate(progress);
   const empire=progress.empire, clicker=empire.clicker;
   const metrics={served:clicker.served,managed:ESTATE_VENUES.filter(venue=>empire.venues[venue.id].manager).length,
-    owned:ESTATE_VENUES.filter(venue=>empire.venues[venue.id].level>0).length,stars:stars(progress)};
+    owned:ESTATE_VENUES.filter(venue=>empire.venues[venue.id].level>0).length,stars:stars(progress),foundationStars:ESTATE_VENUES.reduce((sum,v)=>sum+Math.min(5,empire.venues[v.id].level),0)};
   return GOALS.map(goal=>({...goal,reward:goal.amount,value:metrics[goal.metric],progress:Math.min(1,metrics[goal.metric]/goal.target),
     complete:metrics[goal.metric]>=goal.target,claimed:clicker.claimedGoals.includes(goal.id)}));
 }
@@ -176,9 +204,13 @@ export function estateSnapshot(progress, now=Date.now()) {
     const rushRemainingMs=owned?Math.max(0,activity.rushUntil-now):0;
     return {...venue,level:entry.level,manager:entry.manager,managerName:manager.name,managerTitle:manager.title,owned,unlocked,
       requirements:venue.stars?[{label:`Earn ${venue.stars} estate stars`,met:estateStars>=venue.stars}]:[],
-      openCost:venue.costs[0],upgradeCost:entry.level<5?venue.costs[entry.level]:0,managerCost:manager.cost,canHire:entry.level>=2&&!entry.manager,
+      openCost:venue.costs[0],upgradeCost:estateUpgradePrice(venue,entry.level),managerCost:manager.cost,canHire:entry.level>=2&&!entry.manager,
       baseTapValue:stats.payout,tapValue:Math.round(stats.payout*(rushRemainingMs>0?1.5:1)),cycleMs:stats.cycleMs,autoPerMinute:stats.autoPerMinute,
-      cycleProgress:entry.manager?activity.cycleElapsedMs/stats.cycleMs:0,customers:activity.customers,served:activity.served,
+      cycleProgress:entry.manager?activity.cycleElapsedMs/stats.cycleMs:activity.manualEndsAt?Math.min(1,Math.max(0,(now-activity.manualStartedAt)/(activity.manualEndsAt-activity.manualStartedAt))):0,
+      running:entry.manager||activity.manualEndsAt>now,remainingMs:entry.manager?stats.cycleMs-activity.cycleElapsedMs:Math.max(0,activity.manualEndsAt-now),
+      continuous:entry.manager&&stats.cycleMs<=ESTATE_CONTINUOUS_MS,cyclePayout:activity.manualEndsAt?activity.manualPayout:stats.payout,
+      nextPayout:Math.min(MAX_CYCLE_PAYOUT,Math.round(estateLevelPayout(venue,entry.level+1)*incomeMultiplier(progress,venue))),nextCycleMs:estateCycleMs(venue,entry.level+1),
+      nextSpeedLevel:(Math.floor(entry.level/25)+1)*25,customers:activity.customers,served:activity.served,
       vipIn:ESTATE_VIP_EVERY-activity.served%ESTATE_VIP_EVERY,rushRemainingMs,rushEvery:ESTATE_RUSH_EVERY,vipEvery:ESTATE_VIP_EVERY,
       status:owned?(entry.manager?'automated':'manual'):(unlocked?'available':'locked')};
   });
@@ -212,6 +244,21 @@ export function serveEstateCustomer(progress, venueId, now=Date.now()) {
     vipIn:ESTATE_VIP_EVERY-activity.served%ESTATE_VIP_EVERY};
 }
 
+/** Start one timed run; the endpoint never pays the quoted reward at tap time. */
+export function startEstateCycle(progress,venueId,now=Date.now()) {
+  accrueEstate(progress,now);
+  const venue=venueById(venueId),empire=progress.empire,clicker=empire.clicker;
+  if(!venue||!empire.venues[venue.id].level)return fail('Open this venue first.');
+  if(now<clicker.lastAccruedAt)return fail('Service will resume when your clock catches up.');
+  if(empire.venues[venue.id].manager)return fail('Your manager is already running this business.');
+  const activity=clicker.venues[venue.id];
+  if(activity.manualEndsAt>now)return fail('This business is already serving a customer.');
+  const vip=(activity.served+1)%ESTATE_VIP_EVERY===0,stats=values(progress,venue);
+  activity.manualStartedAt=now;activity.manualEndsAt=now+Math.max(1,Math.ceil(stats.cycleMs));
+  activity.manualPayout=Math.round(stats.payout*(activity.rushUntil>now?1.5:1)*(vip?3:1));activity.manualVip=vip;
+  return {ok:true,amount:0,started:true,payout:activity.manualPayout,endsAt:activity.manualEndsAt,venue:venueId,vip};
+}
+
 function purchase(progress, venueId, balance, now, type) {
   normalizeEstate(progress,now);
   const venue=venueById(venueId);
@@ -225,8 +272,7 @@ function purchase(progress, venueId, balance, now, type) {
     cost=venue.costs[0];
   } else if (type==='upgrade') {
     if (!entry.level) return fail('Open this venue before upgrading it.');
-    if (entry.level>=5) return fail('This venue is fully upgraded.');
-    cost=venue.costs[entry.level];
+    cost=estateUpgradePrice(venue,entry.level);
   } else {
     if (entry.level<2) return fail('Reach Level 2 to hire this manager.');
     if (entry.manager) return fail('This manager is already on duty.');
@@ -235,9 +281,11 @@ function purchase(progress, venueId, balance, now, type) {
   if (balance<cost) return {...fail('More capital is needed.'),cost,shortfall:cost-balance};
   // Settle earned money at the OLD payout before changing levels or automation.
   accrueEstate(progress,now);
+  const oldCycle=estateCycleMs(venue,entry.level),phase=progress.empire.clicker.venues[venue.id].cycleElapsedMs/oldCycle;
   if (type==='manager') entry.manager=true;
   else {
     entry.level++;
+    progress.empire.clicker.venues[venue.id].cycleElapsedMs=phase*estateCycleMs(venue,entry.level);
     if (type==='open') entry.purchasedAt=timestamp(now);
   }
   return {ok:true,cost,venue:venue.id,level:entry.level,manager:entry.manager};

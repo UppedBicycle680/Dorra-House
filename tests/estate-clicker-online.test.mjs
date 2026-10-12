@@ -13,7 +13,8 @@ test('authoritative route opens, serves, rewards milestones and preserves other 
   const opening=await reduce(state,'estate-clicker-open',{venueId:'terrace'});state=opening.snapshot;
   assert.equal(state.balance,4750);assert.equal(state.progress.empire.venues.terrace.level,1);
   const served=await reduce(state,'estate-clicker-serve',{venueId:'terrace'});state=served.snapshot;
-  assert.equal(served.result.amount,12);assert.equal(state.balance,4762);
+  assert.equal(served.result.amount,0);assert.equal(state.balance,4750);
+  const tick=await reduce(state,'estate-clicker-tick',{},NOW+5000);state=tick.snapshot;assert.equal(tick.result.amount,12);
   const goal=await reduce(state,'estate-clicker-goal',{goalId:'first-service'});state=goal.snapshot;
   assert.equal(goal.result.amount,75);assert.equal(state.balance,4837);
   assert.deepEqual(state.progress.sentinel,{retained:true});
@@ -42,9 +43,10 @@ test('legacy estate commands cannot bypass clicker prices or grant a simulated w
 test('server cooldown rejects duplicate taps without awarding money',async()=>{
   let state=(await reduce(fixture(),'estate-clicker-open',{venueId:'terrace'})).snapshot;
   state=(await reduce(state,'estate-clicker-serve',{venueId:'terrace'},NOW)).snapshot;
-  await assert.rejects(reduce(state,'estate-clicker-serve',{venueId:'terrace'},NOW+299),/arriving/);
-  assert.equal(state.balance,4762);
-  assert.equal((await reduce(state,'estate-clicker-serve',{venueId:'terrace'},NOW+300)).result.amount,12);
+  await assert.rejects(reduce(state,'estate-clicker-serve',{venueId:'terrace'},NOW+299),/already serving/);
+  assert.equal(state.balance,4750);
+  assert.equal((await reduce(state,'estate-clicker-tick',{},NOW+4999)).result.amount,0);
+  assert.equal((await reduce(state,'estate-clicker-tick',{},NOW+5000)).result.amount,12);
 });
 
 test('server upgrades before hiring and pays capped offline automation once',async()=>{
@@ -72,17 +74,20 @@ test('new progress survives JSON serialization and normalizer while staying smal
 
 test('server wallet overflow cannot produce unsafe integers',async()=>{
   let state=(await reduce(fixture(),'estate-clicker-open',{venueId:'terrace'})).snapshot;
+  state=(await reduce(state,'estate-clicker-serve',{venueId:'terrace'})).snapshot;
   state.balance=MAX_BALANCE;
-  await assert.rejects(reduce(state,'estate-clicker-serve',{venueId:'terrace'}),/reached its limit/);
-  assert.equal(state.progress.empire.clicker.served,0);
+  const full=await reduce(state,'estate-clicker-tick',{},NOW+5000);assert.equal(full.result.amount,0);assert.equal(full.snapshot.balance,MAX_BALANCE);assert.equal(full.snapshot.progress.empire.pending,12);
+  full.snapshot.balance-=100;const recovered=await reduce(full.snapshot,'estate-clicker-tick',{},NOW+5000);assert.equal(recovered.result.amount,12);
 });
 
 test('legacy Level 1 manager ownership survives authoritative migration and subsequent commands',async()=>{
   const state=initializeHouse({balance:1000,progress:{empire:{pending:17.75,venues:{terrace:{level:1,manager:true}}}}},NOW);
   assert.equal(state.progress.empire.venues.terrace.manager,true);
-  const served=await reduce(state,'estate-clicker-serve',{venueId:'terrace'});
+  const served=await reduce(state,'estate-clicker-tick',{});
   assert.equal(served.snapshot.progress.empire.venues.terrace.manager,true);
-  assert.equal(served.snapshot.progress.empire.pending,17.75);
+  assert.equal(served.result.amount,17);
+  assert.equal(served.snapshot.balance,1017);
+  assert.equal(served.snapshot.progress.empire.pending,.75);
 });
 
 test('normalizing a historical server timestamp cannot accrue the machine wall clock',async()=>{

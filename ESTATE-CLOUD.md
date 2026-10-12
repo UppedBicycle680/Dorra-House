@@ -10,20 +10,23 @@ Estate sends the following intentions through `vault.dispatch('house', action, a
 | --- | --- |
 | `estate-clicker-open` | `{venueId}` |
 | `estate-clicker-serve` | `{venueId}` |
-| `estate-clicker-upgrade` | `{venueId}` |
+| `estate-clicker-upgrade` | `{venueId, quantity}` (1, 10, or 100) |
 | `estate-clicker-manager` | `{venueId}` |
 | `estate-clicker-claim` | `{}` |
+| `estate-clicker-tick` | `{}` |
 | `estate-clicker-goal` | `{goalId}` |
 
 The existing online controller adopts the returned account snapshot and refreshes the House UI. The client never uploads a complete save, balance, price, payout, timestamp, or outcome. A failed cloud command reports an error and cannot execute locally as a fallback.
 
 `vault.serverNow` provides the server-aligned wall clock for presentation. Rendering uses a cloned progress object, so animated manager cycles cannot change the authoritative save. Rate calculations use `estateAutoPerMinute`, which cannot accrue income from the browser or execution host clock.
 
-The existing database limit is 180 committed gameplay actions per minute. Cloud serving throttles to at least 400 milliseconds and permits only one outstanding action. The shared rules enforce a 300 millisecond service cooldown across all venues.
+The existing database limit is 180 committed gameplay actions per minute. The browser permits one outstanding action and collects whole-dollar income at most once per 1.5 seconds, with exponential backoff on failed background saves. A manual tap starts a saved server timer and freezes its payout; it cannot restart an active run. Completion is settled once, including after reload or manager hiring. Managers earn with fractional elapsed-time accounting, avoiding loops over very fast cycles. Cycles at or below 120 milliseconds render as a solid animated bar.
+
+Upgrades continue beyond Level 5, with authoritative bulk purchases of 1, 10, or 100 levels. Every 25 levels boosts income and speed. Legacy prices and rewards through Level 5 are preserved. The existing safe-integer House wallet remains bounded: cycle time floors at 1 ms, payouts cap at $1 billion per cycle, and individual upgrade prices cap at $9 trillion. No five-level gameplay cap remains; this is not an arbitrary-precision currency system. A full wallet retains unpaid bank income.
 
 ## Supabase backend
 
-`supabase/functions/dorra-api/estate.mjs` validates the six commands and calls the shared rules in `shared/estate-engine.js`. Costs, manager eligibility, service bonuses, milestone rewards, and timestamps are server-derived. Wallet settlements require safe whole-dollar integers and reject overflow.
+`supabase/functions/dorra-api/estate.mjs` validates the seven commands and calls the shared rules in `shared/estate-engine.js`. Costs, manager eligibility, service bonuses, milestone rewards, and timestamps are server-derived. Wallet settlements require safe whole-dollar integers and reject overflow.
 
 `house-progression.mjs` initializes the versioned clicker state during the existing House bootstrap and dispatches the new actions. Legacy Estate management commands are retired, including the old instant business-week reward, preventing old clients from bypassing the new economy. Other House, casino, contract, story, airport, campaign, and football commands retain their existing routes.
 
@@ -41,9 +44,9 @@ Deploy the complete `supabase/functions/dorra-api/` directory as the existing `d
 
 ## Verification
 
-Run `npm run check`, `npm test`, and the relevant browser tests. The Estate tests live in `tests/estate-engine.test.mjs`, `tests/estate-clicker-online.test.mjs`, and the Estate sections of `tests/house-progression-online.test.mjs`.
+Run `npm run check`, `npm test`, and the relevant browser tests. The Estate tests live in `tests/estate-cycles.test.mjs`, `tests/estate-engine.test.mjs`, `tests/estate-clicker-online.test.mjs`, and the Estate sections of `tests/house-progression-online.test.mjs`.
 
-They cover prices, star gates, cooldowns, managers, offline caps, fractional earnings, VIP/rush rewards, wallet limits, milestone replay, migration investment, legacy action rejection, JSON saves, and historical server-clock normalization. The existing vault browser test covers Auth, ordered commands, uncertain-delivery request replay, cloned snapshots, and session replacement.
+They cover prices, star gates, saved timers, unlimited levels, bulk purchases, managers, offline caps, fractional earnings, VIP/rush rewards, wallet limits, milestone replay, migration investment, legacy action rejection, JSON saves, and historical server-clock normalization. The existing vault browser test covers Auth, ordered commands, uncertain-delivery request replay, cloned snapshots, and session replacement.
 
 `node scripts/check-estate-online.mjs` exercises the deployed service with a disposable account: opening, manual service, milestone claims, upgrade, manager hire, automatic income, rejected tampering, same-request replay, and restoration after a fresh sign-in. It verifies email auto-confirm before signup, signs out its sessions, prints no credentials or player save, and returns only the temporary account UUID/username for narrowly scoped cleanup. Remove that QA Auth account and its cascading game data after the run.
 

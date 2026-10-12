@@ -66,15 +66,20 @@ export async function checkEstateOnline(fetchImpl=fetch) {
     passed('Authenticated cloud session acquired');
     stage='Estate migration and opening';
     await run('view');
-    ensure(current.snapshot.progress?.empire?.clicker?.schemaVersion===1,'The account did not migrate to the clicker estate.');
+    ensure(current.snapshot.progress?.empire?.clicker?.schemaVersion===2,'The account did not migrate to the clicker estate.');
     const initial=current.snapshot.balance,opening=await run('estate-clicker-open',{venueId:'terrace'});
     ensure(initial-current.snapshot.balance===250,'Terrace opening used the wrong server price.');
     await replay(opening.command,opening.value);
     passed('Terrace opening persists with the server price and idempotent replay');
     stage='Manual service and milestone';
     const served=await run('estate-clicker-serve',{venueId:'terrace'});
-    ensure(served.value.result?.amount===12&&current.snapshot.progress.empire.clicker.served===1,'Manual coffee service did not save.');
+    ensure(served.value.result?.amount===0&&served.value.result?.payout===12,'Manual service must start a timer without paying early.');
     await replay(served.command,served.value);
+    await reject('estate-clicker-serve',{venueId:'terrace'},'Repeated active timer');
+    await sleep(5100);
+    const completed=await run('estate-clicker-tick');
+    ensure(completed.value.result?.amount===12&&current.snapshot.progress.empire.clicker.served===1,'Completed timer did not pay exactly once.');
+    await replay(completed.command,completed.value);
     const goal=await run('estate-clicker-goal',{goalId:'first-service'});
     ensure(goal.value.result?.amount===75,'The first-service milestone used the wrong reward.');
     await reject('estate-clicker-goal',{goalId:'first-service'},'Repeated milestone');
@@ -94,15 +99,16 @@ export async function checkEstateOnline(fetchImpl=fetch) {
     ensure(current.snapshot.progress.empire.venues.terrace.level===2,'Terrace upgrade did not save.');
     await run('arrival',{path:'owner'});
     for(let count=0;current.snapshot.balance<1200&&count<30;count++) {
-      await sleep(450);
       await run('estate-clicker-serve',{venueId:'terrace'});
+      await sleep(5100);
+      await run('estate-clicker-tick');
     }
     ensure(current.snapshot.balance>=1200,'Manual service did not earn enough to hire the manager.');
     const beforeManager=current.snapshot.balance;
     await run('estate-clicker-manager',{venueId:'terrace'});
     ensure(current.snapshot.progress.empire.venues.terrace.manager===true&&beforeManager-current.snapshot.balance===1200,'Manager purchase did not use the saved eligibility and server price.');
     await sleep(1600);
-    const income=await run('estate-clicker-claim');
+    const income=await run('estate-clicker-tick');
     ensure(income.value.result?.amount>=5,'Managed service did not generate collectible income.');
     await replay(income.command,income.value);
     passed('Upgrades, manager purchase, automatic earnings and collection persist');

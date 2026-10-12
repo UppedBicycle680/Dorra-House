@@ -103,7 +103,7 @@ test('clicker venues enforce server prices and stars without requiring a casino 
   await assert.rejects(()=>act(f,'estate-clicker-open',{venueId:'hotel'}),/stars/);
   await assert.rejects(()=>act(f,'estate-clicker-open',{venueId:'not-a-venue'}),/unavailable/);
   for(let level=2;level<=5;level++)await act(f,'estate-clicker-upgrade',{venueId:'terrace'});
-  await assert.rejects(()=>act(f,'estate-clicker-upgrade',{venueId:'terrace'}),/fully/);
+  await act(f,'estate-clicker-upgrade',{venueId:'terrace'});assert.equal(f.snapshot.progress.empire.venues.terrace.level,6);
   Object.assign(f.snapshot.progress.empire.venues,{valet:{level:5},boutique:{level:3}});
   const racing=await act(f,'estate-clicker-open',{venueId:'grandprix'});
   assert.equal(racing.cost,240000);
@@ -144,7 +144,7 @@ test('clicker directors require Level 2 and retained contract directives cannot 
 test('migration preserves staff, specialization and venue investment through clicker service', async () => {
   const specialization=EMPIRE_SPECIALIZATIONS.terrace[0].id,improvement=EMPIRE_VENUE_IMPROVEMENTS[0].id;
   const f=fixture({progress:{empire:{venues:{terrace:{level:3,manager:true,purchasedAt:NOW-10000,staff:{service:2},specialization,improvements:{[improvement]:2}}}}}});
-  await act(f,'estate-clicker-serve',{venueId:'terrace'});
+  await act(f,'estate-clicker-tick',{});
   const entry=f.snapshot.progress.empire.venues.terrace;
   assert.equal(entry.purchasedAt,NOW-10000);assert.equal(entry.manager,true);
   assert.equal(entry.staff.service,2);assert.equal(entry.specialization,specialization);assert.equal(entry.improvements[improvement],2);
@@ -155,7 +155,7 @@ test('retained headquarters and venue capital projects improve clicker payouts',
   const hq=EMPIRE_HEADQUARTERS_UPGRADES[0].id,improvement=EMPIRE_VENUE_IMPROVEMENTS[0].id;
   const f=fixture({progress:{empire:{headquarters:{[hq]:1},venues:{terrace:{level:2,improvements:{[improvement]:1}}}}}});
   const served=await act(f,'estate-clicker-serve',{venueId:'terrace'});
-  assert(served.amount>18);
+  assert(served.payout>18);
   assert.equal(f.snapshot.progress.empire.headquarters[hq],1);
   assert.equal(f.snapshot.progress.empire.venues.terrace.improvements[improvement],1);
   await assert.rejects(()=>act(f,'estate-headquarters-upgrade',{upgradeId:hq}),/Estate has changed/);
