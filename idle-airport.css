@@ -40,3 +40,48 @@
 .route-requirements{font-size:10px;line-height:1.6;color:#6d8a74;margin:11px 0}.route-requirements>summary{cursor:pointer;font-weight:700}.route-requirements .requirements{margin-top:7px}.route-requirements>summary:focus-visible{outline:3px solid #57a787;outline-offset:3px}
 @media(max-height:700px) and (min-width:761px){.flight-control-hud{top:285px;width:270px;padding:10px}.flight-ticker{top:260px}#airportHud[data-airport-id="granite-plains"] .flight-control-hud{top:315px}.incident-banner{margin-top:7px;padding:8px}.incident-heading{margin-bottom:5px}}
 html[data-session-state="ended"] #airportFatal{pointer-events:auto}
+
+/* Keep account controls in their own row and clear of modal content. */
+body:has(.airport-app) .online-account{z-index:20}
+body:has(#airportDialog:not([hidden])) .online-account{visibility:hidden}
+@media(max-width:760px), (max-height:600px){
+ body:has(.airport-app) .online-account{bottom:4px;left:12px;max-width:calc(100vw - 24px);padding:2px 8px;font-size:9px;gap:8px}
+ .bottom-hud{bottom:44px}
+ .save-indicator{bottom:33px}
+ body:has(.airport-app) .airport-dashboard{padding-bottom:60px}
+}
+@media(max-width:360px){
+ .currency-cluster{min-width:0;gap:5px}
+ .currency{flex-basis:0;min-width:0;padding:5px;gap:0}
+ .currency-icon{display:none}
+ .currency>span:nth-child(2){min-width:0;max-width:100%}
+ .currency strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media(max-width:760px) and (max-height:650px){
+ .camera-controls{top:154px;bottom:auto;right:10px;width:40px;height:auto;flex-direction:column}
+ .camera-controls button{flex-shrink:0}
+ .flight-control-hud{max-height:max(130px,calc(100dvh - 395px));overflow:auto}
+}
+@media(min-width:761px) and (max-height:600px){
+ .airport-app{min-height:0}
+ .location-hud{top:76px;left:12px;width:240px;padding:12px 12px 0}
+ .flight-control-hud,#airportHud[data-airport-id="granite-plains"] .flight-control-hud{top:76px;left:auto;right:12px;width:270px;max-height:calc(100dvh - 190px);overflow:auto}
+ .bottom-hud{bottom:44px;gap:12px}
+ .game-dock{padding:4px 8px}
+ .dock-button{min-width:58px;padding:3px 8px}
+ .dock-button .dock-icon{font-size:20px}
+ .dock-button strong{font-size:8px}
+ .boost-button{height:58px;min-width:180px}
+ .camera-controls{top:76px;bottom:auto;left:50%;right:auto;transform:translateX(-50%)}
+ .network-shortcut{top:76px;left:260px;right:auto;width:44px;padding:0;justify-content:center}
+ .network-shortcut>span:not(:first-child),.network-shortcut>strong,.network-shortcut>small,.network-shortcut>i{display:none}
+ .flight-ticker,.world-hint,.scene-caption{display:none}
+ .build-inspector{top:76px;max-height:calc(100dvh - 140px)}
+}
+
+@media(max-width:760px){
+ .currency-cluster{min-width:0}
+ .currency{flex-basis:0;min-width:0}
+ .currency>span:nth-child(2){min-width:0}
+ .currency strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
