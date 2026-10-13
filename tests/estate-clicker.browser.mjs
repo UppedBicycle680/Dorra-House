@@ -77,6 +77,31 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
   page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text())});
   const waitWallet=amount=>page.waitForFunction(expected=>document.querySelector('[data-estate-wallet]')?.textContent==='$'+new Intl.NumberFormat('en',{notation:expected>=1e6?'compact':'standard',maximumFractionDigits:expected<100?2:1}).format(expected),amount);
   const ready=()=>page.waitForFunction(()=>document.documentElement.dataset.saveState==='saved');
+  const auditTextLayout=async()=>{
+    const issues=await page.evaluate(()=>{
+      const root=document.querySelector('.estate-idle'),issues=[],text=[];
+      const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+      while(walker.nextNode()){
+        const node=walker.currentNode,parent=node.parentElement;
+        if(!node.textContent.trim()||parent.closest('i,[aria-hidden="true"]'))continue;
+        const range=document.createRange();range.selectNodeContents(node);
+        for(const r of range.getClientRects())if(r.width&&r.height)text.push({node,rect:r,label:node.textContent.trim().slice(0,75)});
+      }
+      for(let i=0;i<text.length;i++)for(let j=i+1;j<text.length;j++){
+        const a=text[i],b=text[j];if(a.node===b.node)continue;
+        const width=Math.min(a.rect.right,b.rect.right)-Math.max(a.rect.left,b.rect.left);
+        const height=Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
+        if(width>1&&height>2)issues.push('Text overlap: '+a.label+' / '+b.label);
+      }
+      for(const el of root.querySelectorAll('button,h1,h2,h3,p,strong,small')){
+        if(!el.getClientRects().length)continue;
+        if(el.scrollWidth>el.clientWidth+2)issues.push('Clipped content: '+el.textContent.trim().slice(0,75));
+      }
+      if(document.documentElement.scrollWidth>document.documentElement.clientWidth+1)issues.push('Horizontal page overflow');
+      return [...new Set(issues)];
+    });
+    assert.deepEqual(issues,[],'Game copy must not overlap or clip');
+  };
   const action=async(selector,name)=>{
     const count=commits.filter(c=>c.action===name).length;
     await page.locator(selector).click();
@@ -112,6 +137,7 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.equal(await page.locator('[data-estate-manager="terrace"]').isEnabled(),true,'the Level 2 upgrade must immediately enable hiring');
     await action('[data-estate-manager="terrace"]','estate-clicker-manager');
     assert.equal(saved.snapshot.balance,4_137);
+    await auditTextLayout();
     assert.match(await page.locator('[data-estate-income]').textContent(),/\$216/);
     serverNow+=60_000;
     await waitWallet(4_353);
@@ -186,6 +212,7 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.deepEqual(saved.snapshot.progress.empire.clicker.venues.terrace.specialists,['revenue','operations']);
     assert.equal(saved.snapshot.progress.empire.clicker.venues.terrace.managerRank,specialistIncome);
     assert.equal(await team.locator('.estate-specialist .team-state').count(),2);
+    await auditTextLayout();
     if(process.env.DORRA_ESTATE_TEAM_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_TEAM_SCREENSHOT,fullPage:true});
     await page.locator('[data-estate-view="estate"]').first().click();
 
@@ -193,10 +220,46 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
       await page.waitForFunction(()=>!document.querySelector('#toast')?.classList.contains('show'));
       await page.screenshot({path:process.env.DORRA_ESTATE_SCREENSHOT,fullPage:true});
     }
+    // Laptop-first visual QA with an established multi-business save.
+    const venueIds=['terrace','valet','boutique','skyline','grandprix','hotel'];
+    for(const [index,id] of venueIds.entries()){
+      saved.snapshot.progress.empire.venues[id]={level:index===0?25:index===1?10:5,manager:true};
+      Object.assign(saved.snapshot.progress.empire.clicker.venues[id],{managerRank:2,specialists:index===0?['revenue']:[]});
+    }
+    saved.snapshot.balance=1_000_000;
+    saved.snapshot=initializeHouse(saved.snapshot,serverNow);
+    await page.reload();await page.locator('#lobby').waitFor({state:'visible'});
+    await page.locator('#lobby [data-home-estate="empire"]').click();
+    for(const [width,height] of [[1672,941],[1440,900],[1366,768],[1280,720],[1093,614],[1024,768]]){
+      await page.setViewportSize({width,height});
+      for(const view of ['estate','managers','milestones']){
+        await page.locator('[data-estate-view="'+view+'"]').first().click();
+        await auditTextLayout();
+        if(view==='managers'){
+          const header=await page.locator('.estate-team>header').first().evaluate(el=>el.getBoundingClientRect().height);
+          assert.ok(header<140,'Team artwork and heading stay together in a compact header');
+        }
+        if(view==='estate'){
+          const rect=await page.locator('[data-estate-serve="terrace"]').evaluate(el=>({bottom:el.getBoundingClientRect().bottom,height:innerHeight}));
+          assert.ok(rect.bottom<=rect.height,'The first business must be playable without scrolling on a laptop');
+          await page.waitForFunction(()=>[...document.querySelectorAll('.business-art')].every(img=>img.complete&&img.naturalWidth>0));
+        }
+        if(width===1366&&process.env.DORRA_ESTATE_ART_QA_DIR){
+          await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+          await page.waitForFunction(()=>!document.querySelector('#toast')?.classList.contains('show'));
+          await page.screenshot({path:process.env.DORRA_ESTATE_ART_QA_DIR+'/estate-art-'+view+'-laptop.png',fullPage:false});
+        }
+        if(width===1672&&process.env.DORRA_ESTATE_ART_QA_DIR&&view==='estate'){
+          await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+          await page.screenshot({path:process.env.DORRA_ESTATE_ART_QA_DIR+'/estate-art-native.png',fullPage:false});
+        }
+      }
+    }
     for(const width of [390,320]){
       await page.setViewportSize({width,height:844});
       for(const view of ['estate','managers','milestones']){
         await page.locator('[data-estate-view="'+view+'"]').first().click();
+        await auditTextLayout();
         const geometry=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,body:document.body.scrollWidth}));
         assert.ok(geometry.scroll<=geometry.width+1&&geometry.body<=geometry.width+1,`${view} must fit ${width}px: ${JSON.stringify(geometry)}`);
         const controls=await page.locator('.estate-nav button').evaluateAll(buttons=>buttons.map(button=>({width:button.getBoundingClientRect().width,height:button.getBoundingClientRect().height})));
@@ -213,6 +276,20 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
         }
         if(width===390&&view==='estate'&&process.env.DORRA_ESTATE_MOBILE_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_MOBILE_SCREENSHOT,fullPage:true});
         if(width===390&&view==='managers'&&process.env.DORRA_ESTATE_TEAM_MOBILE_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_TEAM_MOBILE_SCREENSHOT,fullPage:true});
+      }
+    }
+    // The longest legitimate levels, counters and prices must also remain readable.
+    saved.snapshot.balance=9_000_000_000_000_000;
+    for(const id of venueIds){
+      saved.snapshot.progress.empire.venues[id].level=10000;
+      Object.assign(saved.snapshot.progress.empire.clicker.venues[id],{managerRank:1001,customers:Number.MAX_SAFE_INTEGER});
+    }
+    await page.reload();await page.locator('#lobby').waitFor({state:'visible'});
+    await page.locator('#lobby [data-home-estate="empire"]').click();
+    for(const width of [1366,1093,390,320]){
+      await page.setViewportSize({width,height:844});
+      for(const view of ['estate','managers','milestones']){
+        await page.locator('[data-estate-view="'+view+'"]').first().click();await auditTextLayout();
       }
     }
     // The real House controller redraws an externally changed wallet without
