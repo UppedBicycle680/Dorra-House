@@ -1,0 +1,191 @@
+/* Dorra Estate's illustrated tycoon theme. Scoped to the playable Estate. */
+#progressionHub[data-active-tab="empire"] {
+  --game-bg:#102b36; --game-deep:#09232e; --game-paper:#fbf4df;
+  --game-ink:#142d3d; --game-muted:#536579; --game-line:#d8d1bb;
+  --game-mint:#76ce9b; --game-gold:#f3bf53;
+  background:radial-gradient(ellipse at 80% 5%,#1c4853,transparent 62%),var(--game-bg);
+  --estate-border:#315563; --estate-text:#f5f0dc;
+}
+#progressionHub[data-active-tab="empire"] .estate-workspace-layout {grid-template-columns:176px minmax(0,1fr)}
+#progressionHub[data-active-tab="empire"] .estate-sidebar {background:#09232ebf;padding:20px 12px;border-color:#2f505d;gap:12px}
+#progressionHub[data-active-tab="empire"] .estate-sidebar :is(button,a) {gap:9px;font-size:12px}
+#progressionHub[data-active-tab="empire"] .estate-sidebar button.active {background:#204f5d;color:#fff7dc;border-left:3px solid var(--game-gold)}
+#progressionHub[data-active-tab="empire"] .estate-workspace-content {padding:22px 22px 28px}
+#progressionHub .estate-idle {font:13px/1.45 var(--sans);color:#f5f0dc;--estate-muted:#bdcfd5}
+#progressionHub .estate-idle :is(h1,h2,h3,strong,button) {font-family:var(--sans)}
+#progressionHub .estate-idle :is(h1,h2,h3) {font-weight:800;letter-spacing:-.035em}
+#progressionHub .estate-idle * {min-width:0}
+#progressionHub .estate-idle :is(button,small,p,h2,h3,strong,span) {overflow-wrap:anywhere}
+.estate-game-hud {display:grid;grid-template-columns:minmax(190px,.85fr) minmax(0,2.8fr);gap:18px;align-items:center}
+#progressionHub .estate-idle .estate-game-heading {border:0;padding:0;margin:0}
+#progressionHub .estate-idle .estate-game-heading h1 {font:800 clamp(25px,2.3vw,34px)/1.15 var(--sans);margin:0 0 6px;color:#fff7df}
+#progressionHub .estate-idle .estate-game-heading p {font-size:12px;line-height:1.5;color:#c1d4da}
+#progressionHub .estate-idle .estate-summary {grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;background:none;border:0;overflow:visible}
+#progressionHub .estate-idle .estate-summary>div {position:relative;border:1px solid #315563;border-radius:9px;background:#0a2834;padding:11px 10px 11px 37px;display:flex;flex-direction:column;justify-content:center}
+.estate-hud-icon {position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--game-gold)}
+.estate-hud-icon.mint {color:var(--game-mint)}
+#progressionHub .estate-idle .estate-summary>div>small {font-size:9px;letter-spacing:0;text-transform:none;line-height:1.4;color:#bdd3da}
+#progressionHub .estate-idle .estate-summary>div>strong {font:800 19px/1.25 var(--sans);margin:2px 0 0;color:#fff5dd;font-variant-numeric:tabular-nums}
+#progressionHub .estate-idle .estate-summary>div>span:not(.estate-hud-icon) {font-size:8px;line-height:1.4;color:#a9c3cd;margin:3px 0 0}
+#progressionHub .estate-idle .estate-summary em {font:10px var(--sans);margin-left:3px;color:#b8d2da}
+#progressionHub .estate-idle .estate-collect {padding:8px;border:1px solid #477962;border-radius:9px;background:#194b42;color:#e0f9e9;gap:3px}
+#progressionHub .estate-idle .estate-collect>span {font-size:9px;line-height:1.4;text-align:center}
+#progressionHub .estate-idle .estate-collect strong {font:800 20px/1.25 var(--sans);color:#e7ffe7}
+#progressionHub .estate-idle .estate-collect small {color:#c4ddc8;font-size:9px}
+#progressionHub .estate-idle .estate-collect:disabled {opacity:1!important;background:#163d3a;color:#c2dbd0;border-color:#3d6457}
+#progressionHub .estate-idle .estate-nav {margin:18px 0 0;padding-bottom:0;gap:6px;border-color:#4c6d78}
+#progressionHub .estate-idle .estate-nav>button {color:#c6e0e9;border:1px solid #366573;background:#133846;border-radius:7px 7px 0 0;min-height:44px;padding:10px 24px;font-size:12px;font-weight:700}
+#progressionHub .estate-idle .estate-nav>button.active {background:var(--game-paper);color:var(--game-ink);border-color:var(--game-paper)}
+#progressionHub .estate-idle .estate-cloud-status {color:#b7e8d2;font-size:10px}
+#progressionHub .estate-idle .estate-cloud-status.error {color:#ffcca7}
+#progressionHub .estate-idle .estate-feedback {padding:8px 0;min-height:0;font-size:11px;line-height:1.5;color:#c7dbe1}
+#progressionHub .estate-idle .business-buy-mode {margin:0 0 12px;gap:6px;min-height:34px}
+#progressionHub .estate-idle .business-buy-mode>span {font-size:11px;color:#c6dce1}
+#progressionHub .estate-idle .business-buy-mode button {min-height:44px;min-width:44px;border-color:#4a7280;background:#103441;color:#e4f0eb;font-weight:700}
+#progressionHub .estate-idle .business-buy-mode button.active {background:var(--game-gold);color:#193041;border-color:#ffe09a}
+#progressionHub .estate-idle .business-buy-mode small {font-size:10px;color:#b6ced5}
+#progressionHub .estate-idle .business-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+#progressionHub .estate-idle .estate-business {display:grid;grid-template-columns:minmax(120px,34%) minmax(0,1fr);grid-template-areas:"art heading" "art cycle" "art metrics" "actions actions" "funding funding" "preview preview";gap:8px 13px;padding:13px;border:1px solid #fff7df;border-radius:12px;background:var(--game-paper);color:var(--game-ink);box-shadow:0 5px 0 #06202a44;align-content:start;transition:border-color .15s}
+#progressionHub .estate-idle .estate-business:hover {border-color:#f3ca78}
+.estate-idle .business-art {grid-area:art;width:100%;height:100%;min-height:170px;max-height:204px;object-fit:contain;border-radius:8px;background:#e9eadc;display:block}
+#progressionHub .estate-idle .estate-business>header {grid-area:heading;display:block;padding:0;min-width:0}
+#progressionHub .estate-idle .estate-business header small {color:#617180;font-size:10px;letter-spacing:.02em;line-height:1.4}
+#progressionHub .estate-idle .estate-business h2 {font:800 19px/1.2 var(--sans);margin:3px 0 5px;color:#152e3e}
+#progressionHub .estate-idle .business-level {display:block;font-size:11px;color:#436373;line-height:1.4}
+#progressionHub .estate-idle .business-rate {display:block;font-size:11px;font-weight:800;color:#177157;margin:5px 0 0;white-space:normal}
+#progressionHub .estate-idle .business-cycle {grid-area:cycle;min-height:45px;border:1px solid #65ab91;border-bottom-width:3px;border-radius:8px;background:#e1e8d9;color:#112f2b;align-self:start}
+#progressionHub .estate-idle .business-cycle:disabled {color:#112f2b;background:#e1e8d9;border-color:#65ab91;opacity:1}
+#progressionHub .estate-idle .business-fill {background:linear-gradient(90deg,#68bb98,#92dbaf);transition:width .2s linear}
+#progressionHub .estate-idle .business-cycle-copy {padding:9px 10px;gap:5px;background:transparent;color:#16392d;text-shadow:none;flex-wrap:wrap}
+#progressionHub .estate-idle .business-cycle-copy strong {font:800 13px/1.25 var(--sans)}
+#progressionHub .estate-idle .business-cycle-copy>span {font-size:10px;line-height:1.25}
+#progressionHub .estate-idle .business-cycle.continuous .business-fill {background:linear-gradient(100deg,#6bbd96,#aff0bb,#6bbd96);background-size:200% 100%}
+#progressionHub .estate-idle .business-metrics {grid-area:metrics;display:flex;gap:4px 8px;justify-content:flex-start;font-size:11px;line-height:1.4;padding:0;color:#5a6a73}
+#progressionHub .estate-idle .business-metrics>span:last-child {width:100%;color:#846124}
+#progressionHub .estate-idle .business-actions {grid-area:actions;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;align-items:stretch;margin-top:2px}
+#progressionHub .estate-idle .estate-button {font:700 11px/1.4 var(--sans);letter-spacing:0;text-transform:none;min-height:45px;height:auto;padding:9px 11px;border:1px solid #c7b993;border-bottom-width:3px;border-radius:8px;background:#eee3c4;color:#1e3845;gap:6px;white-space:normal;box-shadow:none}
+#progressionHub .estate-idle .estate-button.primary {background:linear-gradient(#ffd672,#edb642);color:#192f3d;border-color:#d3a23c}
+#progressionHub .estate-idle .estate-button.primary:not(:disabled):hover {background:#ffe293}
+#progressionHub .estate-idle .estate-button:not(:disabled):active {transform:translateY(1px)}
+#progressionHub .estate-idle .estate-button:disabled {background:#e2ddcc;color:#667379;border-color:#c9c8b8;opacity:1}
+#progressionHub .estate-idle .business-actions .estate-button.primary {flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
+#progressionHub .estate-idle .business-actions .estate-button.primary strong {font-size:16px;font-variant-numeric:tabular-nums}
+.staff-portrait {display:block;flex:none;width:48px;height:48px;border-radius:50%;border:2px solid #d8bc80;background-image:url('assets/estate-game/staff-atlas-v1.webp');background-size:600% 300%;background-repeat:no-repeat;background-color:#eee4cc}
+#progressionHub .estate-idle .business-actions .estate-on-duty {min-height:60px;padding:5px 8px;display:flex;justify-content:flex-start;align-items:center;border:1px solid #d5c79e;border-bottom-width:3px;background:#f0e8cf;gap:8px}
+#progressionHub .estate-idle .business-actions .estate-on-duty>span {text-align:left}
+.estate-on-duty b {font-size:10px;display:block;line-height:1.4}
+.estate-on-duty small {display:flex;align-items:center;gap:4px;font-size:10px;line-height:1.4;color:#3b5d68}
+#progressionHub .estate-idle .estate-on-duty .ti {font-size:13px}
+#progressionHub .estate-idle .business-actions [data-estate-manager] {display:flex;align-items:center;justify-content:flex-start;text-align:left}
+.business-actions .staff-portrait {width:38px;height:38px}
+#progressionHub .estate-idle .business-funding {grid-area:funding;font-size:11px;color:#57675f;margin:0;line-height:1.45}
+#progressionHub .estate-idle .business-preview {grid-area:preview;font-size:11px;line-height:1.5;color:#5b6970;margin:0;border-top:1px solid #dfd6bb;padding-top:7px}
+#progressionHub .estate-idle .business-locked {grid-area:cycle;grid-row:2/4;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:8px;text-align:left;padding:10px;border:1px solid #ded5bc;background:#eee7d2;border-radius:8px;min-height:120px}
+.business-lock-icon {color:#627585;font-size:18px}
+#progressionHub .estate-idle .business-locked p {font-size:11px;color:#576771;line-height:1.5;margin:0}
+#progressionHub .estate-idle .business-locked button {width:100%;min-height:44px;font-size:11px}
+#progressionHub .estate-idle .estate-team-intro {color:#c4d8de;font-size:12px;line-height:1.5;margin:6px 0 14px}
+#progressionHub .estate-idle .estate-team {padding:15px;background:var(--game-paper);border:1px solid #fff7df;border-radius:12px;color:var(--game-ink);box-shadow:0 5px 0 #06202a44}
+#progressionHub .estate-idle .estate-team>header {display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;align-items:center;border-color:#dbd2b7;padding-bottom:12px}
+.estate-team .business-art {grid-area:auto;min-height:0;height:88px;max-height:88px;width:88px}
+#progressionHub .estate-idle .estate-team h2 {font:800 19px/1.2 var(--sans);margin:4px 0;color:#142d3d}
+#progressionHub .estate-idle .estate-team :is(small,p) {font-size:11px;line-height:1.5;color:#596b75}
+#progressionHub .estate-idle .estate-team h3 {font:800 15px/1.3 var(--sans);color:#1a3543;letter-spacing:-.015em}
+#progressionHub .estate-idle .estate-team-person {grid-template-columns:64px minmax(0,1fr) auto;gap:11px;padding:14px 0}
+.estate-team-person .staff-portrait {width:64px;height:64px}
+#progressionHub .estate-idle .team-state {color:#206649;background:#ddeecf;border-color:#a7bf87;font-size:10px;padding:6px 9px;white-space:normal;text-align:center}
+#progressionHub .estate-idle .estate-training {padding:11px;gap:10px;border-color:#d8c9a0;background:#efe7ce;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+#progressionHub .estate-idle .estate-training strong {color:#17394a;font-size:12px}
+#progressionHub .estate-idle .estate-training p {color:#35734f;font-size:11px}
+#progressionHub .estate-idle .estate-training .estate-button {min-width:105px;width:auto;max-width:165px}
+#progressionHub .estate-idle .estate-specialist {grid-template-columns:48px minmax(0,1fr) auto;gap:10px;padding:13px 0}
+#progressionHub .estate-idle .estate-specialist+.estate-specialist {border-color:#ddd3b8}
+#progressionHub .estate-idle .estate-specialist .estate-button {min-width:100px;width:auto;max-width:145px}
+#progressionHub .estate-idle .estate-specialists {margin-top:4px}
+#progressionHub .estate-idle .estate-investment {background:#173d46;border-color:var(--game-gold);border-radius:8px;margin:18px 0;padding:15px}
+#progressionHub .estate-idle .estate-investment :is(strong,small) {color:#fff0bf}
+#progressionHub .estate-idle .estate-investment p {color:#c8dbdb}
+#progressionHub .estate-idle .estate-next-goal {margin-top:16px;padding:15px;border-color:#43616d;background:#143440;border-radius:8px;gap:15px}
+#progressionHub .estate-idle .estate-next-goal :is(strong,small) {color:#ffe6a7}
+#progressionHub .estate-idle .estate-next-goal p {color:#bed2d8;font-size:11px}
+#progressionHub .estate-idle .estate-next-goal button {border-color:#cdab64;background:#f3c357;color:#173140;font:700 12px/1.4 var(--sans);white-space:normal;min-height:44px;flex-shrink:0}
+#progressionHub .estate-idle .estate-goals {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding-top:8px}
+#progressionHub .estate-idle .estate-goal {display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;padding:18px;border:1px solid #e3dbbf;border-radius:11px;background:var(--game-paper);color:var(--game-ink)}
+.estate-goal-symbol {font-size:24px;color:#aa7426;background:#f2e0a3;border-radius:50%;width:40px;height:40px;display:grid;place-items:center}
+#progressionHub .estate-idle .estate-goal h3 {font:800 16px/1.3 var(--sans);margin:0 0 6px;color:#173342}
+#progressionHub .estate-idle .estate-goal p {color:#586a73;font-size:12px;line-height:1.5}
+#progressionHub .estate-idle .estate-goal small {color:#526659;font-size:11px}
+#progressionHub .estate-idle .estate-meter {background:#d8dfce;height:8px;border-radius:5px}
+#progressionHub .estate-idle .estate-meter b {background:#5fb88c}
+#progressionHub .estate-idle .estate-goal>button {grid-column:1/-1;font:700 12px/1.4 var(--sans);min-height:44px;border-radius:7px;background:#f3c357;color:#173342;border:1px solid #c79c40}
+#progressionHub .estate-idle .estate-goal>button:disabled {background:#e1dfce;color:#657471;border-color:#c8cbb9}
+#progressionHub .estate-idle .estate-goal.complete {border:2px solid #e3b855}
+#progressionHub .estate-idle .estate-goal.claimed .estate-goal-symbol {background:#d6ebd5;color:#2b704b}
+#progressionHub .estate-idle .estate-game-footnote {font-size:9px;line-height:1.6;letter-spacing:.03em;color:#a9c4ce;padding-top:16px}
+#progressionHub .estate-idle button:focus-visible {outline:3px solid #d48418;outline-offset:3px;box-shadow:none}
+@media(max-width:1230px){
+  .estate-game-hud{grid-template-columns:1fr;gap:12px}
+  #progressionHub .estate-idle .estate-game-heading h1{font-size:28px}
+  #progressionHub .estate-idle .estate-business{grid-template-columns:minmax(100px,31%) minmax(0,1fr)}
+  #progressionHub .estate-idle .estate-team-list{grid-template-columns:1fr}
+  #progressionHub .estate-idle .estate-goals{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:1050px){
+  #progressionHub .estate-idle .business-list{grid-template-columns:1fr}
+  #progressionHub .estate-idle .estate-business{grid-template-columns:180px minmax(0,1fr)}
+}
+@media(max-width:760px){
+  #progressionHub[data-active-tab="empire"] .estate-workspace-layout{grid-template-columns:1fr}
+  #progressionHub[data-active-tab="empire"] .estate-sidebar{padding:8px 12px;gap:4px 8px}
+  #progressionHub[data-active-tab="empire"] .estate-workspace-content{padding:14px 12px 24px}
+  #progressionHub .estate-idle .estate-game-heading h1{font-size:25px;margin:0 0 4px}
+  #progressionHub .estate-idle .estate-game-heading p{font-size:11px}
+  #progressionHub .estate-idle .estate-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  #progressionHub .estate-idle .estate-summary>div{padding:8px 10px 8px 36px}
+  #progressionHub .estate-idle .estate-summary>div>strong{font-size:19px}
+  #progressionHub .estate-idle .estate-summary>div>span:not(.estate-hud-icon){display:none}
+  #progressionHub .estate-idle .estate-collect{padding:6px;gap:0}
+  #progressionHub .estate-idle .estate-nav{margin-top:12px;gap:4px;flex-wrap:wrap}
+  #progressionHub .estate-idle .estate-nav>button{padding:9px 10px;font-size:11px;min-height:44px}
+  #progressionHub .estate-idle .estate-cloud-status{font-size:9px;margin-left:auto}
+  #progressionHub .estate-idle .estate-feedback{font-size:10px;padding:6px 0}
+  #progressionHub .estate-idle .business-buy-mode{margin-bottom:10px}
+  #progressionHub .estate-idle .business-buy-mode small{display:none}
+  #progressionHub .estate-idle .estate-business{display:grid;grid-template-columns:80px minmax(0,1fr);grid-template-areas:"art heading" "cycle cycle" "metrics metrics" "actions actions" "funding funding" "preview preview";gap:8px 10px;padding:12px}
+  .estate-idle .business-art{min-height:0;height:80px;max-height:80px;width:80px}
+  #progressionHub .estate-idle .estate-business h2{font-size:19px;margin:2px 0 4px}
+  #progressionHub .estate-idle .business-rate{margin-top:3px;font-size:10px}
+  #progressionHub .estate-idle .business-metrics{gap:3px 8px;font-size:9px}
+  #progressionHub .estate-idle .business-cycle-copy strong{font-size:14px}
+  #progressionHub .estate-idle .business-cycle-copy>span{font-size:11px}
+  #progressionHub .estate-idle .business-actions{grid-template-columns:1fr}
+  #progressionHub .estate-idle .business-locked{grid-row:auto;min-height:0}
+  #progressionHub .estate-idle .business-lock-icon{display:none}
+  #progressionHub .estate-idle .estate-team>header{grid-template-columns:64px minmax(0,1fr)}
+  .estate-team .business-art{width:64px;height:64px;max-height:64px}
+  #progressionHub .estate-idle .estate-team-person{grid-template-columns:52px minmax(0,1fr) auto;gap:9px}
+  .estate-team-person .staff-portrait{width:52px;height:52px}
+  #progressionHub .estate-idle .estate-specialist{grid-template-columns:44px minmax(0,1fr);gap:9px}
+  .estate-specialist .staff-portrait{width:44px;height:44px}
+  #progressionHub .estate-idle .estate-specialist .estate-button{grid-column:2;width:100%;max-width:none;min-width:0}
+  #progressionHub .estate-idle .estate-specialist .team-state{grid-column:2;justify-self:start}
+  #progressionHub .estate-idle .estate-training{grid-template-columns:1fr}
+  #progressionHub .estate-idle .estate-training .estate-button{width:100%;max-width:none;min-width:0}
+  #progressionHub .estate-idle .estate-goals{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){#progressionHub .estate-idle *{animation:none!important;transition:none!important}}
+
+#progressionHub .estate-idle .estate-hud-icon {color:var(--game-gold)}
+#progressionHub .estate-idle .estate-hud-icon.mint {color:var(--game-mint)}
+#progressionHub .estate-idle .estate-team p {margin:3px 0}
+#progressionHub .estate-idle .estate-team h3 {margin:2px 0}
+#progressionHub .estate-idle .estate-team-person {padding:12px 0}
+#progressionHub .estate-idle .estate-specialist {padding:10px 0}
+
+#progressionHub .estate-idle .estate-nav .business-buy-mode {margin:0 0 0 14px;gap:5px}
+#progressionHub .estate-idle .estate-nav .business-buy-mode small {display:none}
+#progressionHub .estate-idle .estate-business.funded {grid-template-areas:"art heading" "art cycle" "art metrics" "actions actions" "preview preview"}
+@media(max-width:760px){
+ #progressionHub .estate-idle .estate-nav .business-buy-mode{width:100%;margin:4px 0 0;padding-bottom:6px}
+ #progressionHub .estate-idle .estate-business.funded{grid-template-areas:"art heading" "cycle cycle" "metrics metrics" "actions actions" "preview preview"}
+}
