@@ -1,6 +1,6 @@
 // Shared, DOM-free Dorra Estate rules. Wallet changes belong to the caller so
 // the same commands can run in the local vault and the authoritative cloud API.
-export const ESTATE_SCHEMA_VERSION = 2;
+export const ESTATE_SCHEMA_VERSION = 3;
 export const ESTATE_CONTINUOUS_MS = 120;
 const MAX_ESTATE_PRICE = 9_000_000_000_000; // Fits the existing shared House wallet.
 const MAX_CYCLE_PAYOUT = 1_000_000_000;
@@ -10,38 +10,43 @@ export const ESTATE_VIP_EVERY = 25;
 export const ESTATE_RUSH_MS = 8_000;
 
 export const ESTATE_MANAGERS = {
-  terrace: {name:'Amara Bell', title:'Hospitality Director', cost:1_200},
-  valet: {name:'Leo Navarro', title:'Arrival Director', cost:4_800},
-  boutique: {name:'Sabine Laurent', title:'Gallery Curator', cost:22_000},
-  skyline: {name:'Noah Mercer', title:'Nightlife Director', cost:80_000},
-  grandprix: {name:'Sofia Renaud', title:'Paddock Director', cost:280_000},
-  hotel: {name:'Helena Ward', title:'Hotel Director', cost:950_000}
+  terrace: {name:'Amara Bell', title:'Hospitality Director', cost:400},
+  valet: {name:'Leo Navarro', title:'Arrival Director', cost:1_800},
+  boutique: {name:'Sabine Laurent', title:'Gallery Curator', cost:9_000},
+  skyline: {name:'Noah Mercer', title:'Nightlife Director', cost:32_000},
+  grandprix: {name:'Sofia Renaud', title:'Paddock Director', cost:120_000},
+  hotel: {name:'Helena Ward', title:'Hotel Director', cost:425_000}
+};
+
+export const ESTATE_SPECIALISTS = {
+  revenue:{title:'Revenue Lead',unlock:10,benefit:'25% more cash per cycle',names:['Maya Brooks','Owen Silva','Elise Moreau','Jade Sterling','Rafael Costa','Nina Patel']},
+  operations:{title:'Operations Lead',unlock:25,benefit:'20% shorter business cycles',names:['Theo Kim','Ava Romano','Idris Cole','Luca Hayes','Clara Santos','Ethan Park']}
 };
 
 export const ESTATE_VENUES = [
   {id:'terrace', name:'The Terrace Cafe', area:'East Arcade', icon:'☕', stars:0,
     copy:'Good coffee. Familiar faces. Your first little corner of Dorra.', action:'Serve coffee', customer:'Coffee order',
-    costs:[250,900,2_200,5_600,14_000], payouts:[12,18,30,50,85], cycleMs:5_000,
+    costs:[250,300,450,900,1_600], payouts:[12,18,30,50,85], cycleMs:5_000,
     levels:['Soft Opening','Breakfast Service','Evening Menu','Chef’s Table','House Institution']},
   {id:'valet', name:'Grand Valet', area:'Motor Atrium', icon:'◇', stars:2,
     copy:'Park the cars, welcome the guests, and keep the arrivals moving.', action:'Park a car', customer:'Arriving driver',
-    costs:[3_500,6_500,13_000,26_000,52_000], payouts:[40,60,100,165,270], cycleMs:8_000,
+    costs:[3_500,2_100,5_000,10_000,18_000], payouts:[120,180,300,495,810], cycleMs:8_000,
     levels:['Two Bays','Covered Arrival','Detailing Studio','Concierge Fleet','Ceremonial Arrival']},
   {id:'boutique', name:'Gilded Boutique', area:'Gallery Walk', icon:'◆', stars:5,
     copy:'Find the perfect piece for Dorra’s collectors and private clients.', action:'Wrap a purchase', customer:'Boutique shopper',
-    costs:[18_000,32_000,60_000,110_000,200_000], payouts:[160,250,400,650,1_050], cycleMs:12_000,
+    costs:[18_000,10_800,24_000,45_000,80_000], payouts:[640,1_000,1_600,2_600,4_200], cycleMs:12_000,
     levels:['Curated Cabinet','Private Fittings','Design Salon','Collector’s Gallery','House Atelier']},
   {id:'skyline', name:'Skyline Club', area:'Rooftop', icon:'✦', stars:8,
     copy:'A city view, a perfect drink, and a rooftop full of possibility.', action:'Mix a drink', customer:'Rooftop guest',
-    costs:[65_000,110_000,190_000,330_000,570_000], payouts:[600,900,1_450,2_400,3_900], cycleMs:16_000,
+    costs:[65_000,39_000,85_000,160_000,280_000], payouts:[3_000,4_500,7_250,12_000,19_500], cycleMs:16_000,
     levels:['Sunset Lounge','Live Quartet','Private Booths','Midnight Salon','Skyline Institution']},
   {id:'grandprix', name:'Grand Prix Club', area:'Dorra Downs', icon:'♞', stars:13,
     copy:'Welcome the drivers and turn the paddock into the place to be.', action:'Welcome a driver', customer:'Paddock member',
-    costs:[240_000,420_000,720_000,1_250_000,2_200_000], payouts:[2_100,3_300,5_300,8_700,14_200], cycleMs:22_000,
+    costs:[240_000,144_000,320_000,600_000,1_000_000], payouts:[12_600,19_800,31_800,52_200,85_200], cycleMs:22_000,
     levels:['Members’ Paddock','Drivers’ Lounge','Heritage Garage','Track Pavilion','Grand Prix Weekend']},
   {id:'hotel', name:'Dorra Royal Hotel', area:'North Wing', icon:'♛', stars:18,
     copy:'Check in your guests and bring the crown of the estate to life.', action:'Check in a guest', customer:'Hotel arrival',
-    costs:[850_000,1_450_000,2_500_000,4_300_000,7_400_000], payouts:[7_200,11_300,18_200,30_000,49_000], cycleMs:30_000,
+    costs:[850_000,510_000,1_100_000,2_100_000,3_600_000], payouts:[50_400,79_100,127_400,210_000,343_000], cycleMs:30_000,
     levels:['North Wing','Butler Floor','Royal Suites','Grand Ballroom','Dorra Royal']}
 ].map(venue => ({...venue, managerCost:ESTATE_MANAGERS[venue.id].cost}));
 
@@ -62,6 +67,10 @@ const GOALS = [
   {id:'first-service', name:'Your first customer', copy:'Serve one customer yourself.', target:1, amount:75, metric:'served'},
   {id:'regulars', name:'A familiar face', copy:'Serve 25 customers yourself.', target:25, amount:250, metric:'served'},
   {id:'first-manager', name:'A helping hand', copy:'Hire your first venue manager.', target:1, amount:350, metric:'managed'},
+  {id:'first-training', name:'Invest in your people', copy:'Train one director.', target:1, amount:150, metric:'trained'},
+  {id:'first-specialist', name:'A stronger team', copy:'Hire one specialist.', target:1, amount:1_000, metric:'specialists'},
+  {id:'growth-25', name:'Finding your stride', copy:'Reach Level 25 in any business.', target:25, amount:2_000, metric:'highestLevel'},
+  {id:'growth-100', name:'Built to last', copy:'Reach Level 100 in any business.', target:100, amount:20_000, metric:'highestLevel'},
   {id:'second-venue', name:'Room to grow', copy:'Open two Dorra venues.', target:2, amount:750, metric:'owned'},
   {id:'hundred-services', name:'The personal touch', copy:'Serve 100 customers yourself.', target:100, amount:1_000, metric:'served'},
   {id:'management-team', name:'In good hands', copy:'Hire managers for three venues.', target:3, amount:5_000, metric:'managed'},
@@ -104,11 +113,14 @@ export function normalizeEstate(progress, now=Date.now()) {
     const activity=clicker.venues[venue.id]=isObject(clicker.venues[venue.id])?clicker.venues[venue.id]:{};
     activity.served=integer(activity.served);
     activity.customers=integer(activity.customers);
-    activity.cycleElapsedMs=bounded(activity.cycleElapsedMs,estateCycleMs(venue,empire.venues[venue.id].level));
+    activity.cycleElapsedMs=bounded(activity.cycleElapsedMs);
     activity.manualStartedAt=integer(activity.manualStartedAt);
     activity.manualEndsAt=integer(activity.manualEndsAt);
     activity.manualPayout=integer(activity.manualPayout,MAX_CYCLE_PAYOUT*5);
     activity.manualVip=!!activity.manualVip;
+    activity.managerRank=empire.venues[venue.id].manager?Math.max(1,integer(activity.managerRank)||1):0;
+    activity.specialists=[...new Set((Array.isArray(activity.specialists)?activity.specialists:[]).filter(id=>Object.hasOwn(ESTATE_SPECIALISTS,id)))];
+    activity.cycleElapsedMs%=values(progress,venue).cycleMs;
     activity.rushUntil=integer(activity.rushUntil);
   }
   empire.lastAccruedAt=clicker.lastAccruedAt;
@@ -129,16 +141,60 @@ export function estateCycleMs(venue,level) {
   return Math.max(1,venue.cycleMs*Math.pow(.96,Math.max(0,level-5))/Math.pow(2,Math.min(30,Math.floor(level/25))));
 }
 export function estateUpgradePrice(venue,level) {
-  return level<5?venue.costs[level]:Math.min(MAX_ESTATE_PRICE,Math.ceil(venue.costs[4]*Math.pow(1.12,Math.min(600,level-4))));
+  if(level<5)return venue.costs[level];
+  const income=estateLevelPayout(venue,level)/estateCycleMs(venue,level)*1000;
+  const waitSeconds=120+Math.min(180,(level-5)*2);
+  return Math.min(MAX_ESTATE_PRICE,Math.ceil(venue.costs[4]*Math.pow(1.12,Math.min(600,level-4))),Math.ceil(income*waitSeconds));
 }
 export function estateLevelPayout(venue,level) {
   return level<=5?(venue.payouts[Math.max(0,level-1)]||0):Math.min(MAX_CYCLE_PAYOUT,Math.round(venue.payouts[4]*(1+.15*(level-5))*Math.pow(2,Math.min(30,Math.floor(level/25)))));
 }
-function values(progress, venue) {
+function values(progress, venue,rankOverride,specialistsOverride,levelOverride) {
   const entry=progress.empire.venues[venue.id];
-  const payout=entry.level?Math.min(MAX_CYCLE_PAYOUT,Math.max(1,Math.round(estateLevelPayout(venue,entry.level)*incomeMultiplier(progress,venue)))):0;
-  const cycleMs=estateCycleMs(venue,entry.level);
+  const level=levelOverride??entry.level;
+  const team=progress.empire.clicker.venues[venue.id],rank=rankOverride??team.managerRank,specialists=specialistsOverride??team.specialists;
+  const training=entry.manager?Math.pow(1.15,Math.min(200,Math.max(0,rank-1))):1;
+  const payout=level?Math.min(MAX_CYCLE_PAYOUT,Math.max(1,Math.round(estateLevelPayout(venue,level)*incomeMultiplier(progress,venue)*training*(specialists.includes('revenue')?1.25:1)))):0;
+  const cycleMs=Math.max(1,estateCycleMs(venue,level)*(entry.manager?Math.pow(.98,Math.min(1000,Math.max(0,rank-1))):1)*(specialists.includes('operations')?.8:1));
   return {payout, cycleMs, autoPerMinute:entry.manager?payout/cycleMs*60_000:0};
+}
+
+/** Quotes and purchases share the same rate calculation. No browser price is trusted. */
+function teamQuote(progress,venue,role='training') {
+  const activity=progress.empire.clicker.venues[venue.id],entry=progress.empire.venues[venue.id],before=values(progress,venue);
+  const after=role==='training'?values(progress,venue,activity.managerRank+1):values(progress,venue,undefined,[...activity.specialists,role]);
+  const gain=Math.max(0,(after.autoPerMinute-before.autoPerMinute)/60);
+  const payback=role==='training'?120+Math.min(480,Math.max(0,activity.managerRank-1)*20):120;
+  const cost=Math.min(MAX_ESTATE_PRICE,Math.max(Math.ceil(venue.costs[0]*.2),Math.ceil(gain*payback)));
+  const specialist=ESTATE_SPECIALISTS[role];
+  return {role,cost,gainPerSecond:gain,paybackSeconds:gain?cost/gain:null,
+    unlocked:entry.manager&&(!specialist||entry.level>=specialist.unlock),hired:activity.specialists.includes(role),
+    useful:gain>0,nextRank:activity.managerRank+1,nextPayout:after.payout,nextCycleMs:after.cycleMs};
+}
+
+export function trainEstateManager(progress,venueId,balance,now=Date.now()) {
+  return investInTeam(progress,venueId,'training',balance,now);
+}
+export function hireEstateSpecialist(progress,venueId,role,balance,now=Date.now()) {
+  if(!Object.hasOwn(ESTATE_SPECIALISTS,role))return fail('Choose a valid specialist.');
+  return investInTeam(progress,venueId,role,balance,now);
+}
+function investInTeam(progress,venueId,role,balance,now) {
+  normalizeEstate(progress,now);
+  const venue=venueById(venueId);
+  if(!venue)return fail('This venue is unavailable.');
+  const quote=teamQuote(progress,venue,role);
+  if(!progress.empire.venues[venue.id].manager)return fail('Hire the director first.');
+  if(!quote.unlocked)return fail('Reach Level '+ESTATE_SPECIALISTS[role].unlock+' to hire this specialist.');
+  if(quote.hired)return fail('This specialist is already on duty.');
+  if(!quote.useful)return fail('This team is already producing at its full earning capacity.');
+  if(!Number.isSafeInteger(balance)||balance<quote.cost)return {...fail('More capital is needed.'),cost:quote.cost};
+  accrueEstate(progress,now);
+  const activity=progress.empire.clicker.venues[venue.id],phase=activity.cycleElapsedMs/values(progress,venue).cycleMs;
+  if(role==='training')activity.managerRank++;
+  else activity.specialists.push(role);
+  activity.cycleElapsedMs=phase*values(progress,venue).cycleMs;
+  return {ok:true,cost:quote.cost,venue:venueId,role,rank:activity.managerRank};
 }
 
 /** A rate lookup never settles income or changes the caller's clock. */
@@ -190,7 +246,8 @@ export function estateGoals(progress) {
   normalizeEstate(progress);
   const empire=progress.empire, clicker=empire.clicker;
   const metrics={served:clicker.served,managed:ESTATE_VENUES.filter(venue=>empire.venues[venue.id].manager).length,
-    owned:ESTATE_VENUES.filter(venue=>empire.venues[venue.id].level>0).length,stars:stars(progress),foundationStars:ESTATE_VENUES.reduce((sum,v)=>sum+Math.min(5,empire.venues[v.id].level),0)};
+    owned:ESTATE_VENUES.filter(venue=>empire.venues[venue.id].level>0).length,stars:stars(progress),foundationStars:ESTATE_VENUES.reduce((sum,v)=>sum+Math.min(5,empire.venues[v.id].level),0),
+    trained:ESTATE_VENUES.filter(v=>clicker.venues[v.id].managerRank>1).length,specialists:ESTATE_VENUES.reduce((sum,v)=>sum+clicker.venues[v.id].specialists.length,0),highestLevel:Math.max(...ESTATE_VENUES.map(v=>empire.venues[v.id].level))};
   return GOALS.map(goal=>({...goal,reward:goal.amount,value:metrics[goal.metric],progress:Math.min(1,metrics[goal.metric]/goal.target),
     complete:metrics[goal.metric]>=goal.target,claimed:clicker.claimedGoals.includes(goal.id)}));
 }
@@ -202,14 +259,16 @@ export function estateSnapshot(progress, now=Date.now()) {
     const entry=empire.venues[venue.id], activity=clicker.venues[venue.id], stats=values(progress,venue), manager=ESTATE_MANAGERS[venue.id];
     const owned=entry.level>0, unlocked=owned||estateStars>=venue.stars;
     const rushRemainingMs=owned?Math.max(0,activity.rushUntil-now):0;
-    return {...venue,level:entry.level,manager:entry.manager,managerName:manager.name,managerTitle:manager.title,owned,unlocked,
+    const next=values(progress,venue,undefined,undefined,entry.level+1),training=teamQuote(progress,venue);
+    const specialists=Object.entries(ESTATE_SPECIALISTS).map(([id,role])=>({...role,id,name:role.names[ESTATE_VENUES.indexOf(venue)],...teamQuote(progress,venue,id)}));
+    return {...venue,level:entry.level,manager:entry.manager,managerName:manager.name,managerTitle:manager.title,managerRank:activity.managerRank,training,specialists,owned,unlocked,
       requirements:venue.stars?[{label:`Earn ${venue.stars} estate stars`,met:estateStars>=venue.stars}]:[],
       openCost:venue.costs[0],upgradeCost:estateUpgradePrice(venue,entry.level),managerCost:manager.cost,canHire:entry.level>=2&&!entry.manager,
       baseTapValue:stats.payout,tapValue:Math.round(stats.payout*(rushRemainingMs>0?1.5:1)),cycleMs:stats.cycleMs,autoPerMinute:stats.autoPerMinute,
       cycleProgress:entry.manager?activity.cycleElapsedMs/stats.cycleMs:activity.manualEndsAt?Math.min(1,Math.max(0,(now-activity.manualStartedAt)/(activity.manualEndsAt-activity.manualStartedAt))):0,
       running:entry.manager||activity.manualEndsAt>now,remainingMs:entry.manager?stats.cycleMs-activity.cycleElapsedMs:Math.max(0,activity.manualEndsAt-now),
       continuous:entry.manager&&stats.cycleMs<=ESTATE_CONTINUOUS_MS,cyclePayout:activity.manualEndsAt?activity.manualPayout:stats.payout,
-      nextPayout:Math.min(MAX_CYCLE_PAYOUT,Math.round(estateLevelPayout(venue,entry.level+1)*incomeMultiplier(progress,venue))),nextCycleMs:estateCycleMs(venue,entry.level+1),
+      nextPayout:next.payout,nextCycleMs:next.cycleMs,nextIncomePerSecond:next.payout/next.cycleMs*1000,
       nextSpeedLevel:(Math.floor(entry.level/25)+1)*25,customers:activity.customers,served:activity.served,
       vipIn:ESTATE_VIP_EVERY-activity.served%ESTATE_VIP_EVERY,rushRemainingMs,rushEvery:ESTATE_RUSH_EVERY,vipEvery:ESTATE_VIP_EVERY,
       status:owned?(entry.manager?'automated':'manual'):(unlocked?'available':'locked')};
@@ -218,7 +277,7 @@ export function estateSnapshot(progress, now=Date.now()) {
   return {venues,claimable,pending:empire.pending,autoPerMinute:venues.reduce((sum,venue)=>sum+venue.autoPerMinute,0),capHours:hours,
     bankHours,bankPercent:Math.min(100,bankHours/hours*100),stars:estateStars,ownedCount:venues.filter(venue=>venue.owned).length,
     managedCount:venues.filter(venue=>venue.manager).length,totalServed:clicker.served,
-    totalEarned:clicker.legacyLifetime+clicker.manualEarned+clicker.automatedEarned,goals,nextGoal:goals.find(goal=>!goal.claimed)||null};
+    totalEarned:clicker.legacyLifetime+clicker.manualEarned+clicker.automatedEarned,goals,nextGoal:goals.find(goal=>goal.complete&&!goal.claimed)||goals.find(goal=>!goal.claimed&&(!['regulars','hundred-services'].includes(goal.id)||!venues.some(v=>v.manager)))||null};
 }
 
 export function serveEstateCustomer(progress, venueId, now=Date.now()) {
@@ -281,11 +340,11 @@ function purchase(progress, venueId, balance, now, type) {
   if (balance<cost) return {...fail('More capital is needed.'),cost,shortfall:cost-balance};
   // Settle earned money at the OLD payout before changing levels or automation.
   accrueEstate(progress,now);
-  const oldCycle=estateCycleMs(venue,entry.level),phase=progress.empire.clicker.venues[venue.id].cycleElapsedMs/oldCycle;
-  if (type==='manager') entry.manager=true;
+  const oldCycle=values(progress,venue).cycleMs,phase=progress.empire.clicker.venues[venue.id].cycleElapsedMs/oldCycle;
+  if (type==='manager') {entry.manager=true;progress.empire.clicker.venues[venue.id].managerRank=1;}
   else {
     entry.level++;
-    progress.empire.clicker.venues[venue.id].cycleElapsedMs=phase*estateCycleMs(venue,entry.level);
+    progress.empire.clicker.venues[venue.id].cycleElapsedMs=phase*values(progress,venue).cycleMs;
     if (type==='open') entry.purchasedAt=timestamp(now);
   }
   return {ok:true,cost,venue:venue.id,level:entry.level,manager:entry.manager};

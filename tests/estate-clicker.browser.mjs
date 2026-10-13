@@ -108,23 +108,23 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     await page.locator('[data-estate-view="estate"]').click();
     assert.equal(saved.snapshot.balance,4_837);
     await action('[data-estate-upgrade="terrace"]','estate-clicker-upgrade');
-    assert.equal(saved.snapshot.balance,3_937);
+    assert.equal(saved.snapshot.balance,4_537);
     assert.equal(await page.locator('[data-estate-manager="terrace"]').isEnabled(),true,'the Level 2 upgrade must immediately enable hiring');
     await action('[data-estate-manager="terrace"]','estate-clicker-manager');
-    assert.equal(saved.snapshot.balance,2_737);
+    assert.equal(saved.snapshot.balance,4_137);
     assert.match(await page.locator('[data-estate-income]').textContent(),/\$216/);
     serverNow+=60_000;
-    await waitWallet(2_953);
-    assert.equal(saved.snapshot.balance,2_953,'managed income is banked automatically');
+    await waitWallet(4_353);
+    assert.equal(saved.snapshot.balance,4_353,'managed income is banked automatically');
     assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true);
     assert.equal(await page.locator('[data-estate-serve="terrace"]').isDisabled(),true,'managers repeat the timer automatically');
 
     await page.reload();
     await page.locator('#lobby').waitFor({state:'visible'});
     await page.locator('#lobby [data-home-estate="empire"]').click();
-    await waitWallet(2_953);
+    await waitWallet(4_353);
     assert.match(await page.locator('.estate-service-card>header').first().textContent(),/Level 2/);
-    assert.match(await page.locator('.estate-on-duty').textContent(),/Hired/);
+    assert.match(await page.locator('.estate-on-duty').textContent(),/Rank 1/);
     await page.locator('[data-estate-view="milestones"]').first().click();
     assert.equal(await page.locator('[data-estate-goal="first-service"]').isDisabled(),true);
     assert.equal(await page.locator('[data-estate-goal="first-service"]').textContent(),'Claimed');
@@ -140,9 +140,27 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.equal(saved.snapshot.progress.empire.venues.terrace.level,levelBefore);
     assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true,'a failed save must allow a retry');
     await action('[data-estate-upgrade="terrace"]','estate-clicker-upgrade');
-    assert.equal(saved.snapshot.balance,balanceBefore-2200);
+    assert.equal(saved.snapshot.balance,balanceBefore-450);
     assert.equal(saved.snapshot.progress.empire.venues.terrace.level,3);
     await ready();
+
+    await page.locator('[data-estate-view="managers"]').first().click();
+    const team=page.locator('[data-team="terrace"]');
+    assert.match(await team.textContent(),/Hospitality Director/);
+    assert.equal(await page.locator('[data-estate-specialist="terrace"][data-estate-role="revenue"]').isDisabled(),true);
+    const beforeTraining=saved.snapshot.balance;
+    failNext='estate-clicker-train';
+    await page.locator('[data-estate-train="terrace"]').click();
+    await page.waitForFunction(()=>document.documentElement.dataset.saveState==='error');
+    assert.equal(saved.snapshot.balance,beforeTraining);
+    assert.equal(saved.snapshot.progress.empire.clicker.venues.terrace.managerRank,1);
+    await action('[data-estate-train="terrace"]','estate-clicker-train');
+    assert.equal(saved.snapshot.progress.empire.clicker.venues.terrace.managerRank,2);
+    assert.match(await team.textContent(),/Rank 2/);
+    await page.reload();
+    await page.locator('#lobby').waitFor({state:'visible'});
+    await page.locator('#lobby [data-home-estate="empire"]').click();
+    assert.match(await page.locator('.estate-on-duty').textContent(),/Rank 2/);
 
     // Fixture-only high-level state exercises the real controller and normalizer.
     saved.snapshot.balance=200_000_000_000;
@@ -160,6 +178,16 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     await action('[data-estate-upgrade="terrace"]','estate-clicker-upgrade');
     assert.equal(saved.snapshot.progress.empire.venues.terrace.level,110);
     await page.locator('[data-estate-quantity="1"]').click();
+
+    await page.locator('[data-estate-view="managers"]').first().click();
+    const specialistIncome=Number(saved.snapshot.progress.empire.clicker.venues.terrace.managerRank);
+    await action('[data-estate-specialist="terrace"][data-estate-role="revenue"]','estate-clicker-specialist');
+    await action('[data-estate-specialist="terrace"][data-estate-role="operations"]','estate-clicker-specialist');
+    assert.deepEqual(saved.snapshot.progress.empire.clicker.venues.terrace.specialists,['revenue','operations']);
+    assert.equal(saved.snapshot.progress.empire.clicker.venues.terrace.managerRank,specialistIncome);
+    assert.equal(await team.locator('.estate-specialist .team-state').count(),2);
+    if(process.env.DORRA_ESTATE_TEAM_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_TEAM_SCREENSHOT,fullPage:true});
+    await page.locator('[data-estate-view="estate"]').first().click();
 
     if(process.env.DORRA_ESTATE_SCREENSHOT){
       await page.waitForFunction(()=>!document.querySelector('#toast')?.classList.contains('show'));
@@ -184,6 +212,7 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
           assert.equal(await page.locator('[data-online-signout]').isEnabled(),true);
         }
         if(width===390&&view==='estate'&&process.env.DORRA_ESTATE_MOBILE_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_MOBILE_SCREENSHOT,fullPage:true});
+        if(width===390&&view==='managers'&&process.env.DORRA_ESTATE_TEAM_MOBILE_SCREENSHOT)await page.screenshot({path:process.env.DORRA_ESTATE_TEAM_MOBILE_SCREENSHOT,fullPage:true});
       }
     }
     // The real House controller redraws an externally changed wallet without
@@ -197,7 +226,7 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.deepEqual(runtimeErrors,[]);
     assert.ok(consoleErrors.every(message=>/503/.test(message)),'only the intentionally rejected save may produce a console error: '+consoleErrors.join('; '));
     for(const request of requests.filter(body=>body.action.startsWith('estate-clicker-'))){
-      assert.deepEqual(Object.keys(request.args).sort(),/-(claim|tick)$/.test(request.action)?[]:request.action.endsWith('-upgrade')?['quantity','venueId']: [request.action.endsWith('-goal')?'goalId':'venueId']);
+      assert.deepEqual(Object.keys(request.args).sort(),/-(claim|tick)$/.test(request.action)?[]:request.action.endsWith('-upgrade')?['quantity','venueId']:request.action.endsWith('-specialist')?['role','venueId']: [request.action.endsWith('-goal')?'goalId':'venueId']);
       assert.ok(!Object.hasOwn(request,'snapshot')&&!Object.hasOwn(request,'balance'));
     }
   }finally{await browser.close()}

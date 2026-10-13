@@ -131,7 +131,7 @@ test('clicker directors require Level 2 and retained contract directives cannot 
   await act(f,'estate-clicker-upgrade',{venueId:'terrace'});
   const before=f.snapshot.balance;
   await act(f,'estate-clicker-manager',{venueId:'terrace'});
-  assert.equal(f.snapshot.balance,before-1200);
+  assert.equal(f.snapshot.balance,before-400);
   await assert.rejects(()=>act(f,'estate-clicker-manager',{venueId:'terrace'}),/already/);
   f.snapshot.progress.empire.venues.terrace.focus='service';
   await act(f,'contract-accept',{contractId:'calling-card'});
