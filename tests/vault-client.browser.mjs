@@ -5,6 +5,7 @@ import {validateBody, commandDigest} from '../supabase/functions/dorra-api/proto
 import {reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
 import {encodeResult, decodeResult} from '../supabase/functions/dorra-api/response-codec.mjs';
 import {sessionRefresh} from '../supabase/functions/dorra-api/session-refresh.mjs';
+import {actionResponse} from '../supabase/functions/dorra-api/delta-response.mjs';
 import {baseURL, supabaseHost, responseHeaders, launchBrowser, serveSource} from './browser-helpers.mjs';
 
 // Real browser, Supabase Auth SDK, vault client, protocol and game reducer.
@@ -17,6 +18,7 @@ test('real cloud client queues intents, replays lost responses and revokes the o
   const received = [], authRequests = [], responses = [];
   let saved = {snapshot: {balance: 1000, progress: {level: 1, xp: 0, profile: {name: 'VaultTest'}}, history: []}, privateState: {integrationSecret: 'never-return-this'}, revision: 1, leaseId: null, sessionId: null, recentRequests: []};
   let dropNextResponse = false;
+  let stallNextRefresh=false,releaseRefresh,refreshBegan;
   const encoded = value => Buffer.from(JSON.stringify(value)).toString('base64url');
   const harness = '<!doctype html><html><body><output id="balance"></output><script type="module">import "./online-shell.js"; import {createVaultClient} from "./vault-client.js"; window.vault=await createVaultClient(); window.updates=[]; window.vault.subscribe(snapshot=>{window.updates.push(snapshot);document.querySelector("#balance").textContent=String(snapshot.balance)}); window.ready=true;</script></body></html>';
 
@@ -63,7 +65,11 @@ test('real cloud client queues intents, replays lost responses and revokes the o
       if (saved.leaseId !== body.leaseId || saved.sessionId !== sessionId) {
         return reply({error: 'Another device started a gameplay session.', code: 'SESSION_REPLACED'}, 409);
       }
-      if (body.scope === 'session' && body.action === 'refresh') return reply(sessionRefresh(saved,body.expectedRevision,Date.now(),body.args.ifChanged===true));
+      if (body.scope === 'session' && body.action === 'refresh') {
+        const answer=structuredClone(sessionRefresh(saved,body.expectedRevision,Date.now(),body.args.ifChanged===true));
+        if(stallNextRefresh){stallNextRefresh=false;refreshBegan?.();await new Promise(resolve=>{releaseRefresh=resolve;});return reply(answer).catch(()=>{});}
+        return reply(answer);
+      }
       const digest = await commandDigest(body);
       const cached = saved.recentRequests.find(item => item.id === body.requestId);
       if (cached) {
@@ -71,6 +77,7 @@ test('real cloud client queues intents, replays lost responses and revokes the o
         return reply({snapshot: saved.snapshot, revision: saved.revision, result: await decodeResult(cached.result), replayed: true});
       }
       if (body.expectedRevision !== saved.revision) return reply({error:'Save changed',code:'STALE_REVISION'},409);
+      const base=saved;
       const output = await reduceCampaign(structuredClone(saved.snapshot), structuredClone(saved.privateState), body.action, body.args, Date.now());
       const result = await encodeResult(output.result);
       saved = {...saved, snapshot: output.snapshot, privateState: output.privateState, revision: saved.revision + 1, recentRequests: [...saved.recentRequests, {id: body.requestId, digest, result}].slice(-8)};
@@ -79,7 +86,7 @@ test('real cloud client queues intents, replays lost responses and revokes the o
         await route.abort('failed');
         return;
       }
-      return reply({snapshot: saved.snapshot, revision: saved.revision, result: await decodeResult(result)});
+      return reply(actionResponse(base,{snapshot: saved.snapshot, revision: saved.revision, result: await decodeResult(result)},body.responseMode));
     });
     const page = await context.newPage();
     await page.clock.install();
@@ -121,6 +128,19 @@ test('real cloud client queues intents, replays lost responses and revokes the o
     assert.equal(saved.snapshot.progress.campaign.turn, 1);
     const writes = received.filter(item => item.body.scope !== 'session' && item.body.action !== 'create');
     assert.equal(writes[1].body.expectedRevision, writes[0].body.expectedRevision + 1);
+    assert.ok(responses.some(response=>response.delta),'The real client must reconstruct a negotiated delta');
+    // A slow read must not serialize ahead of the player's next decision.
+    stallNextRefresh=true;
+    const began=new Promise(resolve=>{refreshBegan=resolve;});
+    await first.page.evaluate(()=>{window.slowRead=window.vault.refresh();});
+    await began;
+    try {
+      await Promise.race([
+        first.page.evaluate(()=>window.vault.dispatch('campaign','set-posture',{id:'balanced'})),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('A background refresh blocked gameplay')),4000))
+      ]);
+    } finally {releaseRefresh();}
+    await first.page.evaluate(()=>window.slowRead);
     // Giving money outside this gameplay session updates the display on wake,
     // without reacquiring the lease or submitting any gameplay mutation.
     const lease = saved.leaseId;

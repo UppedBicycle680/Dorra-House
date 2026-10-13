@@ -1,6 +1,7 @@
 import { normalizeCampaign } from './campaign-engine.js?v=20260830-depth10-qa3';
 import { createCampaignController } from './campaign-controller.js?v=20260830-development12';
 import { createVaultClient } from './vault-client.js';
+import {touches} from './snapshot-delta.mjs';
 
 const $ = selector => document.querySelector(selector);
 const clone = value => structuredClone(value);
@@ -105,11 +106,11 @@ async function initialize() {
   dom.panel.hidden = false;
   dom.app.setAttribute('aria-busy', 'false');
   controller.setActive(true);
-  vault.subscribe(value => {
+  vault.subscribe((value,paths) => {
     snapshot = clone(value);
     campaignState = snapshot.progress?.campaign ? normalizeCampaign(snapshot.progress.campaign) : null;
     renderSharedBalance();
-    controller.render();
+    if(touches(paths,'progress.campaign'))controller.render();
   });
 }
 

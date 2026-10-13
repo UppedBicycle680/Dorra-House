@@ -50,16 +50,26 @@ export function createEstateUI({panel,getState,mutate,notify,cloudStatus,now=()=
   if(busy)panel.querySelectorAll('[data-estate-open],[data-estate-upgrade],[data-estate-manager],[data-estate-train],[data-estate-specialist],[data-estate-goal],[data-estate-claim]').forEach(b=>b.disabled=true);
  }
  async function perform(action,args={},background=false){
-  if(busy)return;busy=true;
-  try{const result=await mutate(action,args);if(!result?.ok){if(!background)notify(result?.reason||'Could not save. Please retry.');else retryDelay=Math.min(30000,retryDelay*2);return;}retryDelay=1500;if(!background)lastMessage=action==='serve'?'Business started. Watch the bar fill.':action==='upgrade'?'Business expanded. Keep investing to earn faster.':action==='manager'?'Manager hired. This business now repeats automatically.':action==='train'?'Director trained. This team now earns more and runs faster.':action==='specialist'?'Specialist hired. Their benefit is already included in your income.':action==='open'?'Doors open. Tap the business to start its first run.':money(result.amount)+' collected.';busy=false;render();}finally{if(busy){busy=false;render();}}
+  if(busy)return;busy=true;refreshWallet();update();
+  try{const result=await mutate(action,args);if(!result?.ok){if(!background)notify(result?.reason||'Could not save. Please retry.');else retryDelay=Math.min(30000,retryDelay*2);return;}retryDelay=1500;if(!background)lastMessage=action==='serve'?'Business started. Watch the bar fill.':action==='upgrade'?'Business expanded. Keep investing to earn faster.':action==='manager'?'Manager hired. This business now repeats automatically.':action==='train'?'Director trained. This team now earns more and runs faster.':action==='specialist'?'Specialist hired. Their benefit is already included in your income.':action==='open'?'Doors open. Tap the business to start its first run.':money(result.amount)+' collected.';busy=false;if(background){refreshWallet();update();}else render();}finally{if(busy){busy=false;if(background){refreshWallet();update();}else render();}}
  }
  function update(){
   if(panel.hidden||!panel.querySelector('.estate-idle'))return;
+  const status=cloudStatus?.()?.status,indicator=panel.querySelector('.estate-cloud-status');if(indicator){indicator.classList.toggle('error',status==='error');indicator.textContent=status==='error'?'Save failed · retry':status==='saving'?'Saving online…':'Saved online';}
   const snap=snapshot(),bank=panel.querySelector('[data-estate-bank]');if(bank)bank.textContent=money(snap.claimable);
   const collect=panel.querySelector('[data-estate-claim]');if(collect)collect.disabled=busy||snap.claimable<1;
   for(const v of snap.venues){const button=panel.querySelector(`[data-estate-serve="${v.id}"]`),fill=panel.querySelector(`[data-cycle-fill="${v.id}"]`),label=panel.querySelector(`[data-cycle-label="${v.id}"]`);if(button){button.disabled=busy||v.running;button.classList.toggle('continuous',v.continuous);}if(fill)fill.style.width=(v.continuous?100:v.cycleProgress*100)+'%';if(label)label.textContent=v.continuous?'Continuous income':v.running?seconds(v.remainingMs)+' remaining':v.action;}
   if(!busy&&snap.claimable>=1&&Date.now()-lastTick>=retryDelay){lastTick=Date.now();void perform('tick',{},true).catch(()=>{retryDelay=Math.min(30000,retryDelay*2);});}
  }
  function click(event){const b=event.target.closest('button');if(!b||!panel.contains(b)||b.disabled)return;if(b.dataset.estateView){view=b.dataset.estateView;render();return;}if(b.dataset.estateQuantity){quantity=Number(b.dataset.estateQuantity);render();return;}const action=['serve','upgrade','manager','train','specialist','open','claim','goal'].find(a=>b.hasAttribute('data-estate-'+a));if(!action)return;const id=b.getAttribute('data-estate-'+action),args=action==='claim'?{}:action==='goal'?{goalId:id}:{venueId:id,...(action==='upgrade'?{quantity}:action==='specialist'?{role:b.dataset.estateRole}:{} )};void perform(action,args).catch(error=>notify(error.message||'Could not save. Please retry.'));}
- panel.addEventListener('click',click);return {render,update,destroy(){panel.removeEventListener('click',click);}};
+ function refreshWallet(){
+  if(panel.hidden||!panel.querySelector('.estate-idle'))return;
+  const balance=getState().balance,snap=snapshot(),wallet=panel.querySelector('[data-estate-wallet]');if(wallet)wallet.textContent=money(balance);
+  for(const v of snap.venues){
+   const states={'open':!v.unlocked||balance<v.openCost,'upgrade':balance<price(v),'manager':!v.canHire||balance<v.managerCost,'train':!v.manager||!v.training.useful||balance<v.training.cost};
+   for(const [action,disabled]of Object.entries(states)){const button=panel.querySelector(`[data-estate-${action}="${v.id}"]`);if(button)button.disabled=busy||disabled;}
+   for(const specialist of v.specialists){const button=panel.querySelector(`[data-estate-specialist="${v.id}"][data-estate-role="${specialist.id}"]`);if(button)button.disabled=busy||!specialist.unlocked||specialist.hired||balance<specialist.cost;}
+  }
+ }
+ panel.addEventListener('click',click);return {render,update,refreshWallet,destroy(){panel.removeEventListener('click',click);}};
 }

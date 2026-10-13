@@ -1,5 +1,6 @@
 import * as FootballEngine from './football-engine.js';
 import { createVaultClient } from '../vault-client.js';
+import {touches} from '../snapshot-delta.mjs';
 import { MAX_BALANCE } from '../game-limits.js';
 import {
   ACADEMY_FEE_BANDS,
@@ -3908,11 +3909,11 @@ async function initialize() {
   } else {
     showOnboarding();
   }
-  vault.subscribe(value => {
+  vault.subscribe((value,paths) => {
     snapshot = clone(value);
     const saved = snapshot?.progress?.footballManager;
     footballState = saved ? normalizeState(saved) : null;
-    if (footballState) { if (dom.workspace.hidden) showWorkspace(); else { syncWorkspaceHeader(); renderActiveView(false); } }
+    if (footballState) { if (dom.workspace.hidden) showWorkspace(); else { syncWorkspaceHeader(); if(touches(paths,'progress.footballManager'))renderActiveView(false); } }
     else showOnboarding();
   });
 }

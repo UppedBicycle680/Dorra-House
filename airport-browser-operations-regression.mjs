@@ -117,6 +117,7 @@ try {
   browser = await chromium.launch({headless:true,executablePath:process.env.DORRA_CHROMIUM_PATH});
   if (process.env.DORRA_QA_DEBUG) browser.on('disconnected',() => console.error('Browser disconnected at',Date.now()));
   const context = await browser.newContext({viewport:{width:1440,height:1000}});
+  await context.routeWebSocket(`wss://${new URL(SUPABASE_URL).hostname}/realtime/**`,socket=>socket.close());
   const sessionId=randomUUID(),userId=randomUUID(),encoded=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
   const user={id:userId,aud:'authenticated',role:'authenticated',email:'airport@example.test',user_metadata:{username:'AirportQA'},app_metadata:{provider:'email',providers:['email']},created_at:new Date().toISOString()};
   const auth={access_token:`${encoded({alg:'HS256',typ:'JWT'})}.${encoded({sub:userId,session_id:sessionId,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+3600})}.${encoded('test-signature')}`,

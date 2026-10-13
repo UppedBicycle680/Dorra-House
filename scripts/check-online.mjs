@@ -4,6 +4,7 @@ import {mkdir, writeFile, appendFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, API_URL} from '../online-config.js';
+import {applySnapshotChanges} from '../snapshot-delta.mjs';
 
 const ORIGIN = 'https://uppedbicycle680.github.io';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -30,7 +31,7 @@ export async function checkOnline(fetchImpl = fetch) {
       try { value = await response.json(); }
       catch { throw new Error(`${label}: the live service returned an unreadable response (HTTP ${response.status}).`); }
     }
-    return {status: response.status, ok: response.ok, value};
+    return {status: response.status, ok: response.ok, value, serverTiming: response.headers.get('server-timing')};
   }
   function requireSuccess(response, label) {
     if (!response.ok) {
@@ -138,6 +139,18 @@ export async function checkOnline(fetchImpl = fetch) {
     await run('campaign', 'end-turn');
     assert.equal(current.snapshot.progress?.campaign?.turn, turn + 1, 'Campaign turn did not save.');
     passed('Campaign creation and server-authoritative turn autosave');
+    stage = 'Compact authoritative responses';
+    const compactBody={...command('house','view'),responseMode:'delta-v1'};
+    const compactReply=await api(compactBody),compact=requireSuccess(compactReply,'Compact House view');
+    assert(compact.delta&&!Object.hasOwn(compact,'snapshot'),'The compact response included a full save.');
+    assert.equal(compact.delta.baseRevision,current.revision,'The compact response used another save base.');
+    assert.equal(compact.revision,current.revision+1,'The compact command did not commit once.');
+    assert.match(compactReply.serverTiming||'',/auth;dur=/,'The server did not report request timing.');
+    current.snapshot=applySnapshotChanges(current.snapshot,compact.delta.changes);current.revision=compact.revision;
+    const compactReplay=saved(requireSuccess(await api(compactBody),'Compact replay'),'Compact replay');
+    assert.equal(compactReplay.revision,current.revision,'The compact request replay committed twice.');
+    assert.equal(JSON.stringify(compactReplay.snapshot),JSON.stringify(current.snapshot),'Compact replay did not restore the authoritative save.');
+    passed('Compact responses reconstruct state, expose timing and replay without another commit');
 
     stage = 'Tampering rejection';
     const beforeForgery = JSON.stringify(current.snapshot), revisionBeforeForgery = current.revision;

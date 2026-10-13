@@ -18,7 +18,15 @@ export const responseHeaders = {
 export async function launchBrowser() {
   const executablePath = process.env.DORRA_CHROMIUM_PATH ||
     (await fs.access('/usr/bin/chromium').then(() => '/usr/bin/chromium', () => undefined));
-  return chromium.launch({headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage']});
+  const browser=await chromium.launch({headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage']});
+  const createContext=browser.newContext.bind(browser);
+  browser.newContext=async(...args)=>{
+    const context=await createContext(...args);
+    // Mock transports must never leak fake Auth tokens to live Realtime.
+    await context.routeWebSocket(`wss://${supabaseHost}/realtime/**`,socket=>socket.close());
+    return context;
+  };
+  return browser;
 }
 
 // Serve the real source at its GitHub Pages subpath without opening a socket or

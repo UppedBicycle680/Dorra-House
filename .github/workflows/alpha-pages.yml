@@ -31,6 +31,7 @@ jobs:
           sparse-checkout: |
             scripts/check-online.mjs
             online-config.js
+            snapshot-delta.mjs
             package.json
           sparse-checkout-cone-mode: false
       - name: Set up Node
