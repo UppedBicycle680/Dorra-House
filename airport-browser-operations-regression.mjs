@@ -17,7 +17,7 @@ import {bayFor, aircraftFitsBay} from './airport/brisbane-bays.mjs';
 
 const {chromium} = createRequire(import.meta.url)('playwright');
 const mode = process.env.DORRA_QA_MODE || 'all';
-assert.ok(['all','ui','maps','lifecycle'].includes(mode), 'DORRA_QA_MODE must be all, ui, maps or lifecycle');
+assert.ok(['all','ui','maps','lifecycle','layout'].includes(mode), 'DORRA_QA_MODE must be all, ui, maps, lifecycle or layout');
 const mapIds = process.env.DORRA_QA_AIRPORTS?.split(',');
 const mapAirports = mapIds ? AIRPORTS.filter(meta => mapIds.includes(meta.id)) : AIRPORTS;
 assert.ok(!mapIds || mapAirports.length === mapIds.length, 'Unknown DORRA_QA_AIRPORTS selection');
@@ -172,6 +172,39 @@ try {
     await page.goto(`${origin}/idle-airport.html`);
     await page.locator('#airportDashboard').waitFor({state:'visible'});
     assert.equal(await page.locator('[data-action="visit-airport"]').count(), 7);
+    if(mode==='layout'){
+      await page.locator('[data-action="visit-airport"][data-airport-id="redcliffe"]').click();
+      await page.locator('#airportHud').waitFor({state:'visible'});
+      await pollUi(1);
+      for(const viewport of [{width:320,height:568},{width:390,height:844},{width:600,height:800},{width:844,height:390},{width:1024,height:768},{width:1440,height:900}]){
+        await page.setViewportSize(viewport);
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        const failures=await page.evaluate(()=>{
+          const failures=[];
+          for(const element of document.querySelectorAll('.top-hud button,.currency,.bottom-hud button,.camera-controls button,.flight-desk-links button,.flight-clearances button,.online-account button')){
+            if(!element.getClientRects().length)continue;
+            const r=element.getBoundingClientRect();
+            if(r.left<0||r.top<0||r.right>innerWidth+.5||r.bottom>innerHeight+.5)failures.push(`Outside viewport: ${element.textContent.trim()}`);
+            if(element.matches('button')&&!element.disabled){
+              const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+              if(!element.contains(hit))failures.push(`Covered control: ${element.textContent.trim()} by ${hit?.className}`);
+            }
+          }
+          return failures;
+        });
+        assert.deepEqual(failures,[],JSON.stringify(viewport));
+        await screenshot(`layout-${viewport.width}x${viewport.height}`);
+        for(const action of ['contracts','operations','routes']){
+          await page.locator(`.flight-desk-links [data-action="${action}"]`).click();
+          await page.locator('#airportDialog').waitFor({state:'visible'});
+          assert.equal(await page.locator('.online-account').isVisible(),false,'Account badge must not cover a modal');
+          assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+          await screenshot(`layout-${viewport.width}x${viewport.height}-${action}`);
+          await page.keyboard.press('Escape');
+        }
+      }
+      console.log('Responsive controls and modal hit targets passed.');
+    } else {
     if(mode!=='lifecycle'){
     await page.locator('[data-action="visit-airport"][data-airport-id="redcliffe"]').click();
     await page.locator('#airportHud').waitFor({state:'visible'});
@@ -334,11 +367,12 @@ try {
     await page.route(`${origin}/index.html`,route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><title>Dorra House test return</title>'}));
     await Promise.all([page.waitForURL(`${origin}/index.html`,{waitUntil:'commit'}),page.locator('#airportFatal [data-return-house]').click({timeout:3_000})]);
     assert.equal(received.length,requestsAfterRevocation,'Returning from the fatal screen must not retry cloud writes');
-    console.log(mode==='lifecycle'?'Cloud UI presence cadence, hidden-tab pause, session fail-stop and recovery controls passed.':'Interactive controls, incidents, keyboard clearance, responsive UI, presence cadence, ATC replay and session fail-stop passed.');
+    }
+    console.log(mode==='layout'?'Responsive layout regression passed.':mode==='lifecycle'?'Cloud UI presence cadence, hidden-tab pause, session fail-stop and recovery controls passed.':'Interactive controls, incidents, keyboard clearance, responsive UI, presence cadence, ATC replay and session fail-stop passed.');
   }
 
   const report = [];
-  if (mode !== 'ui'&&mode!=='lifecycle') {
+  if (mode !== 'ui'&&mode!=='lifecycle'&&mode!=='layout') {
     let lastView;
     harness = await context.newPage();
     harness.on('pageerror', error => {errors.push(error.message);console.error('Map error:',error.message);});

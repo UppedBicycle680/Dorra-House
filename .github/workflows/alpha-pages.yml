@@ -83,6 +83,8 @@ jobs:
           npx playwright install --only-shell chromium
       - name: Verify login and real cloud-save client
         run: npm run test:browser
+      - name: Verify airport responsive controls
+        run: npm run test:airport:layout
       - name: Build static site and optimize original artwork
         run: npm run build
       - name: Upload GitHub Pages artifact
