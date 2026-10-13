@@ -54,7 +54,7 @@ test('server upgrades before hiring and pays capped offline automation once',asy
   await assert.rejects(reduce(state,'estate-clicker-manager',{venueId:'terrace'}),/Level 2/);
   state=(await reduce(state,'estate-clicker-upgrade',{venueId:'terrace'})).snapshot;
   state=(await reduce(state,'estate-clicker-manager',{venueId:'terrace'})).snapshot;
-  assert.equal(state.balance,2650);
+  assert.equal(state.balance,4050);
   const claim=await reduce(state,'estate-clicker-claim',{},NOW+24*3600000);
   assert.equal(claim.result.amount,103680); // 8 hours, $18 every five seconds.
   state=claim.snapshot;

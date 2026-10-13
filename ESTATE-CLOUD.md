@@ -12,6 +12,8 @@ Estate sends the following intentions through `vault.dispatch('house', action, a
 | `estate-clicker-serve` | `{venueId}` |
 | `estate-clicker-upgrade` | `{venueId, quantity}` (1, 10, or 100) |
 | `estate-clicker-manager` | `{venueId}` |
+| `estate-clicker-train` | `{venueId}` |
+| `estate-clicker-specialist` | `{venueId, role}` (revenue or operations) |
 | `estate-clicker-claim` | `{}` |
 | `estate-clicker-tick` | `{}` |
 | `estate-clicker-goal` | `{goalId}` |
@@ -22,11 +24,21 @@ The existing online controller adopts the returned account snapshot and refreshe
 
 The existing database limit is 180 committed gameplay actions per minute. The browser permits one outstanding action and collects whole-dollar income at most once per 1.5 seconds, with exponential backoff on failed background saves. A manual tap starts a saved server timer and freezes its payout; it cannot restart an active run. Completion is settled once, including after reload or manager hiring. Managers earn with fractional elapsed-time accounting, avoiding loops over very fast cycles. Cycles at or below 120 milliseconds render as a solid animated bar.
 
-Upgrades continue beyond Level 5, with authoritative bulk purchases of 1, 10, or 100 levels. Every 25 levels boosts income and speed. Legacy prices and rewards through Level 5 are preserved. The existing safe-integer House wallet remains bounded: cycle time floors at 1 ms, payouts cap at $1 billion per cycle, and individual upgrade prices cap at $9 trillion. No five-level gameplay cap remains; this is not an arbitrary-precision currency system. A full wallet retains unpaid bank income.
+Upgrades continue beyond Level 5, with authoritative bulk purchases of 1, 10, or 100 levels. Every 25 levels boosts income and speed. The opening economy now funds the Terrace director after one completed five-second customer. Opening costs and star gates stay the same; early upgrades and directors are cheaper, and later businesses have stronger payouts. Beyond Level 5, upgrade prices are bounded by 120–300 seconds of that business’s base automatic income, with trained teams shortening the wait further. The existing safe-integer House wallet remains bounded: cycle time floors at 1 ms, payouts cap at $1 billion per cycle, and individual upgrade prices cap at $9 trillion. No five-level gameplay cap remains; this is not an arbitrary-precision currency system. A full wallet retains unpaid bank income.
+
+## Teams and pacing
+
+Each of the six businesses has a named director plus a Revenue Lead (Level 10) and Operations Lead (Level 25), for 18 team members. Directors start at Rank 1, including migrated hires. Training adds 15% payout before rounding and reduces cycle time by 2%; Revenue Leads add 25% payout, and Operations Leads shorten cycles by 20%. These benefits respect the existing numerical production limits. The API rejects purchases that would add no income.
+
+Training prices use the additional income and a payback window growing from 120 to 600 seconds. Specialist prices use 120 seconds of additional income. Both have a minimum of 20% of their venue opening price and a $9 trillion ceiling. New ranks and specialist ownership live under `clicker.venues`, so the existing venue sanitizer preserves them. Purchases settle old income first, retain the bar’s phase, and never reprice an already-started manual timer. New training, specialist, Level 25 and Level 100 milestones pay once.
+
+`node scripts/simulate-estate-economy.mjs` runs a deterministic reinvestment policy from $1,000, with one manual customer and no outside rewards. Its current baseline hires the first director at 6 seconds, opens the Valet at 593 seconds, and manages all six businesses at 2,017 seconds (about 34 minutes). The longest saving wait is 98 seconds. These are simulated decisions with one second per purchase, not measured network or human playtime; regression tests bound the opening and portfolio pacing.
+
+The UI displays training payback, extra income per second, funding shortfalls, approximate affordability waits and a next investment suggestion. Waits assume current portfolio income remains unchanged. Growth goals replace manual-serving suggestions once automation is available.
 
 ## Supabase backend
 
-`supabase/functions/dorra-api/estate.mjs` validates the seven commands and calls the shared rules in `shared/estate-engine.js`. Costs, manager eligibility, service bonuses, milestone rewards, and timestamps are server-derived. Wallet settlements require safe whole-dollar integers and reject overflow.
+`supabase/functions/dorra-api/estate.mjs` validates the nine commands and calls the shared rules in `shared/estate-engine.js`. Costs, manager eligibility, service bonuses, milestone rewards, and timestamps are server-derived. Wallet settlements require safe whole-dollar integers and reject overflow.
 
 `house-progression.mjs` initializes the versioned clicker state during the existing House bootstrap and dispatches the new actions. Legacy Estate management commands are retired, including the old instant business-week reward, preventing old clients from bypassing the new economy. Other House, casino, contract, story, airport, campaign, and football commands retain their existing routes.
 
@@ -44,7 +56,7 @@ Deploy the complete `supabase/functions/dorra-api/` directory as the existing `d
 
 ## Verification
 
-Run `npm run check`, `npm test`, and the relevant browser tests. The Estate tests live in `tests/estate-cycles.test.mjs`, `tests/estate-engine.test.mjs`, `tests/estate-clicker-online.test.mjs`, and the Estate sections of `tests/house-progression-online.test.mjs`.
+Run `npm run check`, `npm test`, and the relevant browser tests. The Estate tests live in `tests/estate-managers.test.mjs`, `tests/estate-cycles.test.mjs`, `tests/estate-engine.test.mjs`, `tests/estate-clicker-online.test.mjs`, and the Estate sections of `tests/house-progression-online.test.mjs`.
 
 They cover prices, star gates, saved timers, unlimited levels, bulk purchases, managers, offline caps, fractional earnings, VIP/rush rewards, wallet limits, milestone replay, migration investment, legacy action rejection, JSON saves, and historical server-clock normalization. The existing vault browser test covers Auth, ordered commands, uncertain-delivery request replay, cloned snapshots, and session replacement.
 

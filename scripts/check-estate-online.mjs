@@ -19,7 +19,7 @@ export async function checkEstateOnline(fetchImpl=fetch) {
     const response=await fetchImpl(url,{method,headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Origin:ORIGIN,
       ...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{})},
       ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(25000)});
-    let value={};if(response.status!==204){try{value=await response.json()}catch{throw new Error('The live service returned an unreadable response.')}}
+    let value={};if(response.status!==204){try{value=await response.json()}catch{throw new Error('The live service returned an unreadable response (HTTP '+response.status+').')}}
     return {ok:response.ok,status:response.status,value};
   }
   const success=(response,label)=>{ensure(response.ok,label+' was rejected (HTTP '+response.status+').');return response.value};
@@ -66,7 +66,7 @@ export async function checkEstateOnline(fetchImpl=fetch) {
     passed('Authenticated cloud session acquired');
     stage='Estate migration and opening';
     await run('view');
-    ensure(current.snapshot.progress?.empire?.clicker?.schemaVersion===2,'The account did not migrate to the clicker estate.');
+    ensure(current.snapshot.progress?.empire?.clicker?.schemaVersion===3,'The account did not migrate to the clicker estate.');
     const initial=current.snapshot.balance,opening=await run('estate-clicker-open',{venueId:'terrace'});
     ensure(initial-current.snapshot.balance===250,'Terrace opening used the wrong server price.');
     await replay(opening.command,opening.value);
@@ -94,24 +94,24 @@ export async function checkEstateOnline(fetchImpl=fetch) {
     passed('Client prices, rewards, clocks and legacy instant-week rewards are rejected');
     stage='Upgrade and manager automation';
     await reject('estate-clicker-manager',{venueId:'terrace'},'Level 1 manager purchase');
-    await run('daily-reward');
     await run('estate-clicker-upgrade',{venueId:'terrace'});
     ensure(current.snapshot.progress.empire.venues.terrace.level===2,'Terrace upgrade did not save.');
-    await run('arrival',{path:'owner'});
-    for(let count=0;current.snapshot.balance<1200&&count<30;count++) {
-      await run('estate-clicker-serve',{venueId:'terrace'});
-      await sleep(5100);
-      await run('estate-clicker-tick');
-    }
-    ensure(current.snapshot.balance>=1200,'Manual service did not earn enough to hire the manager.');
+    ensure(current.snapshot.balance>=400,'The first manager should be affordable after a single customer.');
     const beforeManager=current.snapshot.balance;
     await run('estate-clicker-manager',{venueId:'terrace'});
-    ensure(current.snapshot.progress.empire.venues.terrace.manager===true&&beforeManager-current.snapshot.balance===1200,'Manager purchase did not use the saved eligibility and server price.');
+    ensure(current.snapshot.progress.empire.venues.terrace.manager===true&&beforeManager-current.snapshot.balance===400,'Manager purchase did not use the saved eligibility and server price.');
     await sleep(1600);
     const income=await run('estate-clicker-tick');
     ensure(income.value.result?.amount>=5,'Managed service did not generate collectible income.');
     await replay(income.command,income.value);
     passed('Upgrades, manager purchase, automatic earnings and collection persist');
+    stage='Manager training';
+    await reject('estate-clicker-train',{venueId:'terrace',cost:0},'Forged training price');
+    await reject('estate-clicker-specialist',{venueId:'terrace',role:'revenue'},'Locked specialist');
+    const training=await run('estate-clicker-train',{venueId:'terrace'});
+    ensure(training.value.result?.cost===83&&current.snapshot.progress.empire.clicker.venues.terrace.managerRank===2,'Director training used the wrong price or failed to save.');
+    await replay(training.command,training.value);
+    passed('Director training persists once; forged prices and locked specialists are rejected');
     stage='Second-session restoration';
     const savedSnapshot=JSON.stringify(current.snapshot),savedRevision=current.revision;
     const second=success(await http(SUPABASE_URL+'/auth/v1/token?grant_type=password',{body:{email,password}}),'Second password login');
