@@ -66,7 +66,8 @@ export async function createVaultClient(options = {}) {
     return value;
   }
   notify('loading');
-  try { adopt(await request({scope:'session',action:'acquire',leaseId})); notify('saved'); }
+  let playerId = account?.id;
+  try { const initial=await request({scope:'session',action:'acquire',leaseId});adopt(initial);playerId=initial.userId||playerId; notify('saved'); }
   catch (error) { notify('error', error); throw error; }
   const stopPulse=startPlayerPulse({leaseId,onEnded:error=>{blocked=true;notify('error',error);window.dispatchEvent(new CustomEvent('dorra-session-ended',{detail:{error}}));}});
   async function readLatest(signal = null) {
@@ -104,15 +105,16 @@ export async function createVaultClient(options = {}) {
   refreshTimer = setInterval(wake,15000);
   // Notifications are revision hints only. Even a forged hint can only request
   // an authenticated read; it can never install a balance or a game outcome.
-  if (options.realtime !== false && account?.id) {
+  window.dispatchEvent(new CustomEvent('dorra-performance',{detail:{realtimeAvailable:Boolean(playerId)}}));
+  if (options.realtime !== false && playerId) {
     await supabase.realtime.setAuth(authSession.access_token);
-    channel = supabase.channel(`dorra-save:${account.id}`,{config:{private:true}})
+    channel = supabase.channel(`dorra-save:${playerId}`,{config:{private:true}})
       .on('broadcast',{event:'save-changed'},message=>{
         const next = message.payload?.revision;
         if (!Number.isSafeInteger(next) || next <= revision || next <= hintedRevision) return;
         window.dispatchEvent(new CustomEvent('dorra-performance',{detail:{realtimeHint:true}}));
         hintedRevision = next; wake();
-      }).subscribe(status=>{if(status==='SUBSCRIBED')wake();});
+      }).subscribe((status,error)=>{const reason=error?.message?.includes('permissions')?'permission-denied':error?.message?.includes('expired')?'token-expired':error?'connection-error':null;window.dispatchEvent(new CustomEvent('dorra-performance',{detail:{realtimeStatus:status,realtimeReason:reason}}));if(status==='SUBSCRIBED')wake();});
   }
   function dispatch(scope, action, args = {}) {
     const input = structuredClone(args), requestId = input.requestId || crypto.randomUUID();

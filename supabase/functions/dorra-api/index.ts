@@ -41,7 +41,7 @@ Deno.serve(async req=>{
     const identity={p_user_id:user.id,p_auth_session_id:claims.session_id,p_lease_id:body.leaseId};const now=Date.now();
     if(body.scope==='session'&&body.action==='acquire'){
       const saved=await rpc('dorra_acquire_session',{...identity,p_initial:fresh(now,'Member')});
-      return reply({snapshot:saved.snapshot,revision:saved.revision,username:saved.username,serverNow:now});
+      return reply({snapshot:saved.snapshot,revision:saved.revision,username:saved.username,userId:user.id,serverNow:now});
     }
     const readStarted=performance.now();const saved=await rpc('dorra_read_state',identity);measured('read',readStarted);
     if(body.scope==='session'&&body.action==='refresh')return reply(sessionRefresh(saved,body.expectedRevision,now,body.args.ifChanged===true));
