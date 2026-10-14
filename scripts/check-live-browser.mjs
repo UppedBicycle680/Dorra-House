@@ -406,9 +406,18 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     passed('A fresh mobile browser in another timezone restores the wallet, reward and arrival progress');
 
     stage = 'Old-device rejection';
-    ensure(await desktop.locator('#soundBtn').isEnabled());
-    const replaced = await perform(desktop, 'house', 'settings', () => desktop.locator('#soundBtn').click(), 409);
-    ensure(replaced.code === 'SESSION_REPLACED');
+    const alreadyEnded=await desktop.evaluate(()=>document.documentElement.dataset.sessionState==='ended');
+    if(!alreadyEnded){
+      if(await desktop.evaluate(()=>window.dorraRealtimeAvailable)){
+        // A revision hint now revokes the old UI before it can submit another
+        // action. The API smoke test separately verifies direct stale-lease rejection.
+        await desktop.waitForFunction(()=>document.documentElement.dataset.sessionState==='ended',null,{timeout:TIMEOUT});
+      }else{
+        ensure(await desktop.locator('#soundBtn').isEnabled());
+        const replaced = await perform(desktop, 'house', 'settings', () => desktop.locator('#soundBtn').click(), 409);
+        ensure(replaced.code === 'SESSION_REPLACED');
+      }
+    }
     await desktop.waitForFunction(() => document.documentElement.dataset.sessionState === 'ended', null, {timeout: TIMEOUT});
     await visible(desktop, 'dialog.online-session-notice');
     await exactText(desktop, 'dialog.online-session-notice h2', 'Your session has ended');
