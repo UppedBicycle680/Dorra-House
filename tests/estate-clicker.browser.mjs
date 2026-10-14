@@ -139,8 +139,10 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.equal(saved.snapshot.balance,4_137);
     await auditTextLayout();
     assert.match(await page.locator('[data-estate-income]').textContent(),/\$216/);
+    const decodedArtwork=await page.locator('img.business-art').first().elementHandle();
     serverNow+=60_000;
     await waitWallet(4_353);
+    assert.equal(await decodedArtwork.evaluate(img=>img.isConnected),true,'Automatic banking retains decoded artwork');
     assert.equal(saved.snapshot.balance,4_353,'managed income is banked automatically');
     assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true);
     assert.equal(await page.locator('[data-estate-serve="terrace"]').isDisabled(),true,'managers repeat the timer automatically');
