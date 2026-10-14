@@ -44,8 +44,13 @@ Free-plan capacity depends on active-player traffic, save sizes and Supabase’s
 
 ## Automatic cloud refresh
 
-Visible game pages check for external save changes every 15 seconds and when
-the player returns to the tab or reconnects. Conditional refresh responses omit
+Private Realtime channels carry revision-only hints for the signed-in player.
+Each hint triggers a read through the authenticated gameplay API, retaining
+lease, account and session checks. Browsers cannot publish to these channels or
+read another player's channel, and hints never supply gameplay state.
+
+Visible pages also check every 15 seconds and when the player returns to the
+tab or reconnects, as a fallback. Conditional refresh responses omit
 the snapshot when its revision is unchanged. A changed wallet updates the House,
 Estate, Football, Strategic Command and the airport withdrawal balance without
 reloading or acquiring a new gameplay lease.
@@ -55,9 +60,21 @@ save. View/load commands retry once; purchases, wagers and other decisions ask
 the player to review the updated state and retry. Network retries keep the same
 request identifier, and replaced/revoked sessions remain blocked.
 
-Release the backward-compatible `dorra-api` function before publishing the new
-client. No database migration or Realtime publication is required. Older clients
-continue receiving full snapshots for unconditional session refresh requests.
+Player actions cancel in-flight background reads and retain their serialized
+mutation queue. The API negotiates `delta-v1` responses for small public snapshot
+changes; older clients and request replays receive full snapshots. Clients check
+the delta base revision before applying it and recover through the API without
+resubmitting an already committed action. Wallet updates preserve current UI
+controls and unrelated views. Hidden and unchanged views avoid broad redraws.
+
+`Server-Timing` reports authentication, read, reducer and commit durations. The
+local `dorra-performance` event reports queue, network, response size and render
+durations without identities, tokens, arguments or saved state.
+
+Apply `private_save_notifications` and deploy the backward-compatible `dorra-api`
+before publishing the client. No gameplay table is added to a Realtime
+publication or granted browser access. The migration uses an invoker trigger in
+the private schema and a read-only policy on `realtime.messages`.
 
 ## Validation
 

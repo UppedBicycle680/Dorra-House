@@ -7,6 +7,7 @@ import {EMPIRE_VENUES,EMPIRE_MANAGERS,EMPIRE_FOCUSES,VENUE_SIGNATURE_PERKS,EMPIR
 import {normalizeCampaign} from './campaign-engine.js?v=20260830-depth10-qa3';
 import {MAX_BALANCE} from './game-limits.js';
 import {createVaultClient,localGet,localSet,localRemove} from './vault-client.js';
+import {touches} from './snapshot-delta.mjs';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const campaignController=null;
 
@@ -779,11 +780,26 @@ document.addEventListener('click',async event=>{
 // Online Alpha controller. Every meaningful input is sent as an intent; the
 // server response replaces this page's durable state before it is displayed.
 let onlineBusy=false,onlineMemoryReveal=[],onlineMemoryTimer=0,onlineMarketTimer=0;
-function onlineRefresh(){save('cloud-view');renderMotor();updateAutoSpin();applyProfileSettings();if(!$('#profilePanel').hidden){syncProfileChrome();renderProfileOverview();renderWebsiteSettings()}if(!$('#dorraOs').hidden&&!$('#dorraOsApp').hidden){const app=Object.entries(dorraOsApps).find(([,item])=>item[0]===$('#dorraOsAppTitle').textContent);if(app)$('#dorraOsAppBody').innerHTML=app[1][1]()}}
-function onlineAdopt(snapshot){if(!snapshot)return;state.balance=snapshot.balance;state.history=snapshot.history;state.stats=snapshot.stats;state.progress=snapshot.progress;normalizeProgression(state.progress);state.sound=state.progress.profile?.settings?.sound!==false;$('#soundBtn').textContent=state.sound?'♪':'×';onlineRefresh()}
-vault.subscribe(snapshot=>{const before=state.balance;onlineAdopt(snapshot);if(before!==state.balance)toast(`Your balance was updated: ${money(state.balance)}`)});
+function onlineRefresh(paths,action){
+ const started=performance.now(),changed=(...keys)=>touches(paths,...keys);
+ if(changed('balance','history','stats','progress.level','progress.xp'))renderHud();
+ if(changed('balance')){$('#dashboardBalance').textContent=money(state.balance);updateAutoSpin();estateUI.refreshWallet();}
+ if(!$('#lobby').hidden&&changed('progress','stats','history'))renderDashboard();
+ if(!$('#boutique').hidden&&changed('progress'))renderBoutique();
+ if(!$('#motorGallery').hidden&&changed('progress.vehicles','progress.configurations','progress.displayVehicle'))renderMotor();
+ if(!$('#houseMap').hidden&&changed('progress'))renderHouseMap();
+ if(!$('#rooftopRoom').hidden&&changed('progress'))renderRooftop();
+ if(!$('#trophyRoom').hidden&&changed('progress','stats'))renderTrophyRoom();
+ if(!$('#progressionHub').hidden&&changed('progress','stats','history')){if(action==='estate-clicker-tick')estateUI.update();else renderDorraProgression();}
+ if(changed('progress.equipped'))applyEquipped();
+ if(changed('progress.profile')){applyProfileSettings();if(!$('#profilePanel').hidden){syncProfileChrome();renderProfileOverview();renderWebsiteSettings();}}
+ if(!$('#dorraOs').hidden&&!$('#dorraOsApp').hidden&&changed('balance','progress')){const app=Object.entries(dorraOsApps).find(([,item])=>item[0]===$('#dorraOsAppTitle').textContent);if(app)$('#dorraOsAppBody').innerHTML=app[1][1]();}
+ window.dispatchEvent(new CustomEvent('dorra-performance',{detail:{renderMs:performance.now()-started}}));
+}
+function onlineAdopt(snapshot,paths,action){if(!snapshot)return;state.balance=snapshot.balance;state.history=snapshot.history;state.stats=snapshot.stats;state.progress=snapshot.progress;if(touches(paths,'progress'))normalizeProgression(state.progress);if(touches(paths,'progress.profile')){state.sound=state.progress.profile?.settings?.sound!==false;$('#soundBtn').textContent=state.sound?'♪':'×';}onlineRefresh(paths,action)}
+vault.subscribe((snapshot,paths)=>{const before=state.balance;onlineAdopt(snapshot,paths);if(before!==state.balance)toast(`Your balance was updated: ${money(state.balance)}`)});
 function onlineRestoreRound(game,round){if(!round)return;if(game==='bj'){state.bj=round;renderBJ(round.finished);$('#dealBtn').disabled=!round.finished;$('#hitBtn').disabled=$('#standBtn').disabled=!!round.finished;$('#doubleBtn').disabled=!!round.finished||!round.canDouble||state.balance<round.bet}if(game==='poker'){state.poker=round;renderPoker(round.finished);$('#pokerDealBtn').disabled=!round.finished;$('#pokerPlayBtn').disabled=!!round.finished||state.balance<round.bet;$('#pokerFoldBtn').disabled=!!round.finished}if(game==='holdem'){state.holdem=round;renderHoldem(round.finished);$('#holdemDealBtn').disabled=!round.finished;$('#holdemCallBtn').disabled=!!round.finished||state.balance<round.bet;$('#holdemFoldBtn').disabled=!!round.finished}if(game==='videopoker'){state.videoPoker={...round,held:new Set()};renderVideoPoker();$('#videoPokerDealBtn').disabled=!round.finished;$('#videoPokerDrawBtn').disabled=!!round.finished}if(game==='memory'){memoryDeck=round.values;memoryOpen=round.open;memoryMatched=new Set(round.matched);memoryMisses=round.misses;memoryLive=round.live;memoryBet=round.bet;renderMemory();$('#memoryStartBtn').disabled=memoryLive}if(game==='monte'){monteReady=round.ready;monteBusy=false;monteWager=round.bet;$('#monteStartBtn').disabled=round.ready}}
-async function onlineIntent(action,args={},display=true){if(onlineBusy)return null;onlineBusy=true;setSaveState('saving');const operation=vault.dispatch('house',action,args);protectedWriteQueue=operation.catch(()=>{});try{const response=await operation;onlineAdopt(response.snapshot);if(display&&response.result?.message)toast(response.result.message);setSaveState('saved');return response.result||{}}catch(error){setSaveState('error');toast(error.message||'Your action could not be saved. Please retry.');return null}finally{onlineBusy=false}}
+async function onlineIntent(action,args={},display=true){if(onlineBusy)return null;onlineBusy=true;setSaveState('saving');const operation=vault.dispatch('house',action,args);protectedWriteQueue=operation.catch(()=>{});try{const response=await operation;onlineAdopt(response.snapshot,response.changedPaths,action);if(display&&response.result?.message)toast(response.result.message);setSaveState('saved');return response.result||{}}catch(error){setSaveState('error');toast(error.message||'Your action could not be saved. Please retry.');return null}finally{onlineBusy=false}}
 async function onlineHouse(game,move='play',extra={}){const key=game==='bj'?'bj':game;if(move==='start'||(move==='play'&&game!=='poker')){if(!afford(state.bets[key]))return}const result=await onlineIntent('casino',{game,move,bet:state.bets[key],...extra},false);if(!result)return;onlineRestoreRound(game,result.round);const messageIds={bj:'bjMessage',poker:'pokerMessage',holdem:'holdemMessage',videopoker:'videoPokerMessage',highlow:'highlowMessage',dice:'diceMessage',baccarat:'baccaratMessage',sicbo:'sicboMessage',slots:'slotsMessage',roulette:'rouletteResult',memory:'memoryMessage',monte:'monteMessage',racing:'raceMessage'};if(result.message&&$('#'+messageIds[game]))$('#'+messageIds[game]).textContent=result.message;
  if(game==='highlow'&&result.card){state.highCard=result.card;renderHigh(result.card)}
  if(game==='dice'&&result.dice)result.dice.forEach((n,i)=>$('#die'+(i+1)).textContent='⚀⚁⚂⚃⚄⚅'[n-1]);

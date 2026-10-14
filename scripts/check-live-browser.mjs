@@ -1,4 +1,4 @@
-import {randomBytes} from 'node:crypto';
+import {randomBytes,randomUUID} from 'node:crypto';
 import {access, appendFile, mkdir, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const TIMEOUT = 90000;
 const ensure = condition => { if (!condition) throw new Error('Live browser verification failed.'); };
 const ASSET_PATHS = new Map(['login.html', 'login.js', 'login.css', 'auth-client.js', 'online-config.js', 'vendor/supabase/supabase.js',
-  'index.html', 'app.js', 'vault-client.js', 'online-shell.js', 'online-shell.css', 'styles.css', 'arrival.css', 'progression-engine.js', 'campaign-engine.js',
+  'index.html', 'app.js', 'vault-client.js', 'snapshot-delta.mjs', 'online-shell.js', 'online-shell.css', 'styles.css', 'arrival.css', 'progression-engine.js', 'campaign-engine.js',
   'idle-airport.html', 'airport/ui.mjs', 'football-manager.html', 'football/football-ui.js', 'war-simulation.html', 'war-simulation.js', 'campaign-controller.js']
   .map(asset => [`/Dorra-House/${asset}`, asset]));
 const AUTH_ACTIONS = new Set(['signup', 'token', 'user', 'logout', 'recover', 'resend']);
@@ -65,6 +65,15 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     ensure(response.status() === expectedStatus);
     const value = await response.json();
     ensure(!Object.hasOwn(value, 'privateState'));
+    if(expectedStatus===200&&value.delta){
+      // Independently read the authoritative receipt rather than deriving the
+      // expected wallet from the browser's own reconstructed cache.
+      const command=response.request().postDataJSON();
+      const receiptResponse=await fetchImpl(API_URL,{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Origin:ORIGIN,'Content-Type':'application/json',Authorization:response.request().headers().authorization},body:JSON.stringify({scope:'session',action:'refresh',leaseId:command.leaseId,requestId:randomUUID(),expectedRevision:value.revision,args:{}}),signal:AbortSignal.timeout(30000)});
+      ensure(receiptResponse.ok);
+      const receipt=await receiptResponse.json();ensure(!Object.hasOwn(receipt,'privateState')&&receipt.revision===value.revision&&receipt.snapshot);
+      value.snapshot=receipt.snapshot;
+    }
     if (expectedStatus === 200) ensure(value.snapshot && Number.isSafeInteger(value.revision));
     return value;
   }
@@ -102,6 +111,7 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     ensure(routing.protocol === 'https' && routing.expectedOrigin && routing.secureContext && routing.randomUUIDAvailable);
   }
   async function newPage(context) {
+    await context.addInitScript(()=>{window.dorraRealtimeStatus=null;window.dorraRealtimeAvailable=false;window.addEventListener('dorra-performance',event=>{if(event.detail?.realtimeStatus)window.dorraRealtimeStatus=event.detail.realtimeStatus;if(event.detail?.realtimeAvailable)window.dorraRealtimeAvailable=true;});});
     const page = await context.newPage();
     page.setDefaultTimeout(TIMEOUT);
     page.setDefaultNavigationTimeout(TIMEOUT);
@@ -309,6 +319,13 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     stage = 'First House JavaScript health';
     ensure(javascriptErrors.length === 0);
     passed('Real published email/password/username signup opens the desktop House');
+    // This checker also runs independently against an older published release
+    // while a new Pages build is still underway. Probe when that client has it.
+    if(await desktop.evaluate(()=>window.dorraRealtimeAvailable)){
+      stage = 'Private realtime connection under published CSP';
+      await desktop.waitForFunction(()=>window.dorraRealtimeStatus==='SUBSCRIBED',null,{timeout:TIMEOUT});
+      passed('Published House establishes an authenticated private realtime connection');
+    }
 
     stage = 'Launch viewport fit';
     await desktop.evaluate(() => document.fonts.ready);
@@ -389,9 +406,18 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     passed('A fresh mobile browser in another timezone restores the wallet, reward and arrival progress');
 
     stage = 'Old-device rejection';
-    ensure(await desktop.locator('#soundBtn').isEnabled());
-    const replaced = await perform(desktop, 'house', 'settings', () => desktop.locator('#soundBtn').click(), 409);
-    ensure(replaced.code === 'SESSION_REPLACED');
+    const alreadyEnded=await desktop.evaluate(()=>document.documentElement.dataset.sessionState==='ended');
+    if(!alreadyEnded){
+      if(await desktop.evaluate(()=>window.dorraRealtimeAvailable)){
+        // A revision hint now revokes the old UI before it can submit another
+        // action. The API smoke test separately verifies direct stale-lease rejection.
+        await desktop.waitForFunction(()=>document.documentElement.dataset.sessionState==='ended',null,{timeout:TIMEOUT});
+      }else{
+        ensure(await desktop.locator('#soundBtn').isEnabled());
+        const replaced = await perform(desktop, 'house', 'settings', () => desktop.locator('#soundBtn').click(), 409);
+        ensure(replaced.code === 'SESSION_REPLACED');
+      }
+    }
     await desktop.waitForFunction(() => document.documentElement.dataset.sessionState === 'ended', null, {timeout: TIMEOUT});
     await visible(desktop, 'dialog.online-session-notice');
     await exactText(desktop, 'dialog.online-session-notice h2', 'Your session has ended');

@@ -33,6 +33,7 @@ jobs:
             scripts/check-live-browser.mjs
             scripts/ensure-pages-https.mjs
             online-config.js
+            snapshot-delta.mjs
             package.json
             package-lock.json
           sparse-checkout-cone-mode: false

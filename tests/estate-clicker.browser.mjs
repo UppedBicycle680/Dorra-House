@@ -6,6 +6,7 @@ import {initializeHouse} from '../supabase/functions/dorra-api/house-progression
 import {reduceHouse} from '../supabase/functions/dorra-api/house.mjs';
 import {encodeResult,decodeResult} from '../supabase/functions/dorra-api/response-codec.mjs';
 import {sessionRefresh} from '../supabase/functions/dorra-api/session-refresh.mjs';
+import {actionResponse} from '../supabase/functions/dorra-api/delta-response.mjs';
 import {baseURL,supabaseHost,responseHeaders,launchBrowser,serveSource} from './browser-helpers.mjs';
 
 // Exercise the published page's real Auth SDK, controller, protocol and reducer.
@@ -65,11 +66,12 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     assert.equal(body.expectedRevision,saved.revision,'the page must use the last committed revision');
     if(body.action===failNext){failNext=null;return reply({error:'Cloud save paused for this test. Retry your action.',code:'STORAGE_ERROR'},503)}
     try{
+      const base=saved;
       const output=await reduceHouse(structuredClone(saved.snapshot),structuredClone(saved.privateState),body.action,body.args,serverNow);
       const result=await encodeResult(output.result);
       saved={...saved,snapshot:output.snapshot,privateState:output.privateState,revision:saved.revision+1,recentRequests:[...saved.recentRequests,{id:body.requestId,digest,result}].slice(-8)};
       commits.push({action:body.action,result:output.result,balance:saved.snapshot.balance});
-      return reply({snapshot:saved.snapshot,revision:saved.revision,result:await decodeResult(result),serverNow});
+      return reply({...actionResponse(base,{snapshot:saved.snapshot,revision:saved.revision,result:await decodeResult(result)},body.responseMode),serverNow});
     }catch(error){return reply({error:error.message,code:error.code||'ACTION_REJECTED'},error.status||400)}
   });
   const page=await context.newPage();
@@ -123,9 +125,11 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     await action('[data-estate-serve="terrace"]','estate-clicker-serve');
     assert.equal(saved.snapshot.balance,4_750,'starting a timer must not pay immediately');
     assert.equal(await page.locator('[data-estate-serve="terrace"]').isDisabled(),true);
+    await page.evaluate(()=>{window.priorCycle=document.querySelector('[data-cycle-fill="terrace"]');});
     await page.waitForFunction(()=>parseFloat(document.querySelector('[data-cycle-fill="terrace"]')?.style.width)>0);
     serverNow+=5_000;
     await waitWallet(4_762);
+    assert.equal(await page.evaluate(()=>window.priorCycle?.isConnected&&window.priorCycle===document.querySelector('[data-cycle-fill="terrace"]')),true,'Income settlement must preserve the animated cycle');
     assert.equal(await page.locator('[data-estate-upgrade="terrace"]').isEnabled(),true,'an affordable upgrade must re-enable after serving');
 
     await page.locator('[data-estate-view="milestones"]').first().click();
@@ -297,11 +301,13 @@ test('online Estate supports service, upgrades, managers, reloads, failed saves 
     // The real House controller redraws an externally changed wallet without
     // a reload, including the active Estate page and shared header.
     const activeLease=saved.leaseId;
+    await page.evaluate(()=>{window.priorControl=document.querySelector('.estate-nav [data-estate-view="estate"]');});
     saved.snapshot.balance=12000;saved.revision++;
     await page.evaluate(()=>window.dispatchEvent(new Event('online')));
     await waitWallet(saved.snapshot.balance);
     assert.equal(await page.locator('#balance').textContent(),'$'+saved.snapshot.balance.toLocaleString());
     assert.equal(saved.leaseId,activeLease);
+    assert.equal(await page.evaluate(()=>window.priorControl?.isConnected&&window.priorControl===document.querySelector('.estate-nav [data-estate-view="estate"]')),true,'A wallet update must preserve the active controls');
     assert.deepEqual(runtimeErrors,[]);
     assert.ok(consoleErrors.every(message=>/503/.test(message)),'only the intentionally rejected save may produce a console error: '+consoleErrors.join('; '));
     for(const request of requests.filter(body=>body.action.startsWith('estate-clicker-'))){

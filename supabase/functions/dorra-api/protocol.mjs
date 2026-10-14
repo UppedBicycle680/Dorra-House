@@ -10,8 +10,9 @@ export async function readBoundedBody(req,limit=420000){
 export function validateBody(body){
   if(!body||typeof body!=='object'||Array.isArray(body))fail('Use a gameplay command.');
   const acquire=body.scope==='session'&&body.action==='acquire';
-  const fields=acquire?['scope','action','leaseId']:['scope','action','leaseId','requestId','expectedRevision','args'];
+  const fields=acquire?['scope','action','leaseId']:['scope','action','leaseId','requestId','expectedRevision','args','responseMode'];
   if(Object.keys(body).some(k=>!fields.includes(k)))fail('Saved state, balances and outcomes cannot be uploaded.');
+  if(Object.hasOwn(body,'responseMode')&&body.responseMode!=='delta-v1')fail('Unsupported response mode.');
   if(!UUID.test(body.leaseId||''))fail('A valid gameplay session is required.');
   if(!acquire){
     if(!['house','airport','campaign','football','session'].includes(body.scope)||typeof body.action!=='string'||!body.action||body.action.length>64)fail('Unknown gameplay command.');
