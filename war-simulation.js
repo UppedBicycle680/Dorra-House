@@ -3,8 +3,8 @@ import { supabase } from './auth-client.js';
 import { createWarClient } from './war/client.mjs';
 import { CommandMap } from './war/map.mjs';
 import { BRANCHES } from './war/catalog.mjs';
-import { validateOrder } from './war/command-info.mjs';
-import { escapeHTML as e, renderLobby, renderNationList, renderResources, renderNav, renderDrawer, renderSelection, renderClock, getPlatforms, titleCase } from './war/ui.mjs';
+import { validateOrder, hostileOrderContact } from './war/command-info.mjs';
+import { escapeHTML as e, renderLobby, renderNationList, renderProvinceChoices, renderResources, renderNav, renderDrawer, renderSelection, renderClock, getPlatforms, titleCase } from './war/ui.mjs';
 
 const $ = selector => document.querySelector(selector);
 const dom = { app: $('#warApp'), boot: $('#bootPanel'), lobby: $('#lobbyPanel'), drawer: $('#commandDrawer'), nav: $('#commandNav'), selection: $('#selectionPanel'), clock: $('#matchClock'), resources: $('#resourceBar'), context: $('#commandContext'), toast: $('#toast'), dialog: $('#commandDialog'), banner: $('#connectionBanner') };
@@ -22,14 +22,14 @@ function render() {
   else {
     dom.context.textContent = model.view.match.name || 'ACTIVE OPERATION'; dom.resources.innerHTML = renderResources(model.view.player.resources); dom.nav.innerHTML = renderNav(model.tab); dom.clock.innerHTML = renderClock(displayView());
     if (model.tab !== 'map') { const scroll = dom.drawer.querySelector('.drawer-body')?.scrollTop || 0; dom.drawer.innerHTML = renderDrawer(model); dom.drawer.querySelector('.drawer-body').scrollTop = scroll; }
-    dom.selection.innerHTML = renderSelection(model); dom.selection.hidden = !dom.selection.innerHTML;
+    dom.selection.innerHTML = renderSelection(model); dom.selection.hidden = !dom.selection.innerHTML || model.tab !== 'map';
   }
   document.querySelectorAll('[data-action]').forEach(button => {
     if (model.busy && ['create', 'join-match', 'open-match', 'start', 'pause', 'resume', 'reward', 'retire', 'research', 'produce', 'build', 'diplomacy', 'import-license', 'transfer-resources', 'confirm-order', 'direct-order'].includes(button.dataset.action)) button.disabled = true;
     if (model.view && !['running', 'active'].includes(model.view.match.status) && ['research', 'produce', 'build', 'diplomacy', 'import-license', 'transfer-resources', 'confirm-order', 'direct-order', 'order-type', 'route-mode'].includes(button.dataset.action)) button.disabled = true;
   });
   dom.app.setAttribute('aria-busy', String(model.busy));
-  map.setView(model.view); map.setSelection({ country: active ? null : model.nationId, province: model.provinceId, units: model.selectedUnits }); map.setOrderPreview(model.pendingOrder);
+  map.setView(model.view); map.setSelection({ country: active ? null : model.nationId, province: model.provinceId, units: model.selectedUnits }); map.setOrderPreview(model.pendingOrder); map.setTargeting(Boolean(model.orderType && model.selectedUnits.length));
 }
 function adopt(response) {
   if (response.matches) model.worlds = response.matches;
@@ -38,7 +38,7 @@ function adopt(response) {
     if (!old || old.match.id !== response.view.match.id || Number(response.view.match.revision) >= Number(old.match.revision)) {
       model.view = response.view;
       clockAnchor = { id: model.view.match.id, gameTime: Number(model.view.match.gameTime) || 0, speed: Number(model.view.match.speed) || (model.view.match.pace === 'fast' ? 360 : 4), receivedAt: client.serverNow };
-      if (old && old.match.status !== 'finished' && model.view.match.status === 'finished') { model.tab = 'operation'; model.pendingOrder = null; model.orderType = null; toast(model.view.victory?.won ? 'Victory confirmed. Your operation has concluded.' : 'The operation has concluded. Review the final standings.'); }
+      if (old && old.match.status !== 'finished' && model.view.match.status === 'finished') { model.tab = 'operation'; model.pendingOrder = null; model.orderType = null; model.selectedUnits = []; model.unitDetailsOpen = false; toast(model.view.victory?.won ? 'Victory confirmed. Your operation has concluded.' : 'The operation has concluded. Review the final standings.'); }
       model.selectedUnits = model.selectedUnits.filter(id => model.view.units?.some(unit => unit.id === id));
       const url = new URL(location.href); url.searchParams.set('match', model.view.match.id); history.replaceState(null, '', url);
     }
@@ -57,14 +57,33 @@ async function refresh() {
 }
 async function mutate(action, args = {}, success) {
   if (model.busy || client.blocked) return null;
+  const matchId = model.view?.match.id;
   model.busy = true; render();
   try {
-    const response = await client.command(action, args, model.view?.match.id);
+    const response = await client.command(action, args, matchId);
     adopt(response);
     if (!response.view && model.view) await refresh();
     if (success) toast(success);
     return response;
-  } catch (error) { toast(error.message, true); return null; }
+  } catch (error) {
+    if (error.code === 'MATCH_NOT_RUNNING' && matchId) {
+      // The final tick may finish a campaign after the player opens a control.
+      // A rejected command rolls its tick back; allow the regular server pulse
+      // to settle before installing only its filtered outcome.
+      for (const delay of [0, 1000, 2000, 4000]) {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        if (model.view?.match.id !== matchId || client.blocked) return null;
+        try {
+          const response = await client.command('view', {}, matchId);
+          if (model.view?.match.id !== matchId) return null;
+          adopt(response);
+        } catch { break; }
+        if (!['running', 'active'].includes(model.view?.match.status)) break;
+      }
+      if (model.view?.match.status === 'finished') return null;
+    }
+    toast(error.message, true); return null;
+  }
   finally { model.busy = client.blocked; render(); }
 }
 function chooseNation(id, focus = true) {
@@ -94,7 +113,8 @@ function target(hit) {
   const type = model.orderType || (province?.ownerId && province.ownerId !== model.view.player.nationId ? 'attack' : 'move');
   const waypoints = model.routeMode && model.pendingOrder ? [...(model.pendingOrder.waypoints || []), model.pendingOrder.targetProvinceId] : [];
   if (waypoints.length > 8) { toast('A route supports up to eight waypoints. Confirm this route or remove a waypoint.'); return; }
-  model.pendingOrder = { unitIds: ownUnits, type, targetProvinceId: provinceId, targetName: hit.feature?.properties?.name || province?.name || provinceId, ...(waypoints.length ? { waypoints } : {}), ...(hit.unitIds?.length ? { targetUnitId: hit.unitIds[0] } : {}) };
+  const hostileContact = ['attack', 'bombard'].includes(type) ? hostileOrderContact(model, provinceId, hit.unitIds) : null;
+  model.pendingOrder = { unitIds: ownUnits, type, targetProvinceId: provinceId, targetName: hit.feature?.properties?.name || province?.name || provinceId, ...(waypoints.length ? { waypoints } : {}), ...(hostileContact ? { targetUnitId: hostileContact.id } : {}) };
   model.tab = 'map'; render();
 }
 function mapSelect(hit) {
@@ -145,6 +165,8 @@ async function handleAction(button) {
     const candidates = model.nations.filter(n => !occupied.has(n.id) && (!allowed || allowed.has(n.id)));
     showDialog({ title: 'Choose your command', body: '<p>National strength and available equipment differ. Select your nation before joining this operation.</p><div class="dialog-field"><label class="field-label" for="joinNation">Available nation</label><select id="joinNation">' + candidates.map(n => `<option value="${e(n.id)}" ${n.id === model.nationId ? 'selected' : ''}>${e(n.name)}</option>`).join('') + '</select></div>' + (model.inviteCode ? '<p class="fine-print">Private invitation verified. Your invite code will accompany this request.</p>' : ''), confirm: 'Join operation', onConfirm: async () => { const nationId = $('#joinNation').value; if (!nationId) { toast('This operation has no available national commands.', true); return false; } const response = await client.command('join', { nationId, ...(model.inviteCode ? { inviteCode: model.inviteCode } : {}) }, id).catch(error => { toast(error.message, true); return null; }); if (!response) return false; adopt(response); if (!response.view) await openMatch(id); model.tab = 'operation'; render(); await map.focus(nationId); } }); return;
   }
+  if (action === 'province-picker') { model.provinceId = null; model.provinceFeature = null; model.provinceSearch = ''; model.provincePage = 0; render(); return; }
+  if (action === 'province-page') { model.provincePage = Number(id) || 0; render(); return; }
   if (action === 'province') { model.provinceId = id; model.provinceFeature = map.provinces.get(id); render(); return; }
   if (action === 'select-unit') { selectUnits([id]); await focusSelectedUnit(id); return; }
   if (action === 'research') return mutate('research', { platformId: id }, 'Research programme accepted.');
@@ -189,6 +211,7 @@ async function handleAction(button) {
 function bind() {
   document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (button && !button.disabled) void handleAction(button).catch(error => toast(error.message, true)); });
   document.addEventListener('toggle', event => { if (event.target.id === 'formationDetails') { const wasOpen = model.unitDetailsOpen; model.unitDetailsOpen = event.target.open; if (!wasOpen && event.target.open && innerWidth <= 700 && model.selectedUnits.length === 1) void focusSelectedUnit(model.selectedUnits[0]); } }, true);
+  dom.drawer.addEventListener('input', event => { if (event.target.id === 'provinceSearch') { model.provinceSearch = event.target.value; model.provincePage = 0; $('#ownedProvinceChoices').innerHTML = renderProvinceChoices(model); } });
   dom.lobby.addEventListener('input', event => {
     if (event.target.id === 'nationSearch') { model.search = event.target.value; $('#nationList').innerHTML = renderNationList(model); }
     if (event.target.id === 'matchName') model.name = event.target.value;

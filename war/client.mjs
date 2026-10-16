@@ -9,10 +9,19 @@ const ENDED = new Set(['SESSION_REPLACED', 'AUTH_SESSION_ENDED', 'ACCOUNT_DISABL
 export function createWarClient({ vault, onStatus = () => {}, onHint = () => {} }) {
   let closed = false, blocked = false, channel = null, queue = Promise.resolve(), offset = 0, realtimeReady = false, lastSync = 0;
   const controllers = new Set();
+  const backoffs = new Set();
   const projections = new Map();
-  const ended = event => { blocked = true; onStatus('ended', event.detail?.error || new Error('Your gameplay session ended. Reload to sign in again.')); };
+  const ended = event => { blocked = true; for (const cancel of backoffs) cancel(); onStatus('ended', event.detail?.error || new Error('Your gameplay session ended. Reload to sign in again.')); };
   window.addEventListener('dorra-session-ended', ended);
-  async function request(body, attempt = 0) {
+  function waitForCatchup(milliseconds) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { backoffs.delete(cancel); resolve(); }, milliseconds);
+      const cancel = () => { clearTimeout(timer); backoffs.delete(cancel); reject(new Error(blocked ? 'Your gameplay session ended. Reload to continue.' : 'Command connection closed.')); };
+      backoffs.add(cancel);
+      if (closed || blocked) cancel();
+    });
+  }
+  async function request(body, attempt = 0, catchupAttempt = 0) {
     if (closed || blocked) throw new Error(blocked ? 'Your gameplay session ended. Reload to continue.' : 'Command connection closed.');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { await requireAccount(); throw new Error('Sign in to continue.'); }
@@ -25,17 +34,25 @@ export function createWarClient({ vault, onStatus = () => {}, onHint = () => {} 
     } catch (cause) {
       if (closed) throw cause;
       // Reuse the ID after a lost response, including purchases and orders.
-      if (attempt === 0 && navigator.onLine !== false) return request(body, 1);
+      if (attempt === 0 && navigator.onLine !== false) return request(body, 1, catchupAttempt);
       const error = new Error('Command uplink interrupted. Your world continues on the server. Reconnect to receive its latest state.', { cause });
       onStatus('offline', error); throw error;
     } finally { clearTimeout(timeout); controllers.delete(controller); }
     if (response.status === 401 && attempt === 0) {
       const { error } = await supabase.auth.refreshSession();
-      if (!error) return request(body, 1);
+      if (!error) return request(body, 1, catchupAttempt);
     }
     if (!response.ok || value.error) {
       const error = Object.assign(new Error(value.error || 'Command could not be accepted.'), { code: value.code, status: response.status });
+      if (error.code === 'MATCH_CATCHING_UP' && catchupAttempt < 2) {
+        // The scheduler rejected this intention before committing it. Reuse
+        // the complete request, including its receipt ID, while cron catches up.
+        onStatus('catching-up', error);
+        await waitForCatchup((catchupAttempt + 1) * 2000);
+        return request(body, attempt, catchupAttempt + 1);
+      }
       if (ENDED.has(error.code)) { blocked = true; window.dispatchEvent(new CustomEvent('dorra-session-ended', { detail: { error } })); }
+      else if (error.code === 'MATCH_CATCHING_UP') onStatus('catching-up', error);
       else if (response.status >= 500) onStatus('offline', error);
       throw error;
     }
@@ -76,5 +93,5 @@ export function createWarClient({ vault, onStatus = () => {}, onHint = () => {} 
         if (typeof hint?.matchId === 'string' && Number.isSafeInteger(hint.revision)) onHint(hint);
       }).subscribe(status => { realtimeReady = status === 'SUBSCRIBED'; if (realtimeReady) onHint({ reconnect: true }); });
   }
-  return { command, connect, get serverNow() { return Date.now() + offset; }, get blocked() { return blocked; }, get realtimeConnected() { return realtimeReady; }, get lastSync() { return lastSync; }, close() { closed = true; realtimeReady = false; for (const controller of controllers) controller.abort(); if (channel) void supabase.removeChannel(channel); window.removeEventListener('dorra-session-ended', ended); } };
+  return { command, connect, get serverNow() { return Date.now() + offset; }, get blocked() { return blocked; }, get realtimeConnected() { return realtimeReady; }, get lastSync() { return lastSync; }, close() { closed = true; realtimeReady = false; for (const cancel of backoffs) cancel(); for (const controller of controllers) controller.abort(); if (channel) void supabase.removeChannel(channel); window.removeEventListener('dorra-session-ended', ended); } };
 }

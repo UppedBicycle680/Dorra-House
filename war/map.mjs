@@ -17,7 +17,7 @@ export class CommandMap {
     this.listen('pointermove', event => this.pointerMove(event));
     this.listen('pointerup', event => this.pointerUp(event));
     this.listen('pointercancel', event => { this.pointers.delete(event.pointerId); this.drag = null; this.invalidate(); });
-    this.listen('contextmenu', event => { event.preventDefault(); const hit = this.hit(event.offsetX, event.offsetY); if (hit) this.onTarget(hit); });
+    this.listen('contextmenu', event => { event.preventDefault(); const hit = this.hit(event.offsetX, event.offsetY, true); if (hit) this.onTarget(hit); });
     this.listen('keydown', event => { if (event.key === '+' || event.key === '=') this.zoom(1.3); if (event.key === '-') this.zoom(1 / 1.3); if (event.key.toLowerCase() === 'h') this.home(); });
   }
   listen(type, listener, options) { this.canvas.addEventListener(type, listener, options); this.listeners.push([type, listener, options]); }
@@ -57,6 +57,7 @@ export class CommandMap {
   setView(view) { this.view = view; this.displayTime = view?.match?.gameTime; this.invalidate(); this.loadVisible(); }
   setDisplayTime(gameTime) { this.displayTime = gameTime; if (this.view?.units?.some(unit => unit.order?.arrival)) this.invalidate(); }
   setOrderPreview(order) { this.orderPreview = order; this.invalidate(); }
+  setTargeting(enabled) { this.targeting = Boolean(enabled); }
   setSelection({ country = this.selectedCountry, province = this.selectedProvince, units = this.selectedUnits } = {}) { this.selectedCountry = country; this.selectedProvince = province; this.selectedUnits = new Set(units); this.invalidate(); }
   async focus(country) {
     this.selectedCountry = country;
@@ -190,14 +191,19 @@ export class CommandMap {
       this.unitHits.push({ x: point.x, y: point.y, units });
     }
   }
-  hit(x, y) {
+  hit(x, y, groundFirst = this.targeting) {
     const unit = this.unitHits.find(item => Math.abs(item.x - x) < 19 && Math.abs(item.y - y) < 17);
-    if (unit) return { unitIds: unit.units.map(item => item.id), countryId: unit.units[0].nationId, provinceId: unit.units[0].provinceId };
+    if (unit && !groundFirst) return { unitIds: unit.units.map(item => item.id), countryId: unit.units[0].nationId, provinceId: unit.units[0].provinceId };
     const world = this.toWorld(x, y), ctx = this.ctx; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     let selected = null;
     if (this.camera.zoom >= 2.6 && this.view) for (const chunks of this.chunks.values()) { const item = chunks.find(item => ctx.isPointInPath(item.path, world.x, world.y, 'evenodd')); if (item) { selected = { countryId: item.feature.properties.countryId, provinceId: provinceId(item.feature), feature: item.feature }; break; } }
     if (!selected) { const item = this.countries.find(item => ctx.isPointInPath(item.path, world.x, world.y, 'evenodd')); if (item) selected = { countryId: countryId(item.feature), feature: item.feature }; }
-    ctx.restore(); return selected;
+    ctx.restore();
+    // Moving markers retain their logical source province until arrival. An
+    // order tap names the ground beneath them, while ordinary taps select units.
+    if (selected && groundFirst) return { ...selected, ...(unit ? { unitIds: unit.units.map(item => item.id) } : {}) };
+    if (unit) return { unitIds: unit.units.map(item => item.id), countryId: unit.units[0].nationId, provinceId: unit.units[0].provinceId };
+    return selected;
   }
   pointerDown(event) {
     if (event.button !== 0) return; this.canvas.setPointerCapture(event.pointerId); this.pointers.set(event.pointerId, { x: event.offsetX, y: event.offsetY });

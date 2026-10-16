@@ -13,9 +13,11 @@
     "test:war": "node --test tests/war*.test.mjs",
     "test:war:ai": "node --test tests/war-ai*.test.mjs",
     "test:war:balance": "node scripts/check-war-ai-balance.mjs",
+    "test:war:campaigns": "node scripts/check-war-ai-campaigns.mjs",
     "check:war:online": "node scripts/check-war-online.mjs",
+    "check:war:solo": "node scripts/check-war-solo-campaigns.mjs",
     "test:war:load": "node scripts/check-war-capacity.mjs",
-    "test:war:browser": "node --test tests/war.browser.mjs",
+    "test:war:browser": "node --test tests/war*.browser.mjs",
     "check": "node scripts/check.mjs",
     "bundle:server": "node scripts/bundle-server.mjs"
   },
