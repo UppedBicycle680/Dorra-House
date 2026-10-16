@@ -39,6 +39,49 @@ test('solo AI makes bounded, legal and information-fair strategy decisions', { t
       assert.ok(Number((await f.side()).resources.fuel) < AI_RESOURCES.fuel, 'A retreat pays the same movement fuel cost as a player');
     }));
 
+    await t.test('a later AI decision preserves a safe damaged retreat that takes longer than its decision cadence', () => isolatedAiScenario(db, { resources: { cash: 0, supplies: 0, fuel: 1000, electronics: 0, manpower: 0 } }, async f => {
+      await f.unit(); const damaged = await f.unit('__ai-infantry', 'AF', f.a, { health: 20 });
+      // About222km at35km/h takes~22874game seconds, just longer than
+      // Standard's21600second review cadence. No invented route is needed.
+      await db.query("update dorra_private.war_catalog_provinces set data=jsonb_set(data,'{lng}',to_jsonb($2::numeric)) where id=$1", [f.pid('AF'), 2]);
+      await f.decide(); const retreat = await f.getUnit(damaged);
+      assert.equal(retreat.orders.type, 'retreat'); assert.equal(retreat.orders.targetProvinceId, f.pid('AH'));
+      const nextDecision = 21600, arrival = Number(retreat.orders.arrival);
+      assert.ok(arrival > nextDecision && arrival < nextDecision + 2000, 'The regression requires a legal leg still in transit at the next Standard decision');
+      const arrivalEvents = async () => (await db.query("select id,due,payload from dorra_private.war_events where match_id=$1 and kind='arrival' and payload->>'unitId'=$2 order by id", [f.mid, damaged])).rows;
+      const originalEvents = await arrivalEvents(); assert.equal(originalEvents.length, 1);
+      await f.advance(nextDecision);
+      // Settle normal shared income separately so an extra movement charge
+      // cannot hide behind income earned since the previous decision.
+      await db.query('select dorra_private.war_accrue($1,$2,$3)', [f.mid, f.a, nextDecision]);
+      const fuelBefore = Number((await f.side()).resources.fuel);
+      await f.decide(f.a, nextDecision); const inTransit = await f.getUnit(damaged);
+      assert.deepEqual(inTransit.orders, retreat.orders, 'A valid retreat must keep its original departure, arrival, path and destination');
+      assert.equal(inTransit.generation, retreat.generation, 'The AI must not invalidate its live arrival event');
+      assert.equal(Number((await f.side()).resources.fuel), fuelBefore, 'Rechecking an existing retreat must not charge fuel again');
+      assert.deepEqual(await arrivalEvents(), originalEvents, 'A second AI decision cannot replace or duplicate the pending arrival');
+      await f.advance(arrival + 1); const arrived = await f.getUnit(damaged);
+      assert.equal(arrived.province_id, f.pid('AH')); assert.deepEqual(arrived.orders, {});
+      assert.equal((await arrivalEvents()).length, 0, 'The original arrival event completes normally');
+    }));
+
+    await t.test('a damaged retreat may replan when its destination is captured before arrival', () => isolatedAiScenario(db, { resources: { cash: 0, supplies: 0, fuel: 1000, electronics: 0, manpower: 0 } }, async f => {
+      await f.unit(); const damaged = await f.unit('__ai-infantry', 'AF', f.a, { health: 20 });
+      await db.query("update dorra_private.war_catalog_provinces set data=jsonb_set(data,'{lng}',to_jsonb($2::numeric)) where id=$1", [f.pid('AF'), 2]);
+      await f.decide(); const original = await f.getUnit(damaged); assert.equal(original.orders.targetProvinceId, f.pid('AH'));
+      await f.advance(21600);
+      await db.query('update dorra_private.war_provinces set nation_id=$3 where match_id=$1 and province_id=$2', [f.mid, f.pid('AH'), f.b]);
+      await f.decide(f.a, 21600); const replanned = await f.getUnit(damaged);
+      assert.equal(replanned.orders.type, 'retreat'); assert.equal(replanned.orders.targetProvinceId, f.pid('AP'));
+      assert.ok(replanned.generation > original.generation, 'A captured destination is a real reason to invalidate the old journey');
+      assert.ok(Number(replanned.orders.arrival) > Number(original.orders.arrival));
+      await f.advance(Number(replanned.orders.arrival) + 1);
+      const intermediate = await f.getUnit(damaged);
+      assert.equal(intermediate.orders.legTarget, f.pid('AP'), 'The new route traverses its real intermediate province rather than teleporting');
+      await f.advance(Number(intermediate.orders.arrival) + 1);
+      assert.equal((await f.getUnit(damaged)).province_id, f.pid('AP'));
+    }));
+
     await t.test('adding a hidden hostile army cannot alter tactical orders, spending or queue choices', () => isolatedAiScenario(db, {}, async f => {
       await f.unit(); await f.unit('__ai-armor', 'AF'); await f.unit('__ai-infantry', 'BF', f.b);
       await db.exec('savepoint before_ai'); await f.decide(); const baseline = await f.decisions();
