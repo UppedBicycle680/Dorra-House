@@ -8,7 +8,7 @@ import {build as bundle} from 'esbuild';
 const root = path.resolve(import.meta.dirname, '..');
 const destination = path.join(root, 'dist');
 const cache = path.join(root, 'work/build-cache/webp-q95-v1');
-const publicFolders = new Set(['assets', 'airport', 'football', 'vendor']);
+const publicFolders = new Set(['assets', 'airport', 'football', 'war', 'vendor']);
 const ignoredFolders = new Set(['qa', 'work', 'node_modules', '.git']);
 const ignoredFiles = new Set(['offline-server.js', 'save-worker.js', 'server.mjs', 'store.mjs', 'vault-bridge.mjs',
   'airport-browser-operations-regression.mjs', 'airport-operations-regression.test.mjs',

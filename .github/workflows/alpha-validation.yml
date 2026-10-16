@@ -31,6 +31,8 @@ jobs:
           sparse-checkout: |
             scripts/check-online.mjs
             scripts/check-live-browser.mjs
+            scripts/check-war-online.mjs
+            war/projection.mjs
             scripts/ensure-pages-https.mjs
             online-config.js
             snapshot-delta.mjs
@@ -65,6 +67,11 @@ jobs:
         env:
           DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
           DORRA_BROWSER_SCREENSHOTS: '1'
+      - name: Verify published desktop and mobile multiplayer against Supabase
+        run: node scripts/check-war-online.mjs
+        env:
+          DORRA_SITE_URL: https://uppedbicycle680.github.io/Dorra-House/
+          DORRA_WAR_BROWSER: '1'
       - name: Preserve live browser validation report
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,4 +82,7 @@ jobs:
             work/live-browser-house-*.png
             work/live-browser-failure.png
             work/pages-https-report.json
+            work/war-live-report.json
+            work/war-live-desktop.png
+            work/war-live-mobile.png
           retention-days: 7

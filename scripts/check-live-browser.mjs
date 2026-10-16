@@ -13,7 +13,7 @@ const TIMEOUT = 90000;
 const ensure = condition => { if (!condition) throw new Error('Live browser verification failed.'); };
 const ASSET_PATHS = new Map(['login.html', 'login.js', 'login.css', 'auth-client.js', 'online-config.js', 'vendor/supabase/supabase.js',
   'index.html', 'app.js', 'vault-client.js', 'snapshot-delta.mjs', 'online-shell.js', 'online-shell.css', 'styles.css', 'arrival.css', 'progression-engine.js', 'campaign-engine.js',
-  'idle-airport.html', 'airport/ui.mjs', 'football-manager.html', 'football/football-ui.js', 'war-simulation.html', 'war-simulation.js', 'campaign-controller.js']
+  'idle-airport.html', 'airport/ui.mjs', 'football-manager.html', 'football/football-ui.js', 'war-simulation.html', 'war-simulation.js', 'war/client.mjs', 'war/map.mjs']
   .map(asset => [`/Dorra-House/${asset}`, asset]));
 const AUTH_ACTIONS = new Set(['signup', 'token', 'user', 'logout', 'recover', 'resend']);
 const SCOPES = new Set(['session', 'house', 'airport', 'football', 'campaign']);
@@ -42,6 +42,7 @@ async function launchBrowser() {
 export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBrowser} = {}) {
   const report = {ok: false, checks: [], account: null, startedAt: new Date().toISOString()};
   const tokens = new Set(), pages = [], javascriptErrors = [], responseTasks = new Set();
+  const warCleanup = new Map();
   const debug = {lastAuthStatus: null, currentPathname: null, javascriptErrorCount: 0, authResponseShape: null, sdkSessionShape: null, loginState: null, observations: []};
   let stage = 'Published site URL', browser = null, email = null, password = null, expectedUsername = null, activePage = null;
   const passed = name => { report.checks.push(name); console.log(`Passed: ${name}`); };
@@ -51,6 +52,15 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
   const hidden = (page, selector) => page.locator(selector).waitFor({state: 'hidden', timeout: TIMEOUT});
   const exactText = (page, selector, text) => page.waitForFunction(({selector, text}) => document.querySelector(selector)?.textContent.trim() === text, {selector, text}, {timeout: TIMEOUT});
   const saved = page => page.waitForFunction(() => document.documentElement.dataset.saveState === 'saved', null, {timeout: TIMEOUT});
+  async function performWar(page, action, trigger) {
+    activePage=page;
+    const pending=page.waitForResponse(response=>{
+      if(response.url().split('?')[0]!==`${SUPABASE_URL}/functions/v1/dorra-war`||response.request().method()!=='POST')return false;
+      try{return response.request().postDataJSON().action===action;}catch{return false;}
+    },{timeout:TIMEOUT});
+    pending.catch(()=>{});await trigger();const response=await pending;
+    ensure(response.ok());const result=await response.json();ensure(result.view||result.delta);return result;
+  }
   function waitAPI(page, scope, action, predicate = null) {
     const pending = page.waitForResponse(response => {
       if (response.url().split('?')[0] !== API_URL || response.request().method() !== 'POST') return false;
@@ -158,6 +168,14 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
           } catch {
             if (authAction === 'signup' || authAction === 'token') debug.authResponseShape = {readable: false};
           }
+          return;
+        }
+        if (url.pathname === '/functions/v1/dorra-war' && response.request().method() === 'POST') {
+          let body;try{body=response.request().postDataJSON();}catch{return;}
+          observe({kind:'war',action:body.action,status});
+          if(status<400){try{const value=await response.json();const mid=value.view?.match.id||value.delta?.matchId||body.matchId;
+            if(mid)warCleanup.set(mid,{leaseId:body.leaseId,authorization:response.request().headers().authorization});
+          }catch{}}
           return;
         }
         if (url.href.split('?')[0] === API_URL && response.request().method() === 'POST') {
@@ -497,28 +515,23 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await saved(mobile);
     passed('A football week saves and remains restored after a published-page reload');
 
-    stage = 'Campaign creation';
+    stage = 'War operation creation';
     await mobile.goto(new URL('war-simulation.html', site).href, {waitUntil: 'domcontentloaded'});
-    await visible(mobile, '#campaignPanel');
-    await hidden(mobile, '#strategicLoading');
-    await hidden(mobile, '#strategicFatal');
-    const created = await perform(mobile, 'campaign', 'create', () => mobile.locator('[data-campaign-start]').click());
-    ensure(created.snapshot.progress?.campaign?.homeCountryId === 'AU' && created.snapshot.progress?.campaign?.turn === 1);
-    await mobile.waitForFunction(() => document.querySelector('#strategicTurnStatus')?.textContent.includes('Turn 1'), null, {timeout: TIMEOUT});
-    passed('Published Strategic Command establishes its first campaign through the UI');
-
-    stage = 'Campaign turn autosave and reload';
-    await mobile.locator('[data-campaign-end-turn-open]').click();
-    const ended = await perform(mobile, 'campaign', 'end-turn', () => mobile.locator('[data-campaign-end-turn-confirm]').click());
-    ensure(ended.snapshot.progress?.campaign?.turn === 2);
-    await mobile.waitForFunction(() => document.querySelector('#strategicTurnStatus')?.textContent.includes('Turn 2'), null, {timeout: TIMEOUT});
-    await saved(mobile);
+    await visible(mobile, '#lobbyPanel');await hidden(mobile, '#bootPanel');
+    const created = await performWar(mobile,'create',()=>mobile.locator('[data-action="create"]').click());
+    ensure(created.view.player.nationId==='AU'&&created.view.match.status==='lobby');
+    await visible(mobile,'[data-action="start"]');
+    passed('Published Strategic Command creates a real cloud-backed solo duel through the mobile UI');
+    stage = 'War start, pause and cross-page restoration';
+    await performWar(mobile,'start',()=>mobile.locator('[data-action="start"]').click());
+    await visible(mobile,'[data-action="pause"]');
+    await performWar(mobile,'pause',()=>mobile.locator('[data-action="pause"]').click());
+    await mobile.waitForFunction(()=>document.querySelector('#matchClock')?.textContent.includes('PAUSED'),null,{timeout:TIMEOUT});
     await mobile.reload({waitUntil: 'domcontentloaded'});
-    await visible(mobile, '#campaignPanel');
-    await mobile.waitForFunction(() => document.querySelector('#strategicTurnStatus')?.textContent.includes('Turn 2'), null, {timeout: TIMEOUT});
-    await hidden(mobile, '#strategicFatal');
-    await saved(mobile);
-    passed('A campaign turn saves and remains restored after a published-page reload');
+    await visible(mobile,'#commandNav');
+    await mobile.waitForFunction(()=>document.querySelector('#matchClock')?.textContent.includes('PAUSED'),null,{timeout:TIMEOUT});
+    await screenshot(mobile,'live-browser-war-mobile.png');
+    passed('A running war starts, pauses, and restores from Supabase after a published-page reload');
 
     stage = 'Browser JavaScript health';
     ensure(javascriptErrors.length === 0);
@@ -533,6 +546,10 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await failureDiagnostics();
     report.debug = debug;
   } finally {
+    for(const [matchId,session]of warCleanup){try{
+      await fetchImpl(`${SUPABASE_URL}/functions/v1/dorra-war`,{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Origin:ORIGIN,'Content-Type':'application/json',Authorization:session.authorization},body:JSON.stringify({action:'retire',args:{},matchId,leaseId:session.leaseId,requestId:randomUUID()}),signal:AbortSignal.timeout(20000)});
+    }catch{}}
+    warCleanup.clear();
     let signedOut = true;
     for (const [index, token] of [...tokens].reverse().entries()) {
       try {

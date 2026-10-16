@@ -157,6 +157,7 @@ export async function createVaultClient(options = {}) {
     get snapshot() { return structuredClone(snapshot); },
     get serverNow() { return Date.now() + serverOffset; },
     integrityIssue:false,airportWarning:null,dispatch,refresh,
+    getLeaseId:() => leaseId,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     commit:async () => { throw new Error('Browser save uploads are disabled. Use a server-approved gameplay action.'); },
     airportLoad:payload => airport('load',payload),airportCommand:payload => airport('command',payload),withdrawAirportCash:payload => airport('withdraw',payload),

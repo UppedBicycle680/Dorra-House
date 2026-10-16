@@ -10,10 +10,23 @@
     "test:airport:layout": "node scripts/check-airport-layout.mjs",
     "test:airport:browser": "node airport-browser-operations-regression.mjs",
     "test:browser": "node --test tests/*.browser.mjs",
+    "test:war": "node --test tests/war*.test.mjs",
+    "check:war:online": "node scripts/check-war-online.mjs",
+    "test:war:load": "node scripts/check-war-capacity.mjs",
+    "test:war:browser": "node --test tests/war.browser.mjs",
     "check": "node scripts/check.mjs",
     "bundle:server": "node scripts/bundle-server.mjs"
   },
-  "dependencies": {"@supabase/supabase-js": "2.117.2"},
-  "devDependencies": {"esbuild": "0.28.1", "sharp": "0.35.5", "playwright": "1.63.0"},
-  "engines": {"node": ">=22"}
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.15",
+    "esbuild": "0.28.1",
+    "playwright": "1.63.0",
+    "sharp": "0.35.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }
