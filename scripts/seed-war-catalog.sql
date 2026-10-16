@@ -1,0 +1,4 @@
+-- Apply numbered scripts/war-seed/*.sql in ascending order after the war schema migration.
+-- Generated with python scripts/build-war-world.py; no player data and no geometry in SQL.
+-- Catalog version: ne-5.1.2-war-1
+-- 74 transactional chunks, each under 49 KiB.

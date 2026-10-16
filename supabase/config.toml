@@ -3,3 +3,5 @@ project_id = "dorra-house"
 verify_jwt = true
 [functions.dorra-admin]
 verify_jwt = true
+[functions.dorra-war]
+verify_jwt = true

@@ -133,12 +133,10 @@ export async function checkOnline(fetchImpl = fetch) {
     await run('football', 'advanceWeek', {args: []});
     assert.equal(current.snapshot.progress?.footballManager?.week, 2, 'Football week did not save.');
     passed('Football creation and server-authoritative week autosave');
-    stage = 'Campaign save';
-    await run('campaign', 'create', {homeCountryId: 'AU', scenarioId: 'open-world'});
-    const turn = current.snapshot.progress?.campaign?.turn;
-    await run('campaign', 'end-turn');
-    assert.equal(current.snapshot.progress?.campaign?.turn, turn + 1, 'Campaign turn did not save.');
-    passed('Campaign creation and server-authoritative turn autosave');
+    stage = 'Legacy campaign archive';
+    const archivedCampaign = JSON.stringify(current.snapshot.progress?.campaign ?? null);
+    await reject(command('campaign', 'create', {homeCountryId: 'AU', scenarioId: 'open-world'}), 'Archived campaign mutation', current, ['CAMPAIGN_ARCHIVED']);
+    passed('Legacy campaign is read-only; new war matches have a separate economy');
     stage = 'Compact authoritative responses';
     const compactBody={...command('house','view'),responseMode:'delta-v1'};
     const compactReply=await api(compactBody),compact=requireSuccess(compactReply,'Compact House view');
@@ -186,7 +184,7 @@ export async function checkOnline(fetchImpl = fetch) {
     const resumedAirport = await run('airport', 'load');
     assert.equal(resumedAirport.value.result?.view?.selectedAirportId, airportId, 'Airport career did not restore on the second device.');
     assert.equal(current.snapshot.progress?.footballManager?.week, 2, 'Football career did not restore on the second device.');
-    assert.equal(current.snapshot.progress?.campaign?.turn, turn + 1, 'Campaign did not restore on the second device.');
+    assert.equal(JSON.stringify(current.snapshot.progress?.campaign ?? null), archivedCampaign, 'Legacy campaign archive changed on the second device.');
     assert.equal(current.snapshot.progress?.rewardDate, oldDevice.snapshot.progress?.rewardDate, 'House daily progress did not restore.');
     passed('All modes restored on a second auth session; old device rejected');
     if (process.env.DORRA_SITE_URL) {
@@ -195,7 +193,7 @@ export async function checkOnline(fetchImpl = fetch) {
       assert.equal(site.origin, ORIGIN, 'The published smoke-test URL must use the authorized GitHub Pages origin.');
       const files = ['index.html', 'login.html', 'football-manager.html', 'idle-airport.html', 'war-simulation.html',
         'auth-client.js', 'vault-client.js', 'online-config.js', 'online-shell.js', 'login.js',
-        'football/football-ui.js', 'airport/ui.mjs', 'campaign-controller.js', 'vendor/supabase/supabase.js'];
+        'football/football-ui.js', 'airport/ui.mjs', 'war/client.mjs', 'war/map.mjs', 'vendor/supabase/supabase.js'];
       const delays = [0, 2000, 5000, 10000, 15000];
       await Promise.all(files.map(async file => {
         for (const delay of delays) {

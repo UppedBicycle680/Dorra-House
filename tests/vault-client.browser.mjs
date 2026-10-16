@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {SUPABASE_PUBLISHABLE_KEY} from '../online-config.js';
 import {validateBody, commandDigest} from '../supabase/functions/dorra-api/protocol.mjs';
-import {reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
+import {reduceLegacyCampaignForMigration as reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
 import {encodeResult, decodeResult} from '../supabase/functions/dorra-api/response-codec.mjs';
 import {sessionRefresh} from '../supabase/functions/dorra-api/session-refresh.mjs';
 import {actionResponse} from '../supabase/functions/dorra-api/delta-response.mjs';

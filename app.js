@@ -4,7 +4,6 @@ import {normalizeEstate} from './estate-engine.js?v=20261013-art5';
 import {createEstateUI} from './estate-ui.js?v=20261013-art5';
 import {adminRequest} from './admin-client.js';
 import {EMPIRE_VENUES,EMPIRE_MANAGERS,EMPIRE_FOCUSES,VENUE_SIGNATURE_PERKS,EMPIRE_CUSTOMER_SEGMENTS,EMPIRE_STAFF_ROLES,EMPIRE_MARKETING_CAMPAIGNS,EMPIRE_SPECIALIZATIONS,EMPIRE_HEADQUARTERS_UPGRADES,EMPIRE_VENUE_IMPROVEMENTS,EMPIRE_LOANS,EMPIRE_EVENTS,VIP_CONTRACTS,STORY_MISSIONS,STORY_DIALOGUE,STORY_CHARACTERS,STORY_AREAS,STORY_CHOICES,normalizeProgression,empireStars,empireRate,empireCapHours,empirePerks,managerCost,contractReward,accrueEmpire,venueUnlocked,contractUnlocked,recordRound,storyObjectiveProgress,storyObjectiveTarget,storyMissionReady,storyChoice,storyRelationshipLeader,businessSnapshot,empireObjectiveStatus,empireVenueImprovementCost,empireUpgradeInvestment,hireEmpireStaff,releaseEmpireStaff,purchaseEmpireHeadquartersUpgrade,purchaseEmpireVenueImprovement,startEmpireMarketing,specializeEmpireVenue,takeEmpireLoan,resolveEmpireEvent,claimEmpireObjective,advanceEmpireWeek} from './progression-engine.js?v=20261013-art5';
-import {normalizeCampaign} from './campaign-engine.js?v=20260830-depth10-qa3';
 import {MAX_BALANCE} from './game-limits.js';
 import {createVaultClient,localGet,localSet,localRemove} from './vault-client.js';
 import {touches} from './snapshot-delta.mjs';
@@ -35,7 +34,8 @@ state.bets.holdem??=25;
 state.bets.monte??=25;state.bets.memory??=25;
 state.progress.equipped=state.progress.equipped&&typeof state.progress.equipped==='object'&&!Array.isArray(state.progress.equipped)?state.progress.equipped:{};state.progress.configurations=state.progress.configurations&&typeof state.progress.configurations==='object'&&!Array.isArray(state.progress.configurations)?state.progress.configurations:{};state.progress.vehicles=state.progress.vehicles&&typeof state.progress.vehicles==='object'&&!Array.isArray(state.progress.vehicles)?state.progress.vehicles:{};state.progress.displayVehicle??='';state.progress.daily??={date:'',sessions:0,wins:0,games:[],bonusClaimed:false};state.progress.achievements=state.progress.achievements&&typeof state.progress.achievements==='object'&&!Array.isArray(state.progress.achievements)?state.progress.achievements:{};state.progress.rewardStreak??={count:0,lastDate:''};state.progress.rewardDate??='';state.bets.racing??=25;state.raceChoice??=null;state.raceRunning??=false;
 normalizeProgression(state.progress);normalizeEstate(state.progress);
-{const savedCampaign=state.progress.campaign;state.progress.campaign=savedCampaign&&typeof savedCampaign==='object'&&!Array.isArray(savedCampaign)&&(savedCampaign.homeCountryId||savedCampaign.homeCountry||savedCampaign.country)?normalizeCampaign(savedCampaign):null;if(state.progress.campaign){const campaign=state.progress.campaign;campaign.capitalUsd=state.balance;campaign.finance={sharedBankLinked:true}}}
+// Legacy campaign records are archived as received. War matches have their own economy.
+{const savedCampaign=state.progress.campaign;state.progress.campaign=savedCampaign&&typeof savedCampaign==='object'&&!Array.isArray(savedCampaign)?savedCampaign:null;}
 state.progress.arrival=state.progress.arrival&&typeof state.progress.arrival==='object'?state.progress.arrival:{complete:false,path:''};
 const baseRenderHud=renderHud;renderHud=function(){baseRenderHud();$('#racingBet').textContent=money(state.bets.racing)};
 const redNums=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];

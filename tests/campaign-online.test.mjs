@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as engine from '../campaign-engine.js';
-import {reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
+import {reduceLegacyCampaignForMigration as reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
 
 const now = 1_800_000_000_000;
 const initial = () => ({balance: 5_000_000_000_000, progress: {level: 1, xp: 0}, history: []});

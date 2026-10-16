@@ -75,7 +75,12 @@ const formatMoney = value => `$${Math.round(Math.abs(value)).toLocaleString('en-
 /** The authenticated transaction layer loads these objects from the database.
  * Browsers send only allowlisted commands, and receive the resulting public
  * snapshot. Actual outcome rolls are freshly generated in this process. */
-export async function reduceCampaign(snapshot, privateState, action, args = {}, now) {
+export async function reduceCampaign() {
+  fail('CAMPAIGN_ARCHIVED', 'Your previous campaign is archived. Open Strategic Command to create or resume a war match.', 409);
+}
+
+// Retained for validating historical save compatibility; never dispatched by the API.
+export async function reduceLegacyCampaignForMigration(snapshot, privateState, action, args = {}, now) {
   if (!Number.isSafeInteger(now) || now < 0) fail('INVALID_TIME', 'The campaign requires a server timestamp.');
   if (!Number.isSafeInteger(snapshot.balance) || snapshot.balance < 0 || snapshot.balance > MAX_BALANCE) fail('INVALID_WALLET', 'The server wallet is outside its supported range.', 409);
   const saved = snapshot.progress?.campaign;

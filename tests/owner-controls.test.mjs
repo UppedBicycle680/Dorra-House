@@ -5,7 +5,7 @@ import {prepareChange,validate} from '../supabase/functions/dorra-admin/model.mj
 import {createAdminHandler} from '../supabase/functions/dorra-admin/handler.mjs';
 import {initializeHouse} from '../supabase/functions/dorra-api/house-progression.mjs';
 import {reduceFootball} from '../supabase/functions/dorra-api/football.mjs';
-import {reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
+import {reduceLegacyCampaignForMigration as reduceCampaign} from '../supabase/functions/dorra-api/campaign.mjs';
 import {createCareer} from '../airport/engine.mjs';
 import {MAX_BALANCE} from '../game-limits.js';
 import {normalizeFootballState} from '../football/football-engine.js';
