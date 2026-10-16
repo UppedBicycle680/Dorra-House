@@ -83,7 +83,7 @@ test('desktop command creates an authenticated world, researches idempotently an
     await page.locator('[data-action="create"]').click();
     await page.waitForSelector('[data-action="start"]');
     const created = state.calls.find(call => call.action === 'create');
-    assert.deepEqual(created.args, { nationId: 'AU', opponentNationId: 'NZ', template: 'duel', opponent: 'ai', pace: 'fast', visibility: 'public', name: 'Operation Meridian' });
+    assert.deepEqual(created.args, { nationId: 'AU', opponentNationId: 'NZ', template: 'duel', opponent: 'ai', aiDifficulty: 'standard', pace: 'fast', visibility: 'public', name: 'Operation Meridian' });
     await page.locator('[data-action="start"]').click();
     await page.waitForSelector('[data-action="pause"]');
     await page.locator('[data-action="tab"][data-id="research"]').click();
@@ -263,9 +263,9 @@ test('production geography renders and nation search remains usable on desktop a
       await page.locator('#nationSearch').fill('Australia');
       assert.equal(await page.locator('.nation-row').count(), 1);
       await page.locator('[data-action="nation"][data-id="AU"]').click();
-      const australiaHardware = await page.locator('.nation-arsenal').textContent();
+      const australiaHardware = await page.locator('.nation-profile .nation-arsenal').textContent();
       await page.locator('#nationSearch').fill('United States'); await page.locator('[data-action="nation"][data-id="US"]').click();
-      assert.notEqual(await page.locator('.nation-arsenal').textContent(), australiaHardware, 'National hardware previews must preserve asymmetric operator rosters');
+      assert.notEqual(await page.locator('.nation-profile .nation-arsenal').textContent(), australiaHardware, 'National hardware previews must preserve asymmetric operator rosters');
       await page.locator('#nationSearch').fill('Australia'); await page.locator('[data-action="nation"][data-id="AU"]').click();
       await page.waitForFunction(() => document.querySelector('#mapLoading').hidden);
       assert.equal(await page.locator('body').evaluate(element => element.scrollWidth <= innerWidth), true);

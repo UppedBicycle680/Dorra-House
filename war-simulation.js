@@ -8,7 +8,7 @@ import { escapeHTML as e, renderLobby, renderNationList, renderResources, render
 
 const $ = selector => document.querySelector(selector);
 const dom = { app: $('#warApp'), boot: $('#bootPanel'), lobby: $('#lobbyPanel'), drawer: $('#commandDrawer'), nav: $('#commandNav'), selection: $('#selectionPanel'), clock: $('#matchClock'), resources: $('#resourceBar'), context: $('#commandContext'), toast: $('#toast'), dialog: $('#commandDialog'), banner: $('#connectionBanner') };
-const model = { nations: [], worlds: [], nationId: 'AU', opponentNationId: 'NZ', opponent: 'ai', template: 'duel', pace: 'fast', visibility: 'public', name: '', search: '', lobbyTab: 'create', tab: 'map', branch: BRANCHES[0]?.id, view: null, selectedUnits: [], provinceId: null, provinceFeature: null, orderType: null, pendingOrder: null, routeMode: false, inviteCode: new URL(location.href).searchParams.get('invite') || '', busy: false, userId: null, legacy: null };
+const model = { nations: [], worlds: [], nationId: 'AU', opponentNationId: 'NZ', opponent: 'ai', aiDifficulty: 'standard', template: 'duel', pace: 'fast', visibility: 'public', name: '', search: '', lobbyTab: 'create', tab: 'map', branch: BRANCHES[0]?.id, view: null, selectedUnits: [], provinceId: null, provinceFeature: null, orderType: null, pendingOrder: null, routeMode: false, inviteCode: new URL(location.href).searchParams.get('invite') || '', busy: false, userId: null, legacy: null };
 const hintRevisions = new Map();
 let vault, client, map, toastTimer, polling, clockTimer, clockAnchor = null, refreshPending, refreshAgain = false, booted = false;
 function displayView() { if (!model.view || !clockAnchor || clockAnchor.id !== model.view.match.id || !['running', 'active'].includes(model.view.match.status)) return model.view; const elapsed = Math.max(0, client.serverNow - clockAnchor.receivedAt) / 1000; const limit = model.view.match.pace === 'fast' ? 30 * 86400 : 60 * 86400; return { ...model.view, match: { ...model.view.match, gameTime: Math.min(limit, clockAnchor.gameTime + elapsed * clockAnchor.speed) } }; }
@@ -131,7 +131,7 @@ async function handleAction(button) {
   if (action === 'tab') { model.tab = id; render(); return; }
   if (action === 'refresh') return refresh().catch(error => toast(error.message, true));
   if (action === 'create') {
-    const response = await mutate('create', { nationId: model.nationId, opponentNationId: model.opponentNationId, template: model.template, opponent: model.opponent, pace: model.pace, visibility: model.visibility, name: model.name.trim() || `Operation ${model.nations.find(n => n.id === model.nationId)?.name || 'Meridian'}` });
+    const response = await mutate('create', { nationId: model.nationId, opponentNationId: model.opponentNationId, template: model.template, opponent: model.opponent, ...(model.opponent === 'ai' ? { aiDifficulty: model.aiDifficulty } : {}), pace: model.pace, visibility: model.visibility, name: model.name.trim() || `Operation ${model.nations.find(n => n.id === model.nationId)?.name || 'Meridian'}` });
     if (response) { const matchId = response.view?.match.id || response.result?.matchId || response.matchId; if (!response.view && matchId) await openMatch(matchId); model.tab = 'operation'; render(); await map.focus(model.nationId); }
     return;
   }
@@ -193,7 +193,7 @@ function bind() {
     if (event.target.id === 'nationSearch') { model.search = event.target.value; $('#nationList').innerHTML = renderNationList(model); }
     if (event.target.id === 'matchName') model.name = event.target.value;
   });
-  dom.lobby.addEventListener('change', event => { const fields = { template: 'template', opponentNation: 'opponentNationId', visibility: 'visibility' }; if (fields[event.target.id]) model[fields[event.target.id]] = event.target.value; });
+  dom.lobby.addEventListener('change', event => { const fields = { template: 'template', opponentNation: 'opponentNationId', aiDifficulty: 'aiDifficulty', visibility: 'visibility' }; if (fields[event.target.id]) { const id = event.target.id; model[fields[id]] = event.target.value; if (id !== 'visibility') { render(); document.getElementById(id)?.focus({ preventScroll: true }); } } });
   $('#mapZoomIn').onclick = () => map.zoom(1.4); $('#mapZoomOut').onclick = () => map.zoom(1 / 1.4); $('#mapHome').onclick = () => map.home();
   $('#retryConnection').onclick = () => { if (client?.blocked || !booted) location.reload(); else void refresh().catch(error => toast(error.message, true)); };
   $('#helpButton').onclick = () => showDialog({ title: 'The commander’s field guide', body: '<p>Build a national economy, research real equipment and control strategic provinces.</p><ul><li>Drag the map to pan. Scroll or pinch to zoom.</li><li>Select a province to construct facilities and produce units.</li><li>Select a formation, choose an order, then select and confirm its destination.</li><li>Shift-drag selects your formations on desktop.</li><li>Research has two parallel slots. Equipment requires appropriate facilities and national access.</li><li>Use diplomacy for peace, coalitions and foreign import licenses.</li><li>Solo worlds can pause. Multiplayer time continues while you are disconnected.</li></ul><p>Shortcuts: R research · I industry · D diplomacy · Escape close · + / − zoom · H whole world.</p>' });

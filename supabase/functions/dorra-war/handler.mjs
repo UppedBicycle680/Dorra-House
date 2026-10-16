@@ -28,6 +28,7 @@ const publicErrors = {
   DEFEND_FRIENDLY:'Choose your own or an allied province for missile defence.',
   NO_VALID_TARGET:'No suitable visible hostile target is available for this weapon.',
   INVALID_TARGET_CLASS:'This formation cannot perform that order against this target class.',
+  INVALID_AI_DIFFICULTY:'Choose Recruit, Standard or Veteran for a solo AI operation.',
   DECLARE_WAR_FIRST:'Declare war before attacking this nation.', BORDER_CLOSED:'Request alliance access or declare war before crossing this border.',
   RETREAT_TO_FRIENDLY:'Choose one of your own provinces for the retreat.', PORT_REQUIRED:'This action requires a mapped port.',
   PLATFORM_UNAVAILABLE:'This platform is not available to your nation.', RESEARCH_REQUIRED:'Complete this platform’s research first.',
@@ -60,7 +61,7 @@ export function validateWarBody(body) {
   const args=body.args??{};
   if (!args || typeof args!=='object' || Array.isArray(args)) fail('Use an argument object.');
   if (JSON.stringify(args).length>16000) fail('The command is too large.','PAYLOAD_TOO_LARGE',413);
-  const fields={list:['inviteCode','matchId'],view:[],create:['nationId','opponentNationId','template','opponent','pace','visibility','name'],join:['nationId','inviteCode'],start:[],pause:[],resume:[],retire:[],reward:[],research:['platformId'],produce:['provinceId','platformId'],build:['provinceId','facility'],diplomacy:['nationId','type','resources','platformId'],order:['unitIds','type','targetProvinceId','targetUnitId','waypoints']};
+  const fields={list:['inviteCode','matchId'],view:[],create:['nationId','opponentNationId','template','opponent','pace','visibility','name','aiDifficulty'],join:['nationId','inviteCode'],start:[],pause:[],resume:[],retire:[],reward:[],research:['platformId'],produce:['provinceId','platformId'],build:['provinceId','facility'],diplomacy:['nationId','type','resources','platformId'],order:['unitIds','type','targetProvinceId','targetUnitId','waypoints']};
   if(Object.keys(args).some(key=>!fields[body.action].includes(key)))fail('Only command intentions are accepted.');
   if(args.inviteCode!=null&&!UUID.test(args.inviteCode))fail('Use a valid operation invite code.');
   if(args.matchId!=null&&!UUID.test(args.matchId))fail('Choose a valid operation.');
@@ -68,6 +69,7 @@ export function validateWarBody(body) {
     if (!['duel','world'].includes(args.template) || !['ai','human'].includes(args.opponent) || !['fast','persistent'].includes(args.pace) || !['public','invite'].includes(args.visibility)) fail('Choose a valid match setup.');
     if (typeof args.nationId!=='string' || args.nationId.length>20 || (args.template==='duel' && (typeof args.opponentNationId!=='string' || args.opponentNationId===args.nationId))) fail('Choose two different nations.');
     if (args.name!=null && (typeof args.name!=='string'||args.name.length>60)) fail('Match names may have up to 60 characters.');
+    if (Object.hasOwn(args,'aiDifficulty')&&(args.opponent!=='ai'||!['recruit','standard','veteran'].includes(args.aiDifficulty))) fail('Choose Recruit, Standard or Veteran for a solo AI operation.','INVALID_AI_DIFFICULTY');
   }
   if (body.action==='order') {
     if (!Array.isArray(args.unitIds)||!args.unitIds.length||args.unitIds.length>20||args.unitIds.some(id=>!UUID.test(id))) fail('Select up to 20 valid formations.');
