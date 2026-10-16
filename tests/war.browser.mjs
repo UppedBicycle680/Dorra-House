@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import { PLATFORMS } from '../war/catalog.mjs';
+import { targetMapPoint } from './war-map-input.mjs';
 import { baseURL, supabaseHost, responseHeaders, launchBrowser, serveSource } from './browser-helpers.mjs';
 
 const userId = '18c692ba-0b72-4205-9728-a70c5cf42f52';
@@ -45,6 +46,19 @@ async function harness(browser, viewport, { realGeography = false, worlds = [], 
       if (body.action === 'research') {
         if (!state.view.player.researchQueue.length) state.view.player.researchQueue.push({ id: 'research-1', platformId: body.args.platformId, due: 7200 });
         if (state.dropResearch) { state.dropResearch = false; return route.abort('failed'); }
+      }
+      if (body.action === 'order' && state.finishOnOrder) {
+        state.recoveryViews = 0;
+        state.pendingStatus = state.finishOnOrder;
+        return reply({ error: 'This operation is no longer running.', code: 'MATCH_NOT_RUNNING' }, 409);
+      }
+      if (body.action === 'view' && state.pendingStatus) {
+        state.recoveryViews++;
+        if (state.recoveryViews >= 2) {
+          state.view.match.status = state.pendingStatus; state.view.match.revision++;
+          if (state.pendingStatus === 'finished') { state.view.match.gameTime = 86400; state.view.victory = { won: true, winner: 'AU', reason: 'Victory confirmed.', rewardClaimed: false }; }
+          state.pendingStatus = null;
+        }
       }
       if (body.action === 'order') state.view.units[0].order = body.args;
       if (body.action === 'build') state.view.player.buildQueue.push({ id: 'build-1', facility: body.args.facility, provinceId: body.args.provinceId, due: 43200 });
@@ -424,5 +438,123 @@ test('production Wellington formation stays visible above the expanded 320px com
     assert.equal(await markerVisible(), true, 'The selected Wellington marker must be drawn in the unobscured map above the panel');
     assert.match(await page.locator('.formation-details-body').textContent(), /Wellington/);
     assert.deepEqual(errors, []); await context.close();
+  } finally { await browser.close(); }
+});
+
+test('reinforcements target hostile territory when a friendly formation overlaps the enemy capital', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 740 }]) {
+      const { context, page, state, errors } = await harness(browser, viewport, { configureView(view) {
+        view.nations.find(nation => nation.id === 'NZ').relation = 'war';
+        view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+        // The first rendered/hit marker is friendly. Both contacts are visible.
+        view.units.push({ ...view.units[0], id: 'friendly-assault', provinceId: 'NZ-1' });
+        view.units.push({ ...view.units[0], id: 'hostile-garrison', nationId: 'NZ', provinceId: 'NZ-1' });
+      } });
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click();
+      await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="attack"]').click();
+      await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+      const confirm = page.locator('[data-action="confirm-order"]'); await confirm.waitFor();
+      assert.equal(await confirm.isDisabled(), false, 'A friendly assault marker cannot prevent reinforcements attacking hostile territory');
+      assert.equal(await page.locator('.order-feedback.blocked').count(), 0);
+      await confirm.click(); await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
+      assert.deepEqual(state.calls.find(call => call.action === 'order').args, { unitIds: ['unit-1'], type: 'attack', targetProvinceId: 'NZ-1' }, 'An area attack does not silently bind to an overlapping contact');
+      assert.deepEqual(errors, []); await context.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test('a command crossing the final tick adopts the actual gameover while paused rejection remains visible', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const status of ['finished', 'paused', 'leave']) {
+      const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+        view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+      } });
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="attack"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+      state.finishOnOrder = status === 'leave' ? 'finished' : status;
+      const recoveryResponse = status === 'leave' ? page.waitForResponse(response => response.url().endsWith('/dorra-war') && response.request().postDataJSON()?.action === 'view') : null;
+      await page.locator('[data-action="confirm-order"]').click();
+      if (status === 'leave') {
+        await recoveryResponse;
+        await page.locator('[data-action="tab"][data-id="operation"]').click(); await page.locator('[data-action="leave"]').click();
+        await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+        assert.equal(await page.locator('#lobbyPanel').isVisible(), true, 'Leaving during recovery cannot be undone by its old view');
+        assert.equal(state.recoveryViews, 1, 'Recovery stops before another read when the player leaves the captured match');
+        assert.deepEqual(errors, []); await context.close(); continue;
+      }
+      await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+      assert.equal(state.calls.at(-1).action, 'view', 'The rejected mutation triggers a fresh authoritative filtered read');
+      assert.equal(state.recoveryViews, 2, 'A running read after the rollback is followed by bounded recovery until the regular server pulse settles');
+      if (status === 'finished') {
+        await page.waitForSelector('[data-action="reward"]');
+        assert.equal(await page.locator('[data-action="confirm-order"]').count(), 0, 'Natural gameover clears the pending order');
+        assert.equal(await page.locator('#selectionPanel').isVisible(), false, 'Gameover clears the formation panel so it cannot cover the reward controls');
+        assert.match(await page.locator('#commandDrawer').textContent(), /Victory/);
+        assert.equal(await page.locator('[data-action="reward"]').isDisabled(), false);
+        await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+        assert.equal(await page.locator('[data-action="order-type"][data-id="attack"]').isDisabled(), true, 'Finished operation controls cannot issue further commands');
+      } else {
+        assert.match(await page.locator('#matchClock').textContent(), /PAUSED/);
+        assert.match(await page.locator('#toast').textContent(), /no longer running/);
+        assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), true);
+      }
+      assert.deepEqual(errors, []); await context.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test('320px order taps use the province beneath a friendly marker still travelling from another province', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, state, errors } = await harness(browser, { width: 320, height: 740 }, { configureView(view) {
+      view.match.gameTime = 100000;
+      view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+      view.units.unshift({ ...view.units[0], id: 'moving-friendly', name: 'Friendly force at the border', provinceId: 'AU-2', order: { type: 'move', legTarget: 'NZ-1', targetProvinceId: 'NZ-1', departure: 0, arrival: 100000 } });
+    } });
+    await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+    await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+    await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+    await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+    assert.match(await page.locator('#selectionPanel h3').textContent(), /Friendly force at the border/, 'Ordinary taps retain unit selection');
+    await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+    await page.locator('[data-action="order-type"][data-id="attack"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+    const confirm = page.locator('[data-action="confirm-order"]'); await confirm.waitFor();
+    assert.equal(await confirm.isDisabled(), false, 'A travelling friendly marker cannot redirect an attack to its friendly source province');
+    await confirm.click(); await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
+    assert.deepEqual(state.calls.find(call => call.action === 'order').args, { unitIds: ['unit-1'], type: 'attack', targetProvinceId: 'NZ-1' });
+    await page.screenshot({ path: path.join(os.tmpdir(), 'dorra-war-moving-marker-320.png') });
+    assert.deepEqual(errors, []); await context.close();
+  } finally { await browser.close(); }
+});
+
+test('artillery uses area fire in hostile territory and a compatible detected contact in friendly territory', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const hostileProvince of [true, false]) {
+      const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+        Object.assign(view.units[0], { name: 'CAESAR', platformId: 'caesar', order: {} });
+        view.catalog.platforms.push(PLATFORMS.find(platform => platform.id === 'caesar'));
+        view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+        if (!hostileProvince) view.provinces.find(province => province.id === 'NZ-1').ownerId = 'AU';
+        view.units.push({ ...view.units[0], id: 'hostile-aircraft', name: 'Detected aircraft', nationId: 'NZ', provinceId: 'NZ-1', platformId: 'f35', domain: 'air' });
+        view.units.push({ ...view.units[0], id: 'hostile-infantry', name: 'Detected infantry', nationId: 'NZ', provinceId: 'NZ-1', platformId: 'infantry-company' });
+      } });
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="bombard"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+      const confirm = page.locator('[data-action="confirm-order"]'); await confirm.waitFor(); assert.equal(await confirm.isDisabled(), false);
+      await confirm.click(); await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
+      assert.deepEqual(state.calls.find(call => call.action === 'order').args, { unitIds: ['unit-1'], type: 'bombard', targetProvinceId: 'NZ-1', ...(!hostileProvince ? { targetUnitId: 'hostile-infantry' } : {}) });
+      assert.deepEqual(errors, []); await context.close();
+    }
   } finally { await browser.close(); }
 });

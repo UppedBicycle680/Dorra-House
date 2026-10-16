@@ -23,6 +23,9 @@ SOURCES = {
  'ne_10m_ports.geojson': 'c5a5028f5187a5e1b9fe7f0fab99804a8be7482099a2365d404fb7e9dd6b5457',
  'ne_10m_geography_regions_polys.geojson': 'b7b26e50ea917d3696aec87f932def2bf5f890f5770e441d59c162c6f4c92a77',
 }
+NEARSHORE_RADII = (.025,.05,.1,.2,.4,.8)
+NEARSHORE_BEARINGS = 32
+NAVAL_TRANSFORM = '2.5 degree ocean graph; source city-centroid ports snap to coastline within 0.5 degrees; otherwise unattached coastal ports try one nearby verified-water waypoint; every segment rejects buffered land; nearest six connected ports; illustrative game abstraction'
 
 def load(filename):
  CACHE.mkdir(parents=True, exist_ok=True)
@@ -68,6 +71,121 @@ def dist(a,b):
 def platforms_from_js():
  result=subprocess.run(['node','--input-type=module','-e',"import {PLATFORMS} from './war/catalog.mjs'; console.log(JSON.stringify(PLATFORMS));"],cwd=ROOT,capture_output=True,text=True,check=True,encoding='utf-8')
  return json.loads(result.stdout)
+
+def nearshore_connections(anchor,candidates,nodes,land,water_edge):
+ """Bounded detours around a headland; never replace a rejected land crossing.
+
+ The existing coarse ocean graph remains unchanged. Each candidate adds just
+ one waypoint with two independently tested water segments. An inland source
+ still cannot escape through land, and no river or causeway is invented.
+ """
+ best={}
+ for radius in NEARSHORE_RADII:
+  for bearing in range(NEARSHORE_BEARINGS):
+   angle=math.tau*bearing/NEARSHORE_BEARINGS
+   lng=(anchor[0]+radius*math.cos(angle)/max(.2,math.cos(math.radians(anchor[1]))))
+   point=(round((lng+180)%360-180,4),round(anchor[1]+radius*math.sin(angle),4))
+   if abs(point[1])>85 or land.covers(Point(point)) or not water_edge(anchor,point):continue
+   first=dist(anchor,point)
+   for j in candidates:
+    destination=(nodes[j]['lng'],nodes[j]['lat'])
+    cost=first+dist(point,destination)
+    if cost>1800 or not water_edge(point,destination):continue
+    value=(cost,point,j)
+    if j not in best or value<best[j]:best[j]=value
+ return sorted(best.values())[:3]
+
+def build_naval_routes(provinces,country_geoms):
+ ids=[p['id'] for p in provinces]
+ for p in provinces:p['seaNeighbors']=[]
+ # Maritime waypoints are navigation abstractions in verified ocean water, never
+ # fictional provinces. Edges intersecting buffered real land are rejected.
+ print('Building water navigation graph',flush=True)
+ land=shapely.union_all([g.simplify(.04,preserve_topology=True) for g in country_geoms.values()])
+ inner_land=land.buffer(-.015)
+ shapely.prepare(land);shapely.prepare(inner_land)
+ def water_edge(a,b):
+  if abs(a[0]-b[0])>180:
+   if a[0]<b[0]:a,b=b,a
+   endpoint=(b[0]+360,b[1]);fraction=(180-a[0])/(endpoint[0]-a[0]);latitude=a[1]+fraction*(b[1]-a[1])
+   return not inner_land.intersects(LineString([a,(180,latitude)])) and not inner_land.intersects(LineString([(-180,latitude),b]))
+  return not inner_land.intersects(LineString([a,b]))
+ nodes=[];node_lookup={};edges=defaultdict(list)
+ for lat_step in range(-30,33):
+  lat=lat_step*2.5
+  for lng_step in range(-71,72):
+   lng=lng_step*2.5
+   if not land.covers(Point(lng,lat)):
+    node_lookup[(lng,lat)]=len(nodes);nodes.append({'id':f'ocean-{lng}-{lat}','lng':lng,'lat':lat})
+ for (lng,lat),i in node_lookup.items():
+  for dx,dy in [(2.5,0),(0,2.5),(2.5,2.5),(-2.5,2.5)]:
+   next_lng=lng+dx
+   if next_lng>177.5:next_lng=-177.5
+   j=node_lookup.get((next_lng,lat+dy))
+   if j is not None and water_edge((lng,lat),(next_lng,lat+dy)):
+    km=round(dist((lng,lat),(next_lng,lat+dy)))
+    edges[i].append((j,km));edges[j].append((i,km))
+ ocean_count=len(nodes)
+ shoreline=land.boundary
+ port_node={}
+ fallback_count=0;unattached_count=0
+ for i,p in enumerate(provinces):
+  if not p['port']: continue
+  port=p['ports'][0];a=(port['lng'],port['lat'])
+  if land.covers(Point(a)):
+   shore=nearest_points(Point(a),shoreline)[1]
+   if Point(a).distance(shore)<=.5:a=(round(shore.x,4),round(shore.y,4))
+  # Source port positions can be city centroids inland. Snap to nearby water;
+  # do not create a transcontinental shortcut from that cartographic position.
+  candidates=sorted(range(ocean_count),key=lambda j:dist(a,(nodes[j]['lng'],nodes[j]['lat'])))[:50]
+  selected=[]
+  for j in candidates:
+   b=(nodes[j]['lng'],nodes[j]['lat'])
+   if dist(a,b)>1800:continue
+   if water_edge(a,b):selected.append((j,round(dist(a,b))))
+   if len(selected)==3:break
+  fallback=[]
+  if not selected:
+   unattached_count+=1
+   fallback=nearshore_connections(a,candidates,nodes,land,water_edge)
+   if not fallback:continue
+   fallback_count+=1
+  n=len(nodes);nodes.append({'id':'port-'+p['id'],'provinceId':p['id'],'lng':a[0],'lat':a[1]});port_node[n]=i
+  for j,km in selected:edges[n].append((j,km));edges[j].append((n,km))
+  waypoints={}
+  for _,point,j in fallback:
+   if point not in waypoints:
+    waypoint=len(nodes);nodes.append({'id':'nearshore-'+p['id']+'-'+str(len(waypoints)),'lng':point[0],'lat':point[1]});waypoints[point]=waypoint
+    km=round(dist(a,point));edges[n].append((waypoint,km));edges[waypoint].append((n,km))
+   waypoint=waypoints[point];km=round(dist(point,(nodes[j]['lng'],nodes[j]['lat'])))
+   edges[waypoint].append((j,km));edges[j].append((waypoint,km))
+ routes=[];route_pairs=set()
+ for start,pi in port_node.items():
+  queue=[(0,start)];best={start:0};prev={};found=0
+  while queue and found<6:
+   cost,node=heapq.heappop(queue)
+   if cost!=best[node]:continue
+   if node in port_node and node!=start:
+    pj=port_node[node];found+=1
+    provinces[pi]['seaNeighbors'].append(ids[pj])
+    pair=(min(pi,pj),max(pi,pj))
+    if pair not in route_pairs:
+     route_pairs.add(pair)
+     path=[node]
+     while path[-1]!=start:path.append(prev[path[-1]])
+     routes.append({'from':ids[pi],'to':ids[pj],'km':cost,'coordinates':[[nodes[n]['lng'],nodes[n]['lat']] for n in reversed(path)]})
+   for other,km in edges[node]:
+    value=cost+km
+    if value<best.get(other,math.inf):best[other]=value;prev[other]=node;heapq.heappush(queue,(value,other))
+ for p in provinces:
+  for other in list(p['seaNeighbors']):
+   j=ids.index(other)
+   if p['id'] not in provinces[j]['seaNeighbors']:provinces[j]['seaNeighbors'].append(p['id'])
+ summary={'portProvinces':sum(p['port'] for p in provinces),'directUnattachedPorts':unattached_count,'fallbackAttachedPorts':fallback_count,
+  'isolatedPortProvinces':sum(p['port'] and not p['seaNeighbors'] for p in provinces),
+  'fallback':{'radiiDegrees':NEARSHORE_RADII,'bearings':NEARSHORE_BEARINGS,'maxWaypointsPerPort':3,'segmentsPerConnection':2}}
+ print('Naval connectivity: '+json.dumps(summary),flush=True)
+ return routes,summary
 
 def write_seed(countries,provinces,platforms):
  seed_dir=ROOT/'scripts/war-seed';seed_dir.mkdir(parents=True,exist_ok=True)
@@ -152,6 +270,33 @@ def catalog_only():
  manifest=json.loads((OUT/'manifest.json').read_text(encoding='utf-8'));manifest['counts']['platforms']=len(platforms);manifest['counts']['playableNations']=sum(n['playable'] for n in nations['nations']);manifest['sovereignty']={'method':'Natural Earth SOV_A3 primary source parent for Dependency/Lease/nonprimary Country only; Indeterminate and Disputed scenario areas retained','regionOwners':owners};write('manifest.json',manifest)
  count=write_seed({c['id']:c for c in nations['nations']},provinces,platforms)
  print(f'Updated {len(platforms)} platform records and {count} transactional SQL chunks',flush=True)
+
+def naval_only():
+ """Refresh maritime edges without changing geometry, borders or national data."""
+ nations=json.loads((OUT/'nations.json').read_text(encoding='utf-8'))
+ chunks={n['id']:json.loads((OUT/'provinces'/(n['id']+'.json')).read_text(encoding='utf-8')) for n in nations['nations']}
+ provinces=[f['properties'] for chunk in chunks.values() for f in chunk['features']]
+ before={p['id']:list(p['seaNeighbors']) for p in provinces}
+ admin0=load('ne_10m_admin_0_countries.geojson');admin1=load('ne_10m_admin_1_states_provinces.geojson')
+ rank={f['properties']['adm1_code']:i for i,f in enumerate(admin1)}
+ country_rank={f['properties']['ADM0_A3']:i for i,f in enumerate(admin0)}
+ nation_by_id={n['id']:n for n in nations['nations']}
+ def original_order(p):
+  return rank.get(p['id'],len(admin1)+country_rank[nation_by_id[p.get('regionId',p['countryId'])]['iso3']])
+ country_geoms={str(i):clean(shape(f['geometry'])) for i,f in enumerate(admin0)}
+ routes,summary=build_naval_routes(sorted(provinces,key=original_order),country_geoms)
+ changed=[]
+ for p in provinces:
+  p['seaNeighbors']=sorted(set(p['seaNeighbors']))
+  if p['seaNeighbors']!=before[p['id']]:changed.append(p['id'])
+ for code,chunk in chunks.items():
+  if any(f['id'] in changed for f in chunk['features']):write('provinces/'+code+'.json',chunk)
+ write('naval-routes.json',{'version':VERSION,'notice':'Game routing graph over Natural Earth land masks; not navigational advice.','routes':routes})
+ manifest=json.loads((OUT/'manifest.json').read_text(encoding='utf-8'));manifest['transforms']['naval']=NAVAL_TRANSFORM
+ manifest['navalConnectivity']=summary;manifest['counts']['navalRoutes']=len(routes);write('manifest.json',manifest)
+ platforms=json.loads((OUT/'platforms.json').read_text(encoding='utf-8'))['platforms']
+ count=write_seed({n['id']:n for n in nations['nations']},provinces,platforms)
+ print(f'Changed only maritime neighbors in {len(changed)} provinces; {count} SQL seed chunks',flush=True)
 
 def main():
  admin0,admin1,cities,ports,regions = [load(n) for n in SOURCES]
@@ -256,74 +401,7 @@ def main():
    best=max(indices,key=lambda i:sum(x['population'] for x in provinces[i]['cities']))
    provinces[best]['capital']=True;country['capitalProvinceId']=provinces[best]['id'];country['capitalName']=provinces[best]['cities'][0]['name'] if provinces[best]['cities'] else country['name'];country['capitalFallback']=True
   country['provinceCount']=len(indices);country['portCount']=sum(provinces[i]['port'] for i in indices)
- # Maritime waypoints are navigation abstractions in verified ocean water, never
- # fictional provinces. Edges intersecting buffered real land are rejected.
- print('Building water navigation graph',flush=True)
- land=shapely.union_all([g.simplify(.04,preserve_topology=True) for g in country_geoms.values()])
- inner_land=land.buffer(-.015)
- shapely.prepare(land);shapely.prepare(inner_land)
- def water_edge(a,b):
-  if abs(a[0]-b[0])>180:
-   if a[0]<b[0]:a,b=b,a
-   endpoint=(b[0]+360,b[1]);fraction=(180-a[0])/(endpoint[0]-a[0]);latitude=a[1]+fraction*(b[1]-a[1])
-   return not inner_land.intersects(LineString([a,(180,latitude)])) and not inner_land.intersects(LineString([(-180,latitude),b]))
-  return not inner_land.intersects(LineString([a,b]))
- nodes=[];node_lookup={};edges=defaultdict(list)
- for lat_step in range(-30,33):
-  lat=lat_step*2.5
-  for lng_step in range(-71,72):
-   lng=lng_step*2.5
-   if not land.covers(Point(lng,lat)):
-    node_lookup[(lng,lat)]=len(nodes);nodes.append({'id':f'ocean-{lng}-{lat}','lng':lng,'lat':lat})
- for (lng,lat),i in node_lookup.items():
-  for dx,dy in [(2.5,0),(0,2.5),(2.5,2.5),(-2.5,2.5)]:
-   next_lng=lng+dx
-   if next_lng>177.5:next_lng=-177.5
-   j=node_lookup.get((next_lng,lat+dy))
-   if j is not None and water_edge((lng,lat),(next_lng,lat+dy)):
-    km=round(dist((lng,lat),(next_lng,lat+dy)))
-    edges[i].append((j,km));edges[j].append((i,km))
- ocean_count=len(nodes)
- shoreline=land.boundary
- port_node={}
- for i,p in enumerate(provinces):
-  if not p['port']: continue
-  port=p['ports'][0];a=(port['lng'],port['lat'])
-  if land.covers(Point(a)):
-   shore=nearest_points(Point(a),shoreline)[1]
-   if Point(a).distance(shore)<=.5:a=(round(shore.x,4),round(shore.y,4))
-  # Source port positions can be city centroids inland. Snap to nearby water;
-  # do not create a transcontinental shortcut from that cartographic position.
-  candidates=sorted(range(ocean_count),key=lambda j:dist(a,(nodes[j]['lng'],nodes[j]['lat'])))[:50]
-  selected=[]
-  for j in candidates:
-   b=(nodes[j]['lng'],nodes[j]['lat'])
-   if dist(a,b)>1800:continue
-   if water_edge(a,b):selected.append((j,round(dist(a,b))))
-   if len(selected)==3:break
-  if not selected:continue
-  n=len(nodes);nodes.append({'id':'port-'+p['id'],'provinceId':p['id'],'lng':a[0],'lat':a[1]});port_node[n]=i
-  for j,km in selected:edges[n].append((j,km));edges[j].append((n,km))
- routes=[]
- for start,pi in port_node.items():
-  queue=[(0,start)];best={start:0};prev={};found=0
-  while queue and found<6:
-   cost,node=heapq.heappop(queue)
-   if cost!=best[node]:continue
-   if node in port_node and node!=start:
-    pj=port_node[node];found+=1
-    provinces[pi]['seaNeighbors'].append(ids[pj])
-    if pi<pj:
-     path=[node]
-     while path[-1]!=start:path.append(prev[path[-1]])
-     routes.append({'from':ids[pi],'to':ids[pj],'km':cost,'coordinates':[[nodes[n]['lng'],nodes[n]['lat']] for n in reversed(path)]})
-   for other,km in edges[node]:
-    value=cost+km
-    if value<best.get(other,math.inf):best[other]=value;prev[other]=node;heapq.heappush(queue,(value,other))
- for p in provinces:
-  for other in list(p['seaNeighbors']):
-   j=ids.index(other)
-   if p['id'] not in provinces[j]['seaNeighbors']:provinces[j]['seaNeighbors'].append(p['id'])
+ routes,naval_stats=build_naval_routes(provinces,country_geoms)
  # The catalog is authored independently; import pure JS to keep one definition
  # for browser, server bundle, world metadata and SQL seeding.
  catalog_path=ROOT/'war/catalog.mjs'
@@ -358,9 +436,10 @@ def main():
   'transforms':{'engine':'Shapely '+shapely.__version__,'countryToleranceDegrees':.035,'provinceToleranceDegrees':.018,'coordinateDecimals':4,
    'neighbors':'positive-length shared source boundaries','cities':'Natural Earth populated places','ports':'Natural Earth ports, nearest polygon within 0.35 degrees',
    'terrain':'Natural Earth geography region overlap >20% for mountain/plateau/desert/tundra/wetland; tiny city areas urban, remaining plains; coarse game abstraction',
-   'naval':'2.5 degree ocean waypoint graph; source city-centroid ports snap to coastline within 0.5 degrees; land-crossing edges rejected; nearest six connected ports; illustrative game abstraction',
+   'naval':NAVAL_TRANSFORM,
    'economy':'Historical Natural Earth GDP_MD, USD millions, divided by 1000; year preserved, not claimed current GDP',
    'military':'Authored game index based on curated platform coverage and logarithmic economy; not factual force ranking'},
+  'navalConnectivity':naval_stats,
   'counts':{'nations':len(countries),'playableNations':sum(c['playable'] for c in countries.values()),'provinces':len(provinces),'sourceProvinces':len(admin1),'sourceCities':len(cities),'sourcePorts':len(ports),'portProvinces':sum(p['port'] for p in provinces),'navalRoutes':len(routes),'platforms':len(platforms)},
   'files':{'world':'world.json','nations':'nations.json','platforms':'platforms.json','navalRoutes':'naval-routes.json','provinces':'provinces/{countryId}.json'}}
  write('manifest.json',manifest)
@@ -368,4 +447,7 @@ def main():
  print(json.dumps(manifest['counts'])+f'; {number} SQL seed chunks',flush=True)
  catalog_only()
 
-if __name__=='__main__':catalog_only() if '--catalog-only' in sys.argv else main()
+if __name__=='__main__':
+ if '--catalog-only' in sys.argv:catalog_only()
+ elif '--naval-only' in sys.argv:naval_only()
+ else:main()

@@ -50,6 +50,7 @@ npm test
 npm run test:war
 npm run test:war:ai
 npm run test:war:balance
+npm run test:war:campaigns
 npm run test:war:browser
 npm run test:war:load
 npm run build
@@ -59,6 +60,12 @@ npm run serve
 Open `http://localhost:4173/Dorra-House/`. The static development server still uses the configured Supabase project. Unit and database tests use isolated fixtures; `test:war:load` seeds the complete catalogue into local PGlite and measures four full worlds with 12 human memberships each. Browser fixtures exercise desktop/mobile layout, actual map assets, command handling and reconnection with intercepted transport.
 
 `npm run check:war:online` is a separate live integration check. It creates two disposable registered QA accounts and real test operations, verifies authority and cross-device behavior, retires its operations and signs out. It records QA identities and results in ignored `work/war-live-report.json`; remove those QA Auth accounts after reviewing the run. Set `DORRA_WAR_BROWSER=1` to include the published desktop/mobile browser walkthrough. Do not treat local fixture or capacity results as proof of hosted production capacity.
+
+`npm run test:war:campaigns` runs complete, repeatable land and island campaigns through the public command facade and actual PostgreSQL engine, using production geography, national starts, costs, queues, combat and rewards. Only local test time and transport bookkeeping are compressed. Browser campaign tests also exercise normal controls at desktop and 320px touch sizes through the actual gateway and database, including game over, rewards and reloading finished saves.
+
+`npm run check:war:solo` is an opt-in live desktop/mobile playthrough using unmodified hosted fast time and normal UI commands, so allow up to 30 minutes per run. Its France–Luxembourg scenarios deliberately keep live verification tractable; they are not a balance or win-rate study. Set `DORRA_SOLO_SOURCE=1` to serve the local frontend against real Supabase, or omit it to use the published site. `DORRA_SOLO_CASES=mobile` or `desktop` selects one viewport. It writes ignored `work/war-solo-live-report.json`, retires incomplete matches and signs out; review and remove its disposable QA identities afterward. Live QA does not claim permanent House rewards.
+
+AI recovery follows the same paid repair rules as players. Wounded formations regroup behind friendly lines, repair teams cover casualty concentrations, and a battered army can commission one missing recovery team beyond its planning target while retaining the normal 80-formation hard cap. Repeated combat stores health at six decimal places to bound database growth. Defensive bombardment can engage an explicitly detected hostile inside friendly territory; neutral, friendly, hidden and incompatible contacts remain invalid.
 
 The build publishes `dist/` only. It converts published PNG artwork to WebP at original dimensions and quality 95, while preserving required original sources in the repository. Server code, migrations, tests, seed scripts, caches, the old launcher and the offline vault are excluded from the hosted artifact.
 
@@ -80,3 +87,5 @@ On 16 October 2026, the actual Free-project PostgreSQL rollback benchmark passed
 Keep **Enforce HTTPS** enabled in GitHub Pages, allow `Alpha` in the `github-pages` deployment environment, and retain the default [GitHub Pages address](https://uppedbicycle680.github.io/Dorra-House/). Frontend configuration contains the publishable Supabase key only. See [ONLINE-ALPHA.md](ONLINE-ALPHA.md) for the existing Auth, cloud-save and deployment configuration.
 
 The solo AI update was also checked on the actual Free project on 16 October 2026. Four complete Veteran solo worlds ran their opening decision and two further planning cycles with dispatcher calls peaking at 1,378 ms, no remaining due events or scheduler errors, and matching private visibility filters. The human-world regression peaked at 1,634 ms for four worlds and 48 memberships. These rollback fixtures measure bounded database work, not sustained concurrent browser traffic. The reproducible AI balance harness covers eight equal-start mirror scenarios and four national-arsenal planning samples. It records first-move advantages and national differences; it does not establish human win rates or equal difficulty for every nation pairing.
+
+The subsequent recovery and full-campaign pass completed four national scenarios (Belgium–Netherlands, Bahrain–Qatar, New Zealand–Fiji and Singapore–Malaysia) using ordinary research, production, combat and victory rules. Real Supabase playthroughs also finished a Standard desktop duel in 21 game hours and a Veteran 320px touch duel in 25 game hours, including pause/resume and saved-world reloads. These France–Luxembourg checks verify complete flows, not balanced starting nations. The full regression passed 275 automated tests and 53 browser tests. Hosted rollback fixtures with the updated simulation peaked at 1,256 ms per dispatcher call for four Veteran worlds and 1,211 ms for four human worlds, with no remaining due backlog or scheduler errors after bounded recovery.

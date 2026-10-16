@@ -57,6 +57,30 @@ function relation(model, nationId) {
   if (nationId === model.view.player.nationId) return 'self';
   return model.view.diplomacy?.find(row => row.nationId === nationId)?.relation || model.view.nations?.find(nation => nation.id === nationId)?.relation || 'peace';
 }
+// Only select a visible contact the selected weapons can engage. These are
+// catalogue eligibility checks, not predicted damage; the server resolves fire.
+export function hostileOrderContact(model, provinceId, hitIds = []) {
+  const province = model.view.provinces?.find(row => row.id === provinceId);
+  // Hostile territory accepts an area order. Do not silently bind artillery to
+  // an aircraft (or another incompatible marker) above its destination.
+  if (province && ['war', 'hostile', 'enemy'].includes(relation(model, province.ownerId))) return null;
+  const weapons = model.view.units.filter(unit => model.selectedUnits.includes(unit.id) && unit.nationId === model.view.player.nationId);
+  const compatible = (weapon, target) => {
+    const platform = unitPlatform(weapon, model.view), targetPlatform = unitPlatform(target, model.view);
+    const abilities = platform?.capabilities || [], targetAbilities = targetPlatform?.capabilities || [];
+    if (weapon.domain === 'missile') return platform?.nuclear || (abilities.includes('anti-ship') ? target.domain === 'sea' && !targetAbilities.includes('submarine') : ['land', 'support'].includes(target.domain));
+    if (target.domain === 'missile') return false;
+    if (target.domain === 'air') return Number(platform?.stats?.airDefense) > 0;
+    if (weapon.domain === 'support' || !(Number(platform?.stats?.attack) > 0)) return false;
+    if (targetAbilities.includes('submarine')) return abilities.includes('anti-submarine') || (weapon.domain === 'sea' && abilities.includes('sonar'));
+    if (target.domain === 'sea') return weapon.domain === 'sea' || abilities.includes('anti-ship') || (weapon.domain === 'air' && abilities.some(ability => ['strike', 'multirole', 'precision-strike', 'strategic-strike'].includes(ability)));
+    if (weapon.domain === 'air') return abilities.some(ability => ['strike', 'multirole', 'precision-strike', 'strategic-strike', 'close-support', 'anti-armor'].includes(ability));
+    if (weapon.domain === 'sea' && abilities.some(ability => ['submarine', 'carrier'].includes(ability))) return abilities.includes('cruise-missiles');
+    return true;
+  };
+  const contacts = model.view.units.filter(unit => unit.provinceId === provinceId && ['war', 'hostile', 'enemy'].includes(relation(model, unit.nationId)) && weapons.every(weapon => compatible(weapon, unit)));
+  return contacts.find(unit => hitIds.includes(unit.id)) || contacts[0] || null;
+}
 export function validateOrder(model, order) {
   const blockers = [], warnings = [];
   const units = model.view.units.filter(unit => order.unitIds.includes(unit.id));
