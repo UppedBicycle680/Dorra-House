@@ -35,11 +35,19 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
    const initial=await acquire(actor);assert.equal(initial.snapshot.balance,1000);
   }
   const [a,b]=actors;pass('Two registered accounts acquire protected House gameplay leases');
-  stage='Solo operation';let value=await war(a,'create',{nationId:'AU',opponentNationId:'NZ',template:'duel',opponent:'ai',pace:'fast',visibility:'public',name:'War QA Solo'});
-  const solo=value.view.match.id;worlds.add(solo);assert.equal(value.view.player.nationId,'AU');assert.equal(value.view.match.status,'lobby');assert.ok(value.view.units.length>0);
+  stage='Solo operation';let value=await war(a,'create',{nationId:'AU',opponentNationId:'NZ',template:'duel',opponent:'ai',aiDifficulty:'recruit',pace:'fast',visibility:'public',name:'War QA Solo'});
+  const solo=value.view.match.id;worlds.add(solo);report.soloMatchId=solo;assert.equal(value.view.player.nationId,'AU');assert.equal(value.view.match.status,'lobby');assert.equal(value.view.match.aiDifficulty,'recruit');assert.equal(value.view.match.opponentNationId,'NZ');assert.ok(value.view.units.length>0);
   assert.ok(value.view.catalog.platforms.some(p=>p.sourceUrl),'Source-backed national arsenal');
   await rejected(b,'view',{},solo,['MATCH_FORBIDDEN']);await rejected(a,'view',{balance:999999},solo,['INVALID_COMMAND']);
-  await war(a,'start',{},solo);pass('Solo world starts with authentic national equipment and rejects non-member access');
+  await war(a,'start',{},solo);pass('Solo world starts with authentic national equipment, saves Recruit AI difficulty and rejects non-member access');
+  stage='AI opening progression';let opening;
+  for(let attempt=0;attempt<24;attempt++){
+   opening=(await war(a,'view',{},solo)).view;if(opening.match.gameTime>=7200)break;
+   await new Promise(resolve=>setTimeout(resolve,1000));
+  }
+  assert.ok(opening.match.gameTime>=7200,'The actual hosted solo passes its AI opening decision');
+  assert.equal(opening.match.aiDifficulty,'recruit');assert.ok(!opening.units.some(u=>u.nationId==='NZ'),'The distant rival remains fogged while acting');
+  pass('Hosted solo advances through the AI opening without exposing its distant forces');
   stage='Research, construction and idempotent production';
   const view=(await war(a,'view',{},solo)).view;
   const base=view.provinces.find(p=>p.ownerId==='AU'&&p.facilities?.['army-base']);assert.ok(base);
@@ -50,7 +58,7 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
   if(programme&&!view.player.research.includes(programme.id))await war(a,'research',{platformId:programme.id},solo);
   await war(a,'build',{provinceId:base.id,facility:'army-base'},solo);
   pass('Production retries replay once; timed research and facility upgrades use server costs');
-  stage='Solo pause and resume';const paused=(await war(a,'pause',{},solo)).view;assert.equal(paused.match.status,'paused');
+  stage='Solo pause and resume';const paused=(await war(a,'pause',{},solo)).view;assert.equal(paused.match.status,'paused');assert.equal(paused.match.aiDifficulty,'recruit');
   await new Promise(resolve=>setTimeout(resolve,1000));const stationary=(await war(a,'view',{},solo)).view;assert.equal(stationary.match.gameTime,paused.match.gameTime);
   await war(a,'resume',{},solo);await war(a,'retire',{},solo);worlds.delete(solo);pass('Paused solo time remains fixed and resume restores the same world');
   stage='Human 1v1';value=await war(a,'create',{nationId:'AU',opponentNationId:'NZ',template:'duel',opponent:'human',pace:'fast',visibility:'public',name:'War QA 1v1'});

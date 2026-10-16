@@ -16,6 +16,14 @@ test('mutations require permanent request IDs; reads do not',()=>{
  assert.doesNotThrow(()=>validateWarBody(body));assert.doesNotThrow(()=>validateWarBody({...body,protocolVersion:1}));assert.throws(()=>validateWarBody({...body,protocolVersion:2}),error=>error.code==='PROTOCOL_VERSION');assert.throws(()=>validateWarBody({...body,action:'start'}));assert.doesNotThrow(()=>validateWarBody({...body,action:'start',requestId:id}));
  assert.throws(()=>validateWarBody({...body,seed:'attacker'}));assert.throws(()=>validateWarBody({...body,action:'order',requestId:id,args:{unitIds:[id],type:'teleport'}}));
 });
+test('AI difficulty is an optional, bounded solo configuration rather than client balance settings',()=>{
+ const solo={...body,action:'create',requestId:id,args:{nationId:'AU',opponentNationId:'NZ',template:'duel',opponent:'ai',pace:'fast',visibility:'public'}};
+ assert.doesNotThrow(()=>validateWarBody(solo),'older clients retain the server default');
+ for(const aiDifficulty of ['recruit','standard','veteran'])assert.equal(validateWarBody({...solo,args:{...solo.args,aiDifficulty}}).args.aiDifficulty,aiDifficulty);
+ for(const aiDifficulty of ['impossible',null,1,{income:100}])assert.throws(()=>validateWarBody({...solo,args:{...solo.args,aiDifficulty}}),e=>e.code==='INVALID_AI_DIFFICULTY');
+ assert.throws(()=>validateWarBody({...solo,args:{...solo.args,opponent:'human',aiDifficulty:'veteran'}}),e=>e.code==='INVALID_AI_DIFFICULTY');
+ assert.throws(()=>validateWarBody({...solo,args:{...solo.args,aiIncomeMultiplier:5}}),/intentions/);
+});
 test('SQL errors never leak hidden identifiers or implementation details',async()=>{
  const h=createWarHandler({getUser:async()=>({id}),rpc:async()=>({error:{message:'constraint secret enemy-id violated',code:'23514'}})});
  const r=await h(request());assert.equal(r.status,503);assert.doesNotMatch(await r.text(),/secret|enemy-id|constraint/);

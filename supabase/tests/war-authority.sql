@@ -26,7 +26,7 @@ insert into dorra_private.war_catalog_provinces values
  ('WQC-1','WQC','Neutral capital','{"lat":30,"lng":60,"capital":true,"city":true,"port":false,"terrain":"plains","neighbors":[]}');
 insert into dorra_private.war_catalog_platforms values
  ('__war_infantry','War test infantry','{"domain":"land","branch":"infantry","operators":["WQA","WQB"],"level":1,"facility":"army-base","cost":{"cash":100,"supplies":20,"fuel":0,"electronics":0,"manpower":10},"researchHours":1,"buildHours":1,"prerequisites":[],"stats":{"attack":10,"defense":10,"range":5,"speed":100,"vision":30,"stealth":0,"radar":0,"airDefense":0}}'),
- ('__war_doctrine','War test doctrine','{"domain":"support","branch":"industry","operators":["*"],"buildable":false,"level":1,"facility":"arms-industry","cost":{"cash":100},"researchHours":1,"buildHours":1,"prerequisites":[],"stats":{"attack":0,"defense":0,"speed":0}}'),
+ ('__war_doctrine','War test doctrine','{"domain":"support","branch":"industry","operators":["*"],"capabilities":["doctrine"],"buildable":false,"level":1,"facility":"arms-industry","cost":{"cash":100},"researchHours":1,"buildHours":1,"prerequisites":[],"stats":{"attack":0,"defense":0,"speed":0}}'),
  ('__war_foreign','War test imported vehicle','{"domain":"land","branch":"armor","operators":["WQB"],"level":2,"facility":"army-base","cost":{"cash":100},"researchHours":1,"buildHours":1,"prerequisites":["__war_doctrine"],"stats":{"attack":15,"defense":15,"range":5,"speed":100,"vision":30,"stealth":0,"radar":0,"airDefense":0}}'),
  ('__war_nuclear','War test nuclear delivery','{"domain":"missile","branch":"missiles","nuclear":true,"operators":["WQB"],"level":2,"facility":"missile-site","cost":{"cash":100},"researchHours":1,"buildHours":1,"prerequisites":[],"stats":{"attack":150,"defense":5,"range":10000,"speed":2000,"vision":0}}');
 
@@ -77,7 +77,13 @@ begin
  assert not exists(select 1 from dorra_private.war_events where match_id=mid and kind='produce' and payload->>'nationId'='WQA'),'timed mobilization completes';
  begin perform public.dorra_war_command(actor,session_id,lease,'produce',mid,'{"provinceId":"WQA-1","platformId":"__war_doctrine"}',gen_random_uuid());raise exception 'Expected RESEARCH_ONLY';exception when others then assert sqlerrm='RESEARCH_ONLY','doctrines cannot be produced as units';end;
 
+ -- An active opponent evaluates a truce on its bounded turn. Supply pressure
+ -- makes this fixture's offer acceptable; a fresh opponent no longer grants an
+ -- immediate free truce merely because the player clicked the button.
+ update dorra_private.war_sides set resources=resources||'{"supplies":0,"fuel":0}' where match_id=mid and nation_id='WQB';
  perform public.dorra_war_command(actor,session_id,lease,'diplomacy',mid,'{"nationId":"WQB","type":"peace"}',gen_random_uuid());
+ perform dorra_private.war_ai(mid,'WQB',4000);
+ assert dorra_private.war_relation(mid,'WQA','WQB')='peace','AI accepts a truce under genuine supply pressure';
  perform public.dorra_war_command(actor,session_id,lease,'diplomacy',mid,'{"nationId":"WQB","type":"import-license"}',gen_random_uuid());
  outcome:=public.dorra_war_command(actor,session_id,lease,'view',mid);
  assert outcome#>'{view,player,importLicenses}' ? 'WQB','peaceful AI can grant an import licence';

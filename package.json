@@ -11,6 +11,8 @@
     "test:airport:browser": "node airport-browser-operations-regression.mjs",
     "test:browser": "node --test tests/*.browser.mjs",
     "test:war": "node --test tests/war*.test.mjs",
+    "test:war:ai": "node --test tests/war-ai*.test.mjs",
+    "test:war:balance": "node scripts/check-war-ai-balance.mjs",
     "check:war:online": "node scripts/check-war-online.mjs",
     "test:war:load": "node scripts/check-war-capacity.mjs",
     "test:war:browser": "node --test tests/war.browser.mjs",
