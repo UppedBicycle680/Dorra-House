@@ -3,6 +3,7 @@ import { supabase } from './auth-client.js';
 import { createWarClient } from './war/client.mjs';
 import { CommandMap } from './war/map.mjs';
 import { BRANCHES } from './war/catalog.mjs';
+import { validateOrder } from './war/command-info.mjs';
 import { escapeHTML as e, renderLobby, renderNationList, renderResources, renderNav, renderDrawer, renderSelection, renderClock, getPlatforms, titleCase } from './war/ui.mjs';
 
 const $ = selector => document.querySelector(selector);
@@ -72,7 +73,17 @@ function chooseNation(id, focus = true) {
   if (model.opponentNationId === id) model.opponentNationId = model.nations.find(nation => nation.id !== id)?.id;
   render(); if (focus) void map.focus(id);
 }
-function selectUnits(ids) { model.selectedUnits = ids; model.orderType = null; model.pendingOrder = null; model.routeMode = false; model.tab = 'map'; render(); }
+function selectUnits(ids) { model.selectedUnits = ids; model.orderType = null; model.pendingOrder = null; model.routeMode = false; model.unitDetailsOpen = false; model.tab = 'map'; render(); }
+async function focusSelectedUnit(id) {
+  let anchor = null;
+  if (innerWidth <= 700 && !dom.selection.hidden) {
+    const canvas = map.canvas.getBoundingClientRect(), panel = dom.selection.getBoundingClientRect();
+    const top = Math.max(0, dom.resources.getBoundingClientRect().bottom - canvas.top) + 18;
+    const bottom = Math.max(top, panel.top - canvas.top - 22);
+    anchor = { x: canvas.width * .44, y: (top + bottom) / 2 };
+  }
+  await map.focusUnit(id, anchor);
+}
 function target(hit) {
   const ownUnits = model.selectedUnits.filter(id => model.view?.units?.some(unit => unit.id === id && unit.nationId === model.view.player.nationId));
   if (!ownUnits.length) return;
@@ -135,6 +146,7 @@ async function handleAction(button) {
     showDialog({ title: 'Choose your command', body: '<p>National strength and available equipment differ. Select your nation before joining this operation.</p><div class="dialog-field"><label class="field-label" for="joinNation">Available nation</label><select id="joinNation">' + candidates.map(n => `<option value="${e(n.id)}" ${n.id === model.nationId ? 'selected' : ''}>${e(n.name)}</option>`).join('') + '</select></div>' + (model.inviteCode ? '<p class="fine-print">Private invitation verified. Your invite code will accompany this request.</p>' : ''), confirm: 'Join operation', onConfirm: async () => { const nationId = $('#joinNation').value; if (!nationId) { toast('This operation has no available national commands.', true); return false; } const response = await client.command('join', { nationId, ...(model.inviteCode ? { inviteCode: model.inviteCode } : {}) }, id).catch(error => { toast(error.message, true); return null; }); if (!response) return false; adopt(response); if (!response.view) await openMatch(id); model.tab = 'operation'; render(); await map.focus(nationId); } }); return;
   }
   if (action === 'province') { model.provinceId = id; model.provinceFeature = map.provinces.get(id); render(); return; }
+  if (action === 'select-unit') { selectUnits([id]); await focusSelectedUnit(id); return; }
   if (action === 'research') return mutate('research', { platformId: id }, 'Research programme accepted.');
   if (action === 'build') return mutate('build', { provinceId: model.provinceId, facility: id }, 'Construction order accepted.');
   if (action === 'produce') return mutate('produce', { provinceId: model.provinceId, platformId: id }, 'Production order accepted.');
@@ -143,7 +155,7 @@ async function handleAction(button) {
   if (action === 'undo-waypoint') { const previous = model.pendingOrder?.waypoints?.at(-1); if (previous) { model.pendingOrder.targetProvinceId = previous; model.pendingOrder.targetName = map.provinces.get(previous)?.properties?.name || previous; model.pendingOrder.waypoints.pop(); } render(); return; }
   if (action === 'clear-selection') return selectUnits([]);
   if (action === 'cancel-order') { model.pendingOrder = null; model.orderType = null; model.routeMode = false; render(); return; }
-  if (action === 'confirm-order') { const { targetName, ...args } = model.pendingOrder; const response = await mutate('order', args, 'Order transmitted to your forces.'); if (response) { model.pendingOrder = null; model.orderType = null; model.routeMode = false; render(); } return; }
+  if (action === 'confirm-order') { const validation = validateOrder(model, model.pendingOrder); if (validation.blockers.length) { toast(validation.blockers[0], true); render(); return; } const { targetName, ...args } = model.pendingOrder; const response = await mutate('order', args, 'Order transmitted to your forces.'); if (response) { model.pendingOrder = null; model.orderType = null; model.routeMode = false; render(); } return; }
   if (action === 'direct-order') return mutate('order', { unitIds: model.selectedUnits, type: id }, `${titleCase(id)} order accepted.`);
   if (action === 'diplomacy') { const nation = model.nations.find(n => n.id === button.dataset.nation); showDialog({ eyebrow: 'FOREIGN AFFAIRS', title: `${titleCase(id)} · ${nation?.name || button.dataset.nation}`, body: `<p>${id === 'war' ? 'This will declare war and permit hostile actions. Review your forces and supply network before committing.' : 'Send this diplomatic proposal. Agreements take effect only when accepted under the world’s diplomatic rules.'}</p>`, confirm: id === 'war' ? 'Declare war' : 'Send proposal', danger: id === 'war', onConfirm: () => mutate('diplomacy', { nationId: button.dataset.nation, type: id }, 'Diplomatic action accepted.') }); return; }
   if (action === 'import-license') { showDialog({ eyebrow: 'TECHNOLOGY & TRADE', title: 'Request import license', body: '<p>A license permits eligible foreign equipment research and production. Diplomatic acceptance and the required domestic facilities still apply.</p>', confirm: 'Request license', onConfirm: () => mutate('diplomacy', { nationId: button.dataset.nation, type: 'import-license' }, 'Import license request sent.') }); return; }
@@ -176,6 +188,7 @@ async function handleAction(button) {
 }
 function bind() {
   document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (button && !button.disabled) void handleAction(button).catch(error => toast(error.message, true)); });
+  document.addEventListener('toggle', event => { if (event.target.id === 'formationDetails') { const wasOpen = model.unitDetailsOpen; model.unitDetailsOpen = event.target.open; if (!wasOpen && event.target.open && innerWidth <= 700 && model.selectedUnits.length === 1) void focusSelectedUnit(model.selectedUnits[0]); } }, true);
   dom.lobby.addEventListener('input', event => {
     if (event.target.id === 'nationSearch') { model.search = event.target.value; $('#nationList').innerHTML = renderNationList(model); }
     if (event.target.id === 'matchName') model.name = event.target.value;

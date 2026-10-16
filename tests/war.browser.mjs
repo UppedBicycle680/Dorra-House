@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 import { PLATFORMS } from '../war/catalog.mjs';
 import { baseURL, supabaseHost, responseHeaders, launchBrowser, serveSource } from './browser-helpers.mjs';
 
@@ -13,7 +14,7 @@ const nationData = [{ id: 'AU', name: 'Australia', lng: 150, lat: -30, military:
 const features = [polygon('AU', 'AU', 'Australia', 120, 165, -45, -5, 150, -30), polygon('NZ', 'NZ', 'New Zealand', 166, 179, -48, -34, 170, -40)];
 function initialView() { return { match: { id: 'match-test', name: 'Operation Meridian', status: 'lobby', pace: 'fast', template: 'duel', opponent: 'ai', revision: 1, gameTime: 0, speed: 360, hostId: userId, maxPlayers: 2 }, player: { nationId: 'AU', userId, resources: { cash: 10000, supplies: 5000, fuel: 3000, electronics: 1500, manpower: 4000 }, research: ['infantry-company'], researchQueue: [], productionQueue: [], buildQueue: [], importLicenses: [] }, nations: [{ id: 'AU', name: 'Australia', relation: 'self', score: 100 }, { id: 'NZ', name: 'New Zealand', relation: 'peace', score: 70 }], provinces: [{ id: 'AU-1', ownerId: 'AU', morale: 100, facilities: { 'army-base': 1 } }, { id: 'AU-2', ownerId: 'AU', morale: 100, facilities: {} }, { id: 'NZ-1', ownerId: 'NZ', morale: 100, facilities: {} }], units: [{ id: 'unit-1', name: '1st Infantry Company', nationId: 'AU', provinceId: 'AU-1', platformId: 'infantry-company', domain: 'land', health: 100, maxHealth: 100, strength: 10 }], reports: [], diplomacy: [], catalog: { platforms: PLATFORMS.filter(p => p.operators.includes('*') || p.operators.includes('AU')) } }; }
 
-async function harness(browser, viewport, { realGeography = false, worlds = [], search = '', allied = false } = {}) {
+async function harness(browser, viewport, { realGeography = false, worlds = [], search = '', allied = false, configureView = null } = {}) {
   const context = await browser.newContext({ viewport, hasTouch: viewport.width < 700 });
   await context.addInitScript(value => localStorage.setItem('dorra-online-auth', JSON.stringify(value)), auth);
   const state = { view: null, leaseId: null, calls: [], dropResearch: false, ended: false };
@@ -35,7 +36,7 @@ async function harness(browser, viewport, { realGeography = false, worlds = [], 
       state.calls.push(body);
       if (state.ended) return reply({ error: 'Another device started a gameplay session.', code: 'SESSION_REPLACED' }, 409);
       if (body.action === 'list') return reply({ matches: state.view ? [{ ...state.view.match, joined: true, players: 1 }] : worlds, serverNow: Date.now() });
-      if (body.action === 'create') { state.view = initialView(); if(allied){state.view.diplomacy=[{nationId:'NZ',relation:'alliance'}];state.view.nations.find(n=>n.id==='NZ').relation='alliance';} return reply({ view: state.view, serverNow: Date.now() }); }
+      if (body.action === 'create') { state.view = initialView(); configureView?.(state.view); if(allied){state.view.diplomacy=[{nationId:'NZ',relation:'alliance'}];state.view.nations.find(n=>n.id==='NZ').relation='alliance';} return reply({ view: state.view, serverNow: Date.now() }); }
       if (body.action === 'join') { state.view = initialView(); state.view.match.id = body.matchId; state.view.match.opponent = 'human'; state.view.match.hostId = 'another-player'; state.view.player.nationId = body.args.nationId; return reply({ view: state.view, serverNow: Date.now() }); }
       if (!state.view) return reply({ error: 'Not a participant', code: 'NOT_MEMBER' }, 403);
       if (body.action === 'start') state.view.match.status = 'running';
@@ -272,5 +273,156 @@ test('production geography renders and nation search remains usable on desktop a
       assert.deepEqual(errors, []);
       await context.close();
     }
+  } finally { await browser.close(); }
+});
+
+test('formation readiness and exact objectives remain readable on desktop and 320px mobile', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 740 }]) {
+      const { context, page, errors } = await harness(browser, viewport, { configureView(view) { Object.assign(view.units[0], { health: 85, strength: 2, supply: .75, entrenchment: 10, order: {} }); } });
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      assert.match(await page.locator('.objective-note').textContent(), /six consecutive game hours/);
+      assert.match(await page.locator('.objective-note').textContent(), /Capital 10 VP/);
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click();
+      await page.locator('[data-action="select-unit"][data-id="unit-1"]').focus(); await page.keyboard.press('Enter');
+      await page.waitForSelector('#selectionPanel:not([hidden])');
+      assert.match(await page.locator('.formation-status').textContent(), /Ready for orders/);
+      assert.doesNotMatch(await page.locator('#selectionPanel').textContent(), /\[object Object\]/);
+      assert.match(await page.locator('.selection-facts').textContent(), /85 \/ 100 HP/);
+      assert.match(await page.locator('.selection-facts').textContent(), /2 combat groups/);
+      await page.locator('#formationDetails summary').click();
+      assert.match(await page.locator('.formation-support').textContent(), /Supply support ×0.75/);
+      assert.match(await page.locator('.formation-support').textContent(), /Entrenchment 10%/);
+      assert.equal(await page.locator('.formation-stat-grid dt').count(), 6);
+      assert.equal(await page.locator('body').evaluate(element => element.scrollWidth <= innerWidth), true);
+      const clipped = await page.locator('#selectionPanel').evaluate(element => { const box = element.getBoundingClientRect(); return box.left < 0 || box.right > innerWidth || box.top < 60 || box.bottom > innerHeight; });
+      assert.equal(clipped, false);
+      await page.screenshot({ path: path.join(os.tmpdir(), viewport.width > 700 ? 'dorra-war-readiness-desktop.png' : 'dorra-war-readiness-320.png') });
+      assert.deepEqual(errors, []); await context.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test('defensive interceptors expose relevant controls and invalid offensive targets stay uncommitted', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, state, errors } = await harness(browser, { width: 320, height: 740 }, { configureView(view) {
+      view.catalog.platforms.push(PLATFORMS.find(platform => platform.id === 'aster30'));
+      view.units.push({ id: 'interceptor-1', name: 'Defensive missile battery', platformId: 'aster30', nationId: 'AU', provinceId: 'AU-1', domain: 'missile', strength: 1, health: 100, maxHealth: 100, order: {} });
+    } });
+    await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+    await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+    await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="interceptor-1"]').click();
+    assert.equal(await page.locator('[data-action="order-type"]').count(), 1);
+    assert.equal(await page.locator('[data-action="order-type"][data-id="intercept"]').isVisible(), true);
+    assert.match(await page.locator('.command-guidance').textContent(), /Defensive interceptor/);
+    await page.locator('[data-action="order-type"][data-id="intercept"]').click();
+    await page.locator('#worldCanvas').focus(); await page.keyboard.press('h');
+    for (let zoom = 0; zoom < 6; zoom++) await page.keyboard.press('+');
+    const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox(), scale = Math.min(bounds.width / 360, bounds.height / 165) * 1.3 ** 6;
+    await page.mouse.move(bounds.x + 100, bounds.y + 220); await page.mouse.down(); await page.mouse.move(bounds.x - 800, bounds.y - 400, { steps: 5 }); await page.mouse.up();
+    await canvas.click({ position: { x: bounds.width / 2 - 10 * scale, y: bounds.height / 2 - 45 * scale } });
+    await page.waitForSelector('[data-action="confirm-order"]');
+    assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), true);
+    assert.match(await page.locator('.order-feedback.blocked').textContent(), /your own or an allied province/);
+    assert.equal(state.calls.filter(call => call.action === 'order').length, 0);
+    await page.screenshot({ path: path.join(os.tmpdir(), 'dorra-war-interceptor-320.png') });
+    assert.deepEqual(errors, []); await context.close();
+  } finally { await browser.close(); }
+});
+
+test('stationary air defence can retarget a friendly province and shows its actual reload time', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+      Object.assign(view.units[0], { name: 'NASAMS defence battery', platformId: 'nasams', interceptReadyAt: 3600, order: { type: 'intercept', targetProvinceId: 'AU-1' } });
+      view.reports = [{ type: 'strike-missed', provinceId: 'AU-1' }, { type: 'strike-cancelled', provinceId: 'AU-1', reason: 'Defensive interceptor' }, { type: 'missile-defense', provinceId: 'AU-1', singleUse: true }, { type: 'strategic-strike', provinceId: 'AU-1', nuclear: true, collateral: true, damage: 20 }];
+    } });
+    await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+    await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+    await page.locator('[data-action="tab"][data-id="intelligence"]').click();
+    const reports = await page.locator('.report-row').allTextContents();
+    assert.match(reports.join(' '), /found no remaining eligible hostile target/);
+    assert.match(reports.join(' '), /was cancelled: Defensive interceptor/);
+    assert.match(reports.join(' '), /single-use interceptor was expended/);
+    assert.match(reports.join(' '), /Friendly or neutral forces were caught in this blast/);
+    await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+    const intercept = page.locator('[data-action="order-type"][data-id="intercept"]');
+    assert.equal(await intercept.isDisabled(), false, 'Persistent defence must be retargetable without abandoning the formation');
+    assert.equal(await page.locator('[data-action="order-type"][data-id="move"]').isDisabled(), false, 'A stationary battery can leave its defensive stance by moving');
+    assert.equal(await page.locator('[data-action="order-type"][data-id="attack"]').isDisabled(), false, 'A defensive stance can be replaced with a movement order into hostile territory');
+    assert.equal(await page.locator('[data-action="order-type"][data-id="bombard"]').isDisabled(), true, 'Bombardment still requires an idle battery');
+    assert.match(await page.locator('.command-guidance').textContent(), /Air defence active/);
+    await page.locator('#formationDetails summary').click();
+    assert.match(await page.locator('.formation-support').textContent(), /Missile defence ready Day 1 · 01:00/);
+    await intercept.click();
+    const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox(), scale = Math.min(bounds.width / 360, bounds.height / 165) * 4;
+    await canvas.click({ position: { x: bounds.width / 2 + 10 * scale, y: bounds.height / 2 - 20 * scale } });
+    const confirm = page.locator('[data-action="confirm-order"]');
+    assert.equal(await confirm.isDisabled(), false, 'Friendly territory is a valid defensive target');
+    await confirm.click(); await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
+    assert.deepEqual(state.calls.find(call => call.action === 'order').args, { unitIds: ['unit-1'], type: 'intercept', targetProvinceId: 'AU-2' });
+    assert.deepEqual(errors, []); await context.close();
+  } finally { await browser.close(); }
+});
+
+test('maritime aircraft warn before an ineffective sortie against a detected land formation', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const platformId of ['p8a-poseidon', 'ch148-cyclone']) {
+      const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+        const platform = PLATFORMS.find(platform => platform.id === platformId);
+        if (!view.catalog.platforms.some(row => row.id === platformId)) view.catalog.platforms.push(platform);
+        Object.assign(view.units[0], { name: platform.name, platformId, domain: 'air', order: {} });
+        view.units.push({ id: 'hostile-land', name: 'Detected infantry', platformId: 'infantry-company', nationId: 'NZ', provinceId: 'NZ-1', domain: 'land', health: 100, maxHealth: 100, strength: 1 });
+        view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+      } });
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="attack"]').click();
+      const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox(), scale = Math.min(bounds.width / 360, bounds.height / 165) * 4;
+      await canvas.click({ position: { x: bounds.width / 2 + 20 * scale, y: bounds.height / 2 + 10 * scale } });
+      await page.waitForSelector('[data-action="confirm-order"]');
+      assert.match(await page.locator('.order-feedback').textContent(), /has no land-strike capability/);
+      assert.match(await page.locator('.order-feedback').textContent(), /against land formations will do no damage/);
+      assert.equal(state.calls.filter(call => call.action === 'order').length, 0, 'The warning appears before any sortie is sent');
+      assert.deepEqual(errors, []); await context.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test('production Wellington formation stays visible above the expanded 320px command panel', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, errors } = await harness(browser, { width: 320, height: 740 }, { realGeography: true, configureView(view) {
+      view.player.nationId = 'NZ';
+      view.nations.find(nation => nation.id === 'NZ').relation = 'self';
+      view.nations.find(nation => nation.id === 'AU').relation = 'peace';
+      view.provinces = [{ id: 'NZL-5469', ownerId: 'NZ', morale: 100, facilities: { 'army-base': 1 } }];
+      Object.assign(view.units[0], { name: 'Combat engineers', nationId: 'NZ', provinceId: 'NZL-5469', platformId: 'combat-engineers', supply: 1, entrenchment: 0, order: {} });
+    } });
+    await page.locator('#nationSearch').fill('New Zealand'); await page.locator('[data-action="nation"][data-id="NZ"]').click();
+    await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+    await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+    await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+    await page.locator('#formationDetails summary').click();
+    await page.waitForFunction(() => document.querySelector('#formationDetails').open);
+    const canvas = page.locator('#worldCanvas');
+    const markerVisible = async () => {
+      const bounds = await canvas.boundingBox(), panel = await page.locator('#selectionPanel').boundingBox();
+      const { data, info } = await sharp(await canvas.screenshot()).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      let pixels = 0;
+      const maxY = Math.max(0, Math.floor((panel.y - bounds.y - 12) * info.height / bounds.height));
+      for (let y = 0; y < maxY; y++) for (let x = 0; x < info.width; x++) { const offset = (y * info.width + x) * 4; if (Math.abs(data[offset] - 205) <= 1 && Math.abs(data[offset + 1] - 181) <= 1 && Math.abs(data[offset + 2] - 121) <= 1) pixels++; }
+      return pixels > 250;
+    };
+    for (let attempt = 0; attempt < 10 && !await markerVisible(); attempt++) await page.evaluate(() => new Promise(requestAnimationFrame));
+    await page.screenshot({ path: path.join(os.tmpdir(), 'dorra-war-wellington-320.png') });
+    assert.equal(await markerVisible(), true, 'The selected Wellington marker must be drawn in the unobscured map above the panel');
+    assert.match(await page.locator('.formation-details-body').textContent(), /Wellington/);
+    assert.deepEqual(errors, []); await context.close();
   } finally { await browser.close(); }
 });

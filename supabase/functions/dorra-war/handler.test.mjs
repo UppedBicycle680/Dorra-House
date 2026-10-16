@@ -21,7 +21,7 @@ test('SQL errors never leak hidden identifiers or implementation details',async(
  const r=await h(request());assert.equal(r.status,503);assert.doesNotMatch(await r.text(),/secret|enemy-id|constraint/);
 });
 test('session replacement and capacity errors remain actionable',async()=>{
- for(const code of ['SESSION_REPLACED','WORLD_CAPACITY']){const h=createWarHandler({getUser:async()=>({id}),rpc:async()=>({error:{message:code,code:'P0001'}})});const r=await h(request());assert.equal(r.status,409);assert.equal((await r.json()).code,code);}
+ for(const code of ['SESSION_REPLACED','WORLD_CAPACITY','INTERCEPTOR_DEFENSIVE_ONLY','DEFEND_FRIENDLY','NO_VALID_TARGET','INVALID_TARGET_CLASS']){const h=createWarHandler({getUser:async()=>({id}),rpc:async()=>({error:{message:code,code:'P0001'}})});const r=await h(request());assert.equal(r.status,409);assert.equal((await r.json()).code,code);}
 });
 test('origin policy and streaming input limits are enforced',async()=>{
  const h=createWarHandler({getUser:async()=>({id}),rpc:async()=>({data:{}})});assert.equal((await h(request(body,{Origin:'https://evil.test'}))).status,403);
