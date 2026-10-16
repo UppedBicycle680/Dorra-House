@@ -57,6 +57,11 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
   const duel=value.view.match.id;worlds.add(duel);await war(b,'join',{nationId:'NZ'},duel);await war(a,'start',{},duel);
   const av=(await war(a,'view',{},duel)).view,bv=(await war(b,'view',{},duel)).view;
   assert.equal(av.player.nationId,'AU');assert.equal(bv.player.nationId,'NZ');assert.ok(av.nations.some(n=>n.ownerId===b.id));
+  assert.ok(bv.catalog.platforms.some(p=>p.domain==='sea'&&p.sourceUrl),'New Zealand has a sourced naval research roster');
+  const engineer=av.units.find(u=>u.platformId==='combat-engineers');assert.ok(engineer,'Own engineering formation is present');
+  assert.equal(typeof engineer.supply,'number');assert.equal(typeof engineer.entrenchment,'number');assert.equal(typeof engineer.interceptReadyAt,'number');
+  await rejected(a,'order',{type:'intercept',unitIds:[engineer.id],targetProvinceId:engineer.provinceId},duel,['INVALID_TARGET_CLASS']);
+  pass('Fielded national arsenals and private readiness are present; engineers cannot act as air-defence weapons');
   const own=bv.units.find(u=>u.nationId==='NZ');assert.ok(own);await rejected(a,'order',{type:'split',unitIds:[own.id]},duel,['UNIT_NOT_OWNED']);
   await rejected(a,'pause',{},duel,['SOLO_PAUSE_ONLY']);
   assert.ok(!av.units.some(u=>u.nationId==='NZ'),'Distant enemy formations remain fogged');pass('Two accounts command distinct nations; foreign orders and multiplayer pause are rejected');
@@ -67,7 +72,7 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
   if(browser){
    stage=source?'Real-backend browser source verification':'Published desktop and mobile verification';
    const {chromium}=await import('playwright');browserInstance=await chromium.launch({headless:true,...(process.env.DORRA_CHROMIUM_PATH?{executablePath:process.env.DORRA_CHROMIUM_PATH}:{}),args:['--no-sandbox']});
-   for(const [actor,viewport,label]of [[a,{width:1440,height:900},'desktop'],[b,{width:390,height:844},'mobile']]){
+   for(const [actor,viewport,label]of [[a,{width:1440,height:900},'desktop'],[b,{width:320,height:740},'mobile']]){
     const context=await browserInstance.newContext({viewport});await context.addInitScript(session=>localStorage.setItem('dorra-online-auth',JSON.stringify(session)),actor.session);
     if(source){const {serveSource}=await import('../tests/browser-helpers.mjs');await context.route(origin+'/Dorra-House/**',serveSource);}
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -76,8 +81,11 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
     await page.locator('#commandNav').waitFor({state:'visible',timeout:60000});await page.locator('#resourceBar').waitFor({state:'visible'});
     await page.locator('[data-action="tab"][data-id="research"]').click();await page.getByRole('heading',{name:'Research programmes'}).waitFor({state:'visible'});
     assert.ok(await page.locator('.branch-tabs button').count()>=8);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.locator('[data-action="tab"][data-id="intelligence"]').click();await page.locator('.force-row').first().click();
+    await page.locator('#formationDetails summary').click();assert.match(await page.locator('.formation-support').textContent(),/Supply|Entrenchment/);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     await mkdir('work',{recursive:true});await page.screenshot({path:'work/war-live-'+label+'.png'});assert.deepEqual(errors,[]);
-    pass(label+' opens the actual 1v1, displays research, and fits its viewport without JavaScript errors');
+    pass(label+' opens the actual 1v1, displays research and private formation readiness, and fits its viewport without JavaScript errors');
    }
   }
   report.ok=true;

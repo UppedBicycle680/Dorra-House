@@ -67,6 +67,29 @@ export class CommandMap {
     await Promise.all(Array.from({ length: Math.min(3, regions.length) }, async () => { while (regions.length) await this.loadChunk(regions.shift()); }));
     this.loadVisible();
   }
+  async focusUnit(id, anchor = null) {
+    const request = this.unitFocusRequest = (this.unitFocusRequest || 0) + 1;
+    const unit = this.view?.units?.find(unit => unit.id === id); if (!unit) return;
+    if (!this.provinces.has(unit.provinceId)) {
+      const nation = this.nations.find(nation => nation.id === unit.nationId), regions = [...(nation?.regionIds || [unit.nationId])];
+      await Promise.all(Array.from({ length: Math.min(3, regions.length) }, async () => { while (regions.length) await this.loadChunk(regions.shift()); }));
+    }
+    if (request !== this.unitFocusRequest) return;
+    const point = this.unitPoint(unit); if (!point) return;
+    const world = this.toWorld(point.x, point.y);
+    this.camera.zoom = Math.max(4, this.camera.zoom);
+    if (anchor) {
+      const baseScale = Math.min(this.width / 360, this.height / 165);
+      const offsetX = this.width / 2 - anchor.x, offsetY = this.height / 2 - anchor.y;
+      // Keep the selected formation above the mobile panel, including southern
+      // provinces where the camera's latitude limit would otherwise hide it.
+      const roomX = offsetX >= 0 ? 360 - world.x : world.x;
+      const roomY = offsetY >= 0 ? 175 - world.y : world.y - 5;
+      this.camera.zoom = Math.min(28, Math.max(this.camera.zoom, roomX > 0 ? Math.abs(offsetX) / roomX / baseScale : 4, roomY > 0 ? Math.abs(offsetY) / roomY / baseScale : 4));
+      this.camera.x = world.x + offsetX / this.scale; this.camera.y = world.y + offsetY / this.scale;
+    } else { this.camera.x = world.x; this.camera.y = world.y; }
+    this.constrain(); this.invalidate(); this.loadVisible();
+  }
   async loadChunk(id) {
     if (!id || this.chunks.has(id) || this.pending.has(id) || this.failedChunks.has(id)) return;
     this.pending.add(id);

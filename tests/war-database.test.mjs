@@ -13,6 +13,7 @@ test('authoritative SQL transactions enforce combat, research, imports, visibili
    await db.exec(await readFile(new URL(name,seedDirectory),'utf8'));
   }
   await db.exec(await readFile(new URL('../supabase/tests/war-authority.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/war-combat-roles.sql',import.meta.url),'utf8'));
   const {rows}=await db.query('select count(*)::integer n from dorra_private.war_matches');
   assert.equal(rows[0].n,0,'all test accounts, worlds and outcomes roll back');
  }finally{await db.close();}

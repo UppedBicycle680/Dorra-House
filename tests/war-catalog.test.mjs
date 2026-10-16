@@ -54,6 +54,45 @@ test('national hardware availability never grants another nation an exclusive pl
   assert.deepEqual(PLATFORMS.find(p=>p.id==='f22').carrierOperators,[]);
 });
 
+test('expanded national arsenals retain fielded roles, operator restrictions and early national formations',()=>{
+  const expected={NZ:['nzlav','nh90-nz','p8a-poseidon','anzac-class','bushmaster'],CA:['lav6','cf188-hornet','ch148-cyclone','halifax-class','victoria-class'],BR:['guarani','astros','a29-super-tucano','c390-millennium'],ZA:['rooikat76','ratel20','g6-rhino','rooivalk','valour-class','heroine-class'],ID:['anoa-apc','harimau','martadinata-class','nagapasa-class','astros','a29-super-tucano']};
+  const byId=new Map(PLATFORMS.map(p=>[p.id,p]));
+  for(const [nation,ids]of Object.entries(expected)){
+    const arsenal=getPlatformsForNation(nation);
+    for(const id of ids)assert.ok(arsenal.some(p=>p.id===id&&!p.abstractCapability),`${nation}/${id}`);
+    assert.ok(arsenal.some(p=>!p.abstractCapability&&p.domain==='land'&&p.level===1),'each priority nation has an authentic early land formation');
+    assert.ok(arsenal.some(p=>!p.abstractCapability&&p.domain==='air'));
+    assert.ok(arsenal.some(p=>!p.abstractCapability&&p.domain==='sea'));
+  }
+  assert.equal(byId.get('nzlav').level,1);
+  assert.equal(byId.get('nzlav').prerequisites.length,0);
+  assert.equal(byId.get('cf188-hornet').operators.includes('US'),false);
+  assert.equal(byId.get('rafale').operators.includes('ID'),true,'Indonesian 2026 handover has primary-source confirmation');
+  assert.equal(byId.get('caesar').operators.includes('CZ'),false,'planned delivery alone does not establish serving availability');
+  assert.equal(byId.get('p8a-poseidon').operators.includes('CA'),false,'P-8 procurement alone does not establish an in-service Canadian fleet');
+  assert.equal(byId.get('p8a-poseidon').operators.includes('IN'),false,'P-8I is not silently treated as a P-8A');
+  for(const id of ['nh90-nz','c390-millennium']){
+    assert.equal(byId.get(id).stats.attack,0,'transport support has no generic strike damage');
+    assert.ok(byId.get(id).capabilities.includes('resupply'));
+  }
+  for(const id of ['p8a-poseidon','ch148-cyclone','anzac-class','halifax-class','martadinata-class']){
+    assert.ok(byId.get(id).capabilities.includes('anti-submarine'),id);
+    assert.ok(byId.get(id).capabilities.includes('sonar'),id);
+  }
+  for(const id of ['victoria-class','heroine-class','nagapasa-class'])assert.ok(byId.get(id).capabilities.includes('submarine'));
+  assert.equal(byId.get('valour-class').capabilities.includes('anti-submarine'),false,'no assumed ship-launched torpedo battery');
+  assert.equal(byId.get('rooivalk').capabilities.includes('anti-armor'),false,'a demonstrated missile is not silently granted fleet integration');
+  const added=PLATFORMS.slice(72);
+  assert.equal(added.length,23);
+  for(const item of added){
+    assert.deepEqual(item.carrierOperators,[],`${item.id}: new naval helicopters do not imply fixed-wing carrier compatibility`);
+    const host=new URL(item.sourceUrl).hostname;
+    assert.match(host,/(?:^|\.)(?:nzdf\.mil\.nz|canada\.ca|idvgroup\.com|avibras\.com\.br|fab\.mil\.br|embraer\.com|gov\.za|parliament\.gov\.za|denel\.co\.za|armscor\.co\.za|pindad\.com|damen\.com|kemhan\.go\.id)$/);
+    if(item.operators.length>1)for(const nation of item.operators)assert.match(item.operatorSources?.[nation]||'',/^https:\/\//,`${item.id}/${nation} needs operator evidence`);
+    if(item.operators.length===1)assert.equal(item.exportable,false);
+  }
+});
+
 test('facility upgrades and research quotes agree exactly with authoritative formulas',()=>{
   for(const facility of FACILITIES){
     assert.deepEqual(facility.cost,facilityCost(facility.id,0));

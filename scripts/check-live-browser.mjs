@@ -74,14 +74,26 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     const response = await pending;
     ensure(response.status() === expectedStatus);
     const value = await response.json();
+    if (response.request().postDataJSON()?.scope === 'airport') {
+      const body = response.request().postDataJSON(), view = value.result?.view;
+      debug.airportResponseShapes ??= [];
+      debug.airportResponseShapes.push({action: body.action === 'load' ? 'load' : body.action === 'command' ? 'command' : 'other',
+        presence: body.args?.presenceAirportId === 'redcliffe' ? 'redcliffe' : body.args?.presenceAirportId == null ? 'dashboard' : 'other',
+        hasResult: !!value.result, hasView: !!view, hasSelectedAirport: !!view?.selectedAirport,
+        selectedRedcliffe: view?.selectedAirportId === 'redcliffe', hasAirportList: Array.isArray(view?.airports),
+        redcliffeOwned: view?.airports?.some(airport => airport.id === 'redcliffe' && airport.owned) === true,
+        hasFlights: Array.isArray(view?.selectedAirport?.operations?.flights), hasBuildings: Array.isArray(view?.selectedAirport?.buildings)});
+      if (debug.airportResponseShapes.length > 12) debug.airportResponseShapes.shift();
+    }
     ensure(!Object.hasOwn(value, 'privateState'));
     if(expectedStatus===200&&value.delta){
-      // Independently read the authoritative receipt rather than deriving the
-      // expected wallet from the browser's own reconstructed cache.
+      // Read the authoritative wallet independently of the browser cache.
+      // Automatic presence loads may already have committed a newer revision;
+      // a current read must include this command, not equal its older revision.
       const command=response.request().postDataJSON();
       const receiptResponse=await fetchImpl(API_URL,{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Origin:ORIGIN,'Content-Type':'application/json',Authorization:response.request().headers().authorization},body:JSON.stringify({scope:'session',action:'refresh',leaseId:command.leaseId,requestId:randomUUID(),expectedRevision:value.revision,args:{}}),signal:AbortSignal.timeout(30000)});
       ensure(receiptResponse.ok);
-      const receipt=await receiptResponse.json();ensure(!Object.hasOwn(receipt,'privateState')&&receipt.revision===value.revision&&receipt.snapshot);
+      const receipt=await receiptResponse.json();ensure(!Object.hasOwn(receipt,'privateState')&&Number.isSafeInteger(receipt.revision)&&receipt.revision>=value.revision&&receipt.snapshot);
       value.snapshot=receipt.snapshot;
     }
     if (expectedStatus === 200) ensure(value.snapshot && Number.isSafeInteger(value.revision));
@@ -451,13 +463,21 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await saved(mobile);
     passed('Reloading the published House preserves the saved wallet and reward');
 
-    stage = 'Airport dashboard and construction autosave';
+    stage = 'Airport dashboard projection';
     const airport = await perform(mobile, 'airport', 'load', () => mobile.goto(new URL('idle-airport.html', site).href, {waitUntil: 'domcontentloaded'}));
-    ensure(airport.result?.view?.selectedAirport);
+    ensure(airport.result?.view?.selectedAirportId === 'redcliffe' && airport.result.view.airports?.some(airport => airport.id === 'redcliffe' && airport.owned));
+    stage = 'Airport dashboard controls';
     await visible(mobile, '#airportDashboard');
     await hidden(mobile, '#airportLoading');
     await hidden(mobile, '#airportFatal');
-    await mobile.locator('button[data-action="visit-airport"][data-airport-id="redcliffe"]').click();
+    stage = 'Airport visit detailed projection';
+    const enteredAirport = await perform(mobile, 'airport', 'load', () => mobile.locator('button[data-action="visit-airport"][data-airport-id="redcliffe"]').click(), 200,
+      body => body.args?.presenceAirportId === 'redcliffe');
+    ensure(enteredAirport.result?.view?.selectedAirport?.id === 'redcliffe'
+      && Array.isArray(enteredAirport.result.view.selectedAirport.buildings)
+      && Array.isArray(enteredAirport.result.view.selectedAirport.gates)
+      && Array.isArray(enteredAirport.result.view.selectedAirport.operations?.flights));
+    stage = 'Airport flight controls';
     await visible(mobile, '#airportHud');
     await visible(mobile, '#airportCanvas');
     await exactText(mobile, '#airportName', 'Redcliffe Airport');
@@ -465,14 +485,17 @@ export async function checkLiveBrowser({fetchImpl = fetch, launchImpl = launchBr
     await visible(mobile, '#takeoffNext');
     await mobile.locator('#landNext').waitFor({state: 'visible', timeout: TIMEOUT});
     await mobile.waitForFunction(() => !document.querySelector('#landNext')?.disabled, null, {timeout: TIMEOUT});
+    stage = 'Airport landing persisted projection';
     const landing = await perform(mobile, 'airport', 'command', () => mobile.locator('#landNext').click(), 200,
       body => body.args?.command?.type === 'land-flight');
     ensure(landing.result?.view?.selectedAirport?.operations?.flights?.some(flight => flight.phase === 'arriving'));
+    stage = 'Airport contract controls';
     await mobile.locator('#airportHud [data-action="contracts"]').click();
     await visible(mobile, '#airportDialog');
     ensure(await mobile.locator('#dialogBody [data-action="accept-contract"]').count() === 6);
     await mobile.keyboard.press('Escape');
     passed('Published interactive landing is persisted by Supabase and contract controls are available');
+    stage = 'Airport runway construction autosave';
     await mobile.locator('#airportHud [data-action="buildings"]').click();
     const upgrade = await perform(mobile, 'airport', 'command', () => mobile.locator('#dialogBody button[data-action="upgrade"][data-building="runwaySurface"]:not([data-use-diamonds])').click(), 200,
       body => body.args?.command?.type === 'upgrade' && body.args?.command?.building === 'runwaySurface');

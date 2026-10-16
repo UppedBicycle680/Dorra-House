@@ -1,4 +1,4 @@
--- HOSTED CAPACITY CHECK: trusted SQL role only, after all four war migrations
+-- HOSTED CAPACITY CHECK: trusted SQL role only, after all war migrations
 -- and the final catalogue seed. Do not run alongside the browser QA worlds.
 -- This transaction creates only disposable users/worlds and always rolls back.
 -- No real player's state or existing world is modified.
@@ -51,6 +51,18 @@ begin
  select u.id into movement_unit from dorra_private.war_units u where u.match_id=m_id and u.nation_id='AU' and u.domain='land' order by strength desc,u.id limit 1;
  update dorra_private.war_units set province_id=target,orders='{}' where id=movement_unit;
  end loop;
+ if to_regprocedure('dorra_private.war_observer_visibility(uuid)') is not null then
+ started:=clock_timestamp();select match_id into m_id from war_load_worlds where world_no=1;
+ with expected as materialized(
+  select o.user_id,u.id unit_id from dorra_private.war_observers o
+  join dorra_private.war_sides s on s.match_id=o.match_id and s.user_id=o.user_id
+  cross join lateral dorra_private.war_visible_units(o.match_id,s.nation_id) u where o.match_id=m_id
+ ),actual as materialized(select * from dorra_private.war_observer_visibility(m_id)),
+ differences as((select * from expected except select * from actual) union all (select * from actual except select * from expected))
+ select count(*) into remaining from differences;
+ if remaining>0 then raise exception 'WAR_LOAD_TEST_VISIBILITY_PARITY: % differing observer/formation pairs',remaining;end if;
+ insert into war_load_metrics values('visibility-parity-12-observers',extract(epoch from clock_timestamp()-started)*1000,jsonb_build_object('differences',remaining));
+ end if;
  -- Every pace advances to the same two game hours. Both combat events are due
  -- in chronological order, not just fast-mode worlds. Keep scheduler healthy.
  update dorra_private.war_matches m set real_anchor=clock_timestamp()-make_interval(secs=>7200.0/m.speed),last_dispatch=clock_timestamp(),next_due=clock_timestamp() where id in(select w.match_id from war_load_worlds w);
@@ -62,7 +74,9 @@ begin
  -- recursively draining an arbitrarily large outage backlog in one transaction.
  for pass in 2..4 loop
  exit when remaining=0;
- update dorra_private.war_matches m set next_due=clock_timestamp() where id in(select w.match_id from war_load_worlds w) and status='running';
+ update dorra_private.war_matches m set next_due=clock_timestamp()
+ where id in(select w.match_id from war_load_worlds w) and status='running'
+ and exists(select 1 from dorra_private.war_events pending where pending.match_id=m.id and pending.due<=7200);
  started:=clock_timestamp();perform dorra_private.war_dispatch();dispatch_ms:=extract(epoch from clock_timestamp()-started)*1000;
  select count(*) into remaining from dorra_private.war_events e join war_load_worlds w on w.match_id=e.match_id where e.due<=7200;
  insert into war_load_metrics values('four-world-catchup-'||pass,dispatch_ms,jsonb_build_object('remainingDueEvents',remaining,'budgetMs',3000,'withinBudget',dispatch_ms<3000,'allWorldsAdvanced',remaining=0));

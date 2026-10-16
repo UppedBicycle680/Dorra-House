@@ -137,6 +137,8 @@ def catalog_only():
  owners=normalize_sovereignty(nations['nations'],provinces);nations['regionOwners']=owners
  for country in nations['nations']:
   country['arsenal']=[p['id'] for p in platforms if country['sovereignId'] in p['operators'] or '*' in p['operators']]
+  named=[p for p in platforms if country['id'] in p['operators'] and not p.get('abstractCapability')]
+  country['catalogCoverage']='curated-primary-source-platforms' if named else 'baseline-capabilities-only'
  province_by_id={p['id']:p for p in provinces}
  for country in nations['nations']:
   path=OUT/'provinces'/(country['id']+'.json');chunk=json.loads(path.read_text(encoding='utf-8'))

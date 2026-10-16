@@ -22,7 +22,7 @@ export interface PlayerView {
   player:{userId:string;nationId:string;resources:Resources;research:string[];researchQueue:unknown[];productionQueue:unknown[];buildQueue:unknown[]};
   nations:{id:string;name:string;ownerId:string|null;relation:string;score:number;capitalProvinceId:string}[];
   provinces:{id:string;ownerId:string;morale:number|null;facilities:Record<string,number>|null;radiationUntil:number}[];
-  units:{id:string;nationId:string;provinceId:string;platformId:string;health:number;strength:number;order:unknown|null}[];
+  units:{id:string;name:string;domain:'land'|'air'|'sea'|'support'|'missile';nationId:string;provinceId:string;platformId:string;health:number;maxHealth:number;strength:number;order:unknown|null;supply?:number;entrenchment?:number;baseCarrierId?:string|null;interceptReadyAt?:number}[];
   reports:unknown[];diplomacy:unknown;victory:unknown;catalog:unknown;
 }
 /** Membership-filtered entity changes; a base mismatch requires a fresh view. */
