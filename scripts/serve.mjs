@@ -1,0 +1,6 @@
+import http from 'node:http';
+import {readFile,stat} from 'node:fs/promises';
+import path from 'node:path';
+const root=path.resolve(process.env.DORRA_STATIC_DIR||'dist'),port=Number(process.env.PORT||4173);
+const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.jpg':'image/jpeg','.woff2':'font/woff2'};
+http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost');let relative=decodeURIComponent(u.pathname);if(relative.startsWith('/Dorra-House/'))relative=relative.slice('/Dorra-House'.length);const file=path.resolve(root,'.'+(relative.endsWith('/')?relative+'index.html':relative));if(!file.startsWith(root+path.sep)||!['GET','HEAD'].includes(req.method))throw new Error();const info=await stat(file);if(!info.isFile())throw new Error();res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(req.method==='HEAD'?undefined:await readFile(file));}catch{res.writeHead(404);res.end('Not found');}}).listen(port,'0.0.0.0',()=>console.log(`Static Dorra House at http://localhost:${port}/Dorra-House/`));

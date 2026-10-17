@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101113">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>Sign in — Dorra House</title>
+  <link rel="preload" href="vendor/manrope/manrope-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <main class="entrance" data-mode="signin">
+    <section class="account" aria-labelledby="formTitle">
+      <header class="account-header">
+        <p class="brand" data-node-id="3:84">DORRA HOUSE</p>
+        <div class="intro" data-node-id="3:85">
+          <h1 id="formTitle">Sign in to<br>Dorra House</h1>
+          <p id="formCopy">Welcome back. Continue your story.</p>
+        </div>
+      </header>
+      <form id="accountForm">
+        <div class="fields">
+          <div id="usernameField" class="field-group" hidden>
+            <label for="username">Username</label>
+            <input id="username" name="username" autocomplete="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="Choose your username" aria-describedby="usernameHint" disabled>
+            <small id="usernameHint">3–24 letters, numbers or underscores.</small>
+          </div>
+          <div id="emailField" class="field-group" data-node-id="3:90">
+            <label id="identityLabel" for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="Enter your email" autocapitalize="none" spellcheck="false">
+          </div>
+          <div id="passwordField" class="field-group" data-node-id="3:94">
+            <label for="password">Password</label>
+            <span class="password-wrap">
+              <input id="password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="••••••••">
+              <button id="showPassword" type="button" aria-label="Show password" aria-pressed="false" aria-controls="password"><img src="assets/login/eye.svg" alt="" width="20" height="20"></button>
+            </span>
+            <button type="button" id="forgotPassword" class="text-button recovery-link">Forgot password?</button>
+          </div>
+          <div id="repeatField" class="field-group" hidden>
+            <label for="repeatPassword">Confirm password</label>
+            <input id="repeatPassword" name="repeatPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Repeat your password" disabled>
+          </div>
+        </div>
+        <p id="accountMessage" class="message" role="status" aria-live="polite" hidden></p>
+        <button type="submit" id="submitAccount" class="primary" data-node-id="3:103">
+          <span id="submitLabel">Sign in</span>
+          <img id="submitIcon" src="assets/login/arrow.svg" alt="" width="20" height="20">
+        </button>
+      </form>
+      <nav class="account-tabs" aria-label="Account access" data-node-id="3:107">
+        <span id="accountPrompt">New here?</span>
+        <button type="button" id="signUpTab" class="text-button" aria-pressed="false">Create a profile</button>
+        <button type="button" id="signInTab" class="text-button" aria-pressed="true" hidden>Sign in</button>
+      </nav>
+      <div class="account-help">
+        <button type="button" id="backToSignIn" class="text-button" hidden>Back to sign in</button>
+        <button type="button" id="resendConfirmation" class="text-button" hidden>Resend confirmation email</button>
+      </div>
+    </section>
+    <p class="entrance-footer" data-node-id="3:109">Play money only</p>
+  </main>
+  <script type="module" src="login.js"></script>
+</body>
+</html>

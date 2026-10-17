@@ -1,0 +1,124 @@
+/* Estate workspace: compact navigation, readable controls, natural content flow. */
+#progressionHub{--estate-bg:#08110e;--estate-surface:#0c1c17;--estate-text:#f1eee6;--estate-muted:#aebdb6;--estate-gold:#cab383;--estate-border:#ffffff20;--sans:Manrope,Arial,sans-serif;--serif:'Cormorant Garamond',Georgia,serif;background:var(--estate-bg);color:var(--estate-text);padding:0;font:14px/1.5 var(--sans);min-height:calc(100dvh - 64px)}
+#progressionHub *{box-sizing:border-box}
+.estate-workspace-layout{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:calc(100dvh - 64px)}
+.estate-sidebar{display:flex;flex-direction:column;gap:14px;padding:24px 18px 20px;border-right:1px solid var(--estate-border);min-width:0}
+.estate-eyebrow{display:block;font:500 10px/1.4 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--estate-gold)}
+.estate-sidebar>small{padding-left:12px}.estate-sidebar nav{display:flex;flex-direction:column;gap:4px}
+.estate-sidebar button,.estate-sidebar a{display:flex;align-items:center;gap:14px;width:100%;min-height:42px;height:auto;padding:10px 12px;border:0;border-radius:7px;background:transparent;color:var(--estate-text);font:400 13px/1.4 var(--sans);text-decoration:none;text-align:left;cursor:pointer;white-space:normal}
+.estate-sidebar .ti{flex:none;font-size:21px;color:var(--estate-gold)}
+.estate-sidebar button:hover,.estate-sidebar a:hover{background:#ffffff08}
+.estate-sidebar button.active{background:#123b2e;box-shadow:none;color:#fff}
+.estate-sidebar .estate-house-label{margin-top:10px;padding-top:20px;border-top:1px solid var(--estate-border)}
+#progressionHub .progression-tabs{width:100%;margin:0;border:0;background:none;display:flex}
+#progressionHub .progression-tabs b{margin-left:auto;background:#223b31;color:#eee;min-width:18px;height:18px;font:10px var(--sans)}
+#progressionHub .progression-tabs .progression-external{order:5}
+#progressionHub[data-active-tab="empire"] #empireTab{display:none}
+.estate-sidebar .estate-back{margin-top:auto;padding-top:20px;border-top:1px solid var(--estate-border);border-radius:0;color:var(--estate-gold)}
+.estate-workspace-content{min-width:0;padding:24px 30px 28px}
+#progressionHub .progression-panel{width:100%;margin:0;min-width:0}
+#progressionHub #empirePanel{width:100%;margin:0;color:var(--estate-text);font-family:var(--sans)}
+#progressionHub .progression-tabs button,#progressionHub .progression-tabs a{min-height:42px;height:auto;font:400 13px/1.4 var(--sans);padding:10px 12px;text-transform:none;letter-spacing:normal;justify-content:flex-start;background:none;border:0;box-shadow:none}
+#progressionHub .estate-feature-copy .empire-next-button{font-family:var(--sans)}
+#progressionHub .progression-hero{height:auto;min-height:0;overflow:visible;background:none;border:0;margin-bottom:24px}
+#progressionHub .progression-hero>img,#progressionHub .progression-hero-shade,#progressionHub .progression-status{display:none}
+#progressionHub .progression-hero-copy{position:static;transform:none;width:100%;padding:0}
+#progressionHub .progression-hero-copy h1{font:400 40px/1.1 var(--serif);max-width:none;margin:8px 0}
+#progressionHub .progression-hero-copy p{font:14px/1.5 var(--sans);max-width:none}
+#progressionHub[data-active-tab="empire"] .progression-hero{display:none}
+.estate-content-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
+.estate-content-heading>div{min-width:0}
+.estate-breadcrumb{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0 0 7px!important;color:var(--estate-muted);font-size:12px!important}
+.estate-breadcrumb>span{color:#869b90;font-size:11px}
+.estate-content-heading h1{margin:0 0 6px;font:400 clamp(32px,3vw,44px)/1.08 var(--serif);letter-spacing:-.025em}
+.estate-content-heading p{margin:0;color:var(--estate-muted);font-size:13px}
+.estate-week-action{display:flex;align-items:center;gap:14px;flex:none;border:1px solid #547268;border-radius:7px;padding:13px 16px;background:#0c211b;color:var(--estate-text);font:13px/1.4 var(--sans);text-align:left;cursor:pointer}
+.estate-week-action .ti{font-size:21px}.estate-week-action>span{display:grid;gap:2px}.estate-week-action small{font-size:11px;color:#81c6b1}
+.estate-financial-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:0 0 18px;padding:18px 8px;border:1px solid #325247;border-radius:8px;background:#0a1a15}
+.estate-financial-summary>div{min-width:0;padding:0 20px;border-right:1px solid var(--estate-border)}
+.estate-financial-summary>div:last-child{border:0}.estate-financial-summary dt{color:var(--estate-muted);font:600 9px/1.5 var(--sans);letter-spacing:.1em;text-transform:uppercase}
+.estate-financial-summary dd{margin:2px 0 0;font:400 32px/1.15 var(--serif);overflow-wrap:anywhere}.estate-financial-summary small{display:block;margin-top:3px;color:var(--estate-muted);font-size:11px;line-height:1.4}
+.estate-overview-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,1fr);gap:18px;align-items:stretch}
+.estate-next-move,.estate-income-bank{min-width:0;border:1px solid #325247;border-radius:9px;overflow:hidden;background:var(--estate-surface)}
+.estate-feature-art{display:block;width:100%;height:clamp(145px,18vh,190px);object-fit:cover;object-position:center}
+.estate-feature-copy{padding:18px 20px}
+.estate-feature-copy h2{margin:5px 0 7px;font:400 30px/1.12 var(--serif);letter-spacing:-.015em}
+.estate-feature-copy p{margin:0;color:var(--estate-muted);font-size:12px;line-height:1.5;max-width:65ch}
+.estate-opening-facts{display:grid;grid-template-columns:1.3fr 1fr 1fr;margin:18px 0 14px;gap:12px}
+.estate-opening-facts>div{min-width:0;border-right:1px solid var(--estate-border);padding-right:8px}.estate-opening-facts>div:last-child{border:0}
+.estate-opening-facts dt{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--estate-muted)}
+.estate-opening-facts dt .ti{font-size:17px;color:var(--estate-gold)}.estate-opening-facts dd{margin:5px 0 0;font-size:12px}.estate-opening-facts dd small{display:block;font-size:10px;color:var(--estate-muted);margin-top:2px}
+#progressionHub .estate-feature-copy .empire-next-button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:42px;height:auto;padding:10px 16px;border:1px solid #3a8267;border-radius:7px;background:#18523d;color:#fff;font:600 13px/1.4 var(--sans);cursor:pointer}
+.estate-income-bank{padding:20px;display:flex;flex-direction:column}
+.estate-income-bank>strong{font:400 38px/1.1 var(--serif);margin:7px 0 0}
+.estate-income-bank>p{font-size:12px;color:var(--estate-muted);margin:5px 0 14px}
+.estate-income-bank>button{min-height:42px;padding:10px;border:1px solid #4b7968;border-radius:7px;background:#18523d;color:#fff;font:600 13px/1.4 var(--sans);cursor:pointer}
+.estate-income-bank>small{display:block;text-align:center;margin:7px 0;color:var(--estate-muted);font-size:10px}
+.estate-income-bank>.estate-eyebrow{margin:0 0 4px;text-align:left}
+.estate-income-bank .empire-bank-track{position:static;inset:auto;height:3px;width:100%;background:#234033;margin:0;overflow:hidden}.estate-income-bank .empire-bank-track b{height:100%;display:block;background:var(--estate-gold)}
+.estate-income-bank>section{border-top:1px solid var(--estate-border);padding-top:14px;margin-top:12px}
+.estate-income-bank h3{display:flex;align-items:center;gap:10px;font:500 13px/1.4 var(--sans);margin:0 0 7px}.estate-income-bank h3 .ti{font-size:23px;color:var(--estate-gold)}
+.estate-income-bank section p{margin:0 0 0 33px;font:11px/1.5 var(--sans);color:var(--estate-muted)}
+.estate-roadmap{margin-top:16px;padding:14px 20px;border:1px solid #325247;border-radius:9px;background:#0a1813}
+.estate-roadmap>header{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--estate-border);padding-bottom:10px}.estate-roadmap header p{margin:4px 0 0;color:var(--estate-muted);font-size:11px}
+.estate-roadmap header button{border:0;background:none;color:var(--estate-gold);font:500 11px/1.5 var(--sans);cursor:pointer;display:flex;align-items:center;gap:8px;flex:none;padding:5px}
+.estate-roadmap-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.estate-roadmap-row{display:flex;align-items:center;gap:12px;min-width:0;min-height:52px;padding:10px 12px 0 0;border:0;background:none;color:var(--estate-text);font:12px/1.4 var(--sans);text-align:left;cursor:pointer}
+.estate-roadmap-row+button{border-left:1px solid var(--estate-border);padding-left:20px}.estate-roadmap-row strong{display:block;font-weight:500}.estate-roadmap-row small{display:block;font-size:10px;color:var(--estate-muted);margin-top:3px}.estate-roadmap-symbol .ti{font-size:22px;color:var(--estate-gold)}.estate-roadmap-status{margin-left:auto;color:var(--estate-muted);font-size:10px}
+.estate-trading-details{margin-top:22px}.estate-trading-details>summary{padding:10px 0;color:var(--estate-gold);cursor:pointer}
+#progressionHub button:disabled{opacity:1;background:#10211b;color:#799287;border-color:#294638;cursor:not-allowed}
+#progressionHub button:focus-visible,#progressionHub a:focus-visible,#progressionHub summary:focus-visible{outline:2px solid #dbbd80;outline-offset:3px}
+#progressionHub .estate-section-content{min-width:0}
+#progressionHub .estate-section-content :is(.business-card,.business-upgrade-card,.empire-operations,.empire-portfolio,.business-management,.business-upgrade-summary){min-width:0;max-width:100%;border-radius:8px}
+#progressionHub .estate-section-content :is(h2,h3,h4){line-height:1.2;overflow-wrap:anywhere}
+#progressionHub .estate-section-content :is(p,small,button,span){overflow-wrap:anywhere}
+#progressionHub .estate-section-content :is(.business-card p,.business-card small,.business-upgrade-card p,.business-upgrade-card small,.empire-operations p){font-size:12px;line-height:1.5}
+#progressionHub .estate-section-content :is(button,input,select){font-family:var(--sans);min-height:38px;white-space:normal;height:auto;line-height:1.4}
+#progressionHub .estate-section-content .business-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+body:has(#progressionHub:not([hidden])) main:has(#progressionHub){padding:0}
+body:has(#progressionHub:not([hidden])) .app-shell{width:100%;border:0}
+body:has(#progressionHub:not([hidden])) .topbar{display:flex;height:64px;min-height:64px;position:relative;font-family:Manrope,Arial,sans-serif}
+body:has(#progressionHub:not([hidden])) .topbar .brand{width:auto;min-width:180px;flex:1}
+body:has(#progressionHub:not([hidden])) .topbar .games-menu{flex:0 0 130px}
+body:has(#progressionHub:not([hidden])) .topbar .wallet{min-width:140px;flex:1}
+body:has(#progressionHub:not([hidden])) .topbar .level-chip{width:76px}
+body:has(#progressionHub:not([hidden])) .topbar .boutique-btn{width:110px}
+body:has(#progressionHub:not([hidden])) .topbar .motor-btn{width:130px}
+body:has(#progressionHub:not([hidden])) .topbar .profile-trigger{width:74px}
+body:has(#progressionHub:not([hidden])) .topbar .icon-btn{width:44px}
+body:has(#progressionHub:not([hidden])) .topbar :is(button,.wallet){height:64px;min-height:0;padding:8px 12px;font-size:12px}
+body:has(#progressionHub:not([hidden])) .topbar .brand{justify-content:flex-start;font:600 13px Manrope,Arial,sans-serif;letter-spacing:.12em}
+body:has(#progressionHub:not([hidden])) .topbar .wallet strong{font:400 27px/1.1 'Cormorant Garamond',Georgia,serif}
+body:has(#progressionHub:not([hidden])) .topbar .wallet span{font-size:9px}
+body:has(#progressionHub:not([hidden])) .topbar .games-menu-toggle{width:100%;font-size:12px}
+body:has(#progressionHub:not([hidden])) .topbar .profile-trigger>span{width:25px;height:25px;font-size:13px}
+body:has(#progressionHub:not([hidden])) .topbar .profile-trigger>small{font-size:8px}
+body:has(#progressionHub:not([hidden])) .online-account{position:static;width:auto;max-width:none;margin:0;padding:14px 22px;border:0;border-top:1px solid #ffffff20;background:#08110e;border-radius:0;font-family:Manrope,Arial,sans-serif}
+body:has(#progressionHub:not([hidden])) .save-indicator{position:static;width:auto;max-width:none;margin:0;padding:10px 22px;border:0;background:#08110e;border-radius:0;text-align:right;font:11px/1.4 Manrope,Arial,sans-serif}
+@media(min-width:1100px) and (max-height:800px){.estate-workspace-content{padding:18px 24px}.estate-content-heading{margin-bottom:14px}.estate-content-heading h1{font-size:37px}.estate-financial-summary{padding:13px 4px;margin-bottom:14px}.estate-feature-art{height:145px}.estate-feature-copy{padding:14px 18px}.estate-opening-facts{margin:12px 0}.estate-income-bank{padding:16px}.estate-income-bank>section{padding-top:10px;margin-top:8px}.estate-sidebar{padding-top:18px;gap:10px}.estate-sidebar button,.estate-sidebar a{min-height:37px;padding:8px 12px}.estate-roadmap{margin-top:14px;padding:12px 18px}}
+@media(max-width:1100px){.estate-workspace-layout{grid-template-columns:190px minmax(0,1fr)}.estate-workspace-content{padding:20px}.estate-sidebar{padding:20px 12px}.estate-overview-grid{grid-template-columns:minmax(0,1fr)}.estate-income-bank{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}.estate-income-bank>strong,.estate-income-bank>p,.estate-income-bank>button,.estate-income-bank>small,.estate-income-bank>.empire-bank-track{grid-column:1}.estate-income-bank>section{grid-column:2;grid-row:auto;margin:0;padding:8px 0;border:0}.estate-income-bank>section:first-of-type{grid-row:1 / span 3}.estate-income-bank>section:last-child{grid-row:4 / span 3}.estate-content-heading{align-items:flex-start}.estate-week-action{font-size:11px;padding:10px}.estate-week-action>.ti{display:none}.estate-financial-summary>div{padding:0 12px}.estate-financial-summary small{font-size:10px}body:has(#progressionHub:not([hidden])) .topbar{grid-template-columns:minmax(145px,1fr) 100px 55px 90px 115px 115px 65px 40px 40px}}
+@media(max-width:800px){.estate-workspace-layout{display:flex;flex-direction:column}.estate-sidebar{padding:14px 18px;border-right:0;border-bottom:1px solid var(--estate-border);gap:10px}.estate-sidebar>small,.estate-sidebar .estate-house-label{display:none}.estate-sidebar #estateManagementNav{flex-direction:row;flex-wrap:wrap;gap:5px}.estate-sidebar #estateManagementNav button{width:auto;min-height:36px;padding:8px 11px;font-size:11px;gap:7px}.estate-sidebar .ti{font-size:17px}#progressionHub .progression-tabs{flex-direction:row;flex-wrap:wrap;gap:4px}#progressionHub .progression-tabs button,#progressionHub .progression-tabs a{width:auto;min-height:33px;font-size:10px;padding:7px 9px;gap:6px}.estate-sidebar .estate-back{width:auto;min-height:30px;margin:0;border:0;padding:5px 9px;font-size:11px}.estate-workspace-content{padding:20px 18px 28px}.estate-content-heading{flex-direction:column;gap:14px}.estate-content-heading h1{font-size:34px}.estate-week-action{width:100%;justify-content:space-between;padding:12px 14px}.estate-week-action>span{display:flex;justify-content:space-between;gap:12px;width:100%;align-items:center}.estate-financial-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 0;padding:16px 4px}.estate-financial-summary>div:nth-child(2){border:0}.estate-financial-summary dd{font-size:29px}.estate-financial-summary dt{font-size:8px}.estate-feature-art{height:155px}.estate-feature-copy{padding:18px}.estate-opening-facts{grid-template-columns:1.1fr 1fr 1fr;gap:8px}.estate-feature-copy h2{font-size:29px}.estate-income-bank{display:flex;padding:20px}.estate-income-bank>section{padding-top:14px;margin-top:12px;border-top:1px solid var(--estate-border)}.estate-roadmap{padding:16px}.estate-roadmap>header{align-items:flex-start}.estate-roadmap-rows{grid-template-columns:minmax(0,1fr)}.estate-roadmap-row+button{border-left:0;border-top:1px solid var(--estate-border);padding:12px 0}.estate-roadmap-status{font-size:9px}#progressionHub .estate-section-content :is(.empire-management-layout,.business-overview-grid,.business-upgrade-grid,.business-operations-grid,.business-finance-grid,.business-kpis,.empire-operations-grid,.empire-strategy>div,.business-venue-upgrades article>div){grid-template-columns:minmax(0,1fr)}#progressionHub .empire-operations-head{display:flex;flex-direction:column}#progressionHub .empire-venue-art{width:100%;height:170px}#progressionHub .empire-levels ol{grid-template-columns:repeat(2,minmax(0,1fr))}#progressionHub .empire-projection{grid-template-columns:minmax(0,1fr)}body:has(#progressionHub:not([hidden])) .topbar{height:auto;min-height:60px;grid-template-columns:1fr 90px 55px 70px}body:has(#progressionHub:not([hidden])) .topbar :is(button,.wallet){height:52px;font-size:10px;padding:8px}body:has(#progressionHub:not([hidden])) .topbar .brand{font-size:11px}body:has(#progressionHub:not([hidden])) .topbar .wallet{grid-column:2;grid-row:1}body:has(#progressionHub:not([hidden])) .topbar .profile-trigger{grid-column:3;grid-row:1}body:has(#progressionHub:not([hidden])) .topbar .games-menu{grid-column:4;grid-row:1}body:has(#progressionHub:not([hidden])) .topbar :is(.level-chip,.boutique-btn,.icon-btn){height:34px}body:has(#progressionHub:not([hidden])) .online-account{padding:16px 18px}}
+@media(prefers-reduced-motion:reduce){#progressionHub *{scroll-behavior:auto;animation:none;transition:none}}
+body:has(#progressionHub:not([hidden])) .app-shell>footer{display:none}
+body:has(#progressionHub:not([hidden])) .estate-sidebar .online-account{padding:8px 12px;font-size:10px;gap:8px;max-width:100%}
+body:has(#progressionHub:not([hidden])) .estate-sidebar .online-account span{min-width:0;flex:1}
+body:has(#progressionHub:not([hidden])) .estate-sidebar .online-account button{padding:0;width:auto;min-height:24px;flex:none;font-size:10px}
+body:has(#progressionHub:not([hidden])) .estate-sidebar .save-indicator{padding:4px 12px;text-align:left;font-size:10px}
+#progressionHub .estate-eyebrow{font-size:10px!important;line-height:1.4!important}
+#progressionHub .estate-content-heading h1{font-size:40px}
+#progressionHub .estate-breadcrumb{font-size:12px!important;line-height:1.5!important}
+#progressionHub .estate-content-heading>div>p:last-child{font-size:13px!important;line-height:1.5!important}
+#progressionHub :is(.estate-financial-summary small,.estate-roadmap header p){font-size:11px!important;line-height:1.4!important}
+#progressionHub .estate-feature-copy>p{font-size:13px!important;line-height:1.5!important}
+#progressionHub .estate-opening-facts small,#progressionHub .estate-income-bank>small,#progressionHub .estate-roadmap-row small{font-size:10px!important;line-height:1.4!important}
+#progressionHub .estate-income-bank p{font-size:12px!important;line-height:1.5!important}
+#progressionHub .estate-feature-copy .empire-next-button{font-family:Manrope,Arial,sans-serif!important;font-weight:600!important}
+@media(min-width:1100px) and (max-height:800px){#progressionHub .estate-content-heading h1{font-size:36px}.estate-content-heading{margin-bottom:12px}.estate-financial-summary{padding:10px 4px;margin-bottom:12px}.estate-financial-summary dd{font-size:28px}.estate-feature-art{height:115px}.estate-feature-copy{padding:12px 16px}.estate-feature-copy h2{font-size:27px}#progressionHub .estate-feature-copy>p{font-size:12px!important;line-height:1.4!important}.estate-opening-facts{margin:10px 0}.estate-income-bank{padding:14px}.estate-income-bank>p{margin-bottom:10px}.estate-income-bank>section{padding-top:8px;margin-top:6px}#progressionHub .estate-income-bank section p{font-size:11px!important;line-height:1.45!important}.estate-roadmap{padding:10px 16px;margin-top:12px}.estate-roadmap>header{padding-bottom:6px}.estate-roadmap-row{min-height:44px}.estate-sidebar{gap:8px}.estate-sidebar button,.estate-sidebar a{min-height:34px;padding:7px 10px}#progressionHub .progression-tabs button,#progressionHub .progression-tabs a{min-height:34px;padding:7px 10px;font-size:12px!important}}
+@media(max-width:800px){body:has(#progressionHub:not([hidden])) .topbar{display:grid;grid-template-columns:minmax(120px,1fr) 85px 45px 65px}body:has(#progressionHub:not([hidden])) .topbar :is(.brand,.games-menu,.wallet,.profile-trigger,.level-chip,.boutique-btn,.icon-btn){width:auto;min-width:0}}
+@media(min-width:1100px) and (max-height:740px){.estate-workspace-content{padding-top:14px;padding-bottom:14px}#progressionHub .estate-content-heading h1{font-size:32px}#progressionHub .estate-content-heading>div>p:last-child,.estate-roadmap header p{display:none}.estate-feature-art{height:100px}.estate-sidebar{padding-top:14px;padding-bottom:12px;gap:6px}.estate-sidebar .estate-house-label{margin-top:6px;padding-top:12px}.estate-sidebar .estate-back{padding-top:12px}}
+@media(min-width:1100px){.estate-workspace-content{padding-bottom:4px}.estate-feature-art{height:min(18vh,160px)}}
+@media(min-width:1100px) and (max-height:800px){.estate-feature-art{height:115px}.estate-income-bank>strong{font-size:34px}.estate-income-bank>section{margin-top:4px}.estate-income-bank h3 .ti{font-size:20px}}
+@media(min-width:1100px) and (max-height:740px){.estate-feature-art{height:100px}.estate-income-bank{padding:12px}.estate-roadmap{padding-top:8px;padding-bottom:8px}}
+@media(max-width:800px){body:has(#progressionHub:not([hidden])) .games-menu-toggle>i{display:none}}
+body:has(#progressionHub:not([hidden])) .topbar button{font-family:Manrope,Arial,sans-serif!important}
+@media(max-width:800px){body:has(#progressionHub:not([hidden])) .topbar .games-menu-toggle{font-size:10px!important;letter-spacing:.04em!important}}

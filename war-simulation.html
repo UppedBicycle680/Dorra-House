@@ -2,63 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#07100f">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
-  <title>Dorra Strategic Command</title>
-  <link rel="stylesheet" href="styles.css?v=20260829-dev11">
-  <link rel="stylesheet" href="war-simulation.css?v=20260830-development12">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#10191f">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co wss://fbebytnhlanqdbbvxzwz.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>Dorra | Strategic Command</title>
+  <link rel="stylesheet" href="war-simulation.css">
+  <link rel="stylesheet" href="war/experience.css">
+  <link rel="stylesheet" href="war/art.css">
+  <link rel="stylesheet" href="war/map-ui.css">
+  <link rel="stylesheet" href="online-shell.css">
 </head>
-<body class="strategic-page">
-  <div class="strategic-app" id="strategicApp" aria-busy="true">
-    <header class="strategic-global-header">
-      <a class="strategic-brand" href="index.html" data-return-house aria-label="Return to Dorra House">
-        <strong>Dorra</strong><span>Strategic Command</span>
-      </a>
-      <div class="strategic-campaign-context" aria-label="Current campaign">
-        <strong id="strategicTurnStatus">Setup</strong>
-        <span id="strategicCountryStatus">Choose a nation</span>
-      </div>
-      <div id="strategicHeaderResources" class="strategic-header-resources" aria-label="Campaign resources"></div>
-      <div class="strategic-vault-summary">
-        <div><span>Cash</span><strong id="strategicBalance">$0</strong></div>
-        <p id="strategicSaveStatus" class="saved" role="status" aria-live="polite"><i></i> Saved</p>
-      </div>
-      <div class="strategic-header-actions">
-        <button type="button" data-campaign-help aria-label="Open how to play"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 1.8-2.5 2-2.5 3.7M12 17h.01"/></svg><span>Help</span></button>
-        <button type="button" class="strategic-alert-button" data-campaign-alerts aria-label="Open alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Alerts</span><b id="strategicAlertCount">0</b></button>
-        <button type="button" class="strategic-end-turn" data-campaign-end-turn-open disabled>End turn<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-      </div>
+<body class="war-page">
+  <script type="module" src="online-shell.js"></script>
+  <div id="warApp" class="war-app" aria-busy="true">
+    <header class="command-header">
+      <a class="command-brand" href="index.html" aria-label="Return to Dorra House"><span class="brand-mark" aria-hidden="true">D<span>•</span></span><span>DORRA<small>STRATEGIC COMMAND</small></span></a>
+      <div class="command-context"><span class="live-dot"></span><span id="commandContext">OPERATIONS CENTRE</span></div>
+      <div id="resourceBar" class="resource-bar" aria-label="National resources"></div>
+      <div id="goldBalance" class="gold-balance" aria-live="polite"></div>
+      <button class="icon-button" id="helpButton" aria-label="Command guide" title="Command guide">?</button>
+      <a class="house-link" href="index.html">House <span aria-hidden="true">↗</span></a>
     </header>
-
-    <section id="strategicLoading" class="strategic-loading" aria-live="polite">
-      <div class="strategic-loader" aria-hidden="true"><i></i><b></b></div>
-      <h1>Opening strategic command</h1>
-      <p>Connecting the campaign to your protected Dorra House save.</p>
-    </section>
-
-    <section id="strategicFatal" class="strategic-fatal" hidden aria-labelledby="strategicFatalTitle">
-      <div class="strategic-fatal-mark" aria-hidden="true">D</div>
-      <h1 id="strategicFatalTitle">Strategic command could not start</h1>
-      <p id="strategicFatalCopy">Close any other Dorra House tab, then reload this page.</p>
-      <div><button type="button" data-reload-page>Reload</button><a href="index.html" data-return-house>Return to Dorra House</a></div>
-    </section>
-
-    <main id="campaignPanel" class="strategic-workspace progression-panel campaign-panel" hidden></main>
-
-    <div id="campaignDebrief" class="campaign-debrief" hidden role="dialog" aria-modal="true" aria-labelledby="campaignDebriefTitle">
-      <div class="campaign-debrief-backdrop" data-campaign-report-close></div>
-      <section class="campaign-debrief-card">
-        <small id="campaignDebriefLabel">Operation report</small>
-        <h2 id="campaignDebriefTitle">Rights operation resolved</h2>
-        <div id="campaignDebriefBody"></div>
-        <button id="campaignDebriefClose" data-campaign-report-close>Return to command</button>
+    <main class="war-workspace">
+      <section class="world-map" aria-label="World command map">
+        <canvas id="worldCanvas" tabindex="0" role="application" aria-label="Interactive world map. Drag or use arrow keys to pan, scroll or pinch to zoom. Tap stacked formations repeatedly to select their members. Shift drag selects your forces. Plus and minus zoom, H shows the world. The intelligence roster provides a keyboard-accessible unit list."></canvas>
+        <div class="map-grain" aria-hidden="true"></div>
+        <div id="mapLoading" class="map-loading"><span class="spinner"></span> Preparing world map</div>
+        <div class="map-coordinates" id="mapCoordinates" aria-hidden="true">GLOBAL THEATRE / 180° W — 180° E</div>
+        <div class="map-controls"><button id="mapZoomIn" aria-label="Zoom in">+</button><button id="mapZoomOut" aria-label="Zoom out">−</button><button id="mapHome" aria-label="Show whole world" title="Whole world (H)">⌖</button></div>
+        <div id="mapTools" class="map-tools" hidden>
+          <button id="mapLayersButton" class="map-layers-button" aria-expanded="false" aria-controls="mapLayersPanel"><span aria-hidden="true">▧</span> Map</button>
+          <section id="mapLayersPanel" class="map-layers-panel" aria-labelledby="mapLayersTitle" hidden>
+            <div class="map-layers-heading"><div><span class="eyebrow">TACTICAL DISPLAY</span><h2 id="mapLayersTitle">Map layers</h2></div><button id="mapLayersClose" class="close-button" aria-label="Close map layers">×</button></div>
+            <fieldset class="map-mode-options"><legend>Map view</legend><label><input type="radio" name="mapMode" value="political" checked><span>Political<small>National colours</small></span></label><label><input type="radio" name="mapMode" value="relations"><span>Relations<small>Friends and hostiles</small></span></label><label><input type="radio" name="mapMode" value="terrain"><span>Terrain<small>Plan your approach</small></span></label><label><input type="radio" name="mapMode" value="morale"><span>Morale<small>Known province morale</small></span></label></fieldset>
+            <fieldset class="map-detail-options"><legend>Show on map</legend><label><input id="mapCities" type="checkbox" checked><span>Cities, capitals & ports</span></label><label><input id="mapUnits" type="checkbox" checked><span>Formation images</span></label><label><input id="mapRanges" type="checkbox" checked><span>Selected unit range</span></label><label><input id="mapRoutes" type="checkbox" checked><span>Your movement routes</span></label></fieldset>
+            <div class="map-focus-actions"><button id="mapFocusNation" class="button secondary">Focus my nation</button><button id="mapFocusSelection" class="button secondary" disabled>Focus selected forces</button></div>
+            <p class="map-layer-note">Rings show your selected units' listed range. Visibility and compatible targets still matter.</p>
+          </section>
+        </div>
+        <div id="mapLegend" class="map-legend" aria-label="Map legend"></div>
+        <div id="mapTooltip" class="map-tooltip" hidden></div>
       </section>
-    </div>
-
-    <div id="strategicToast" class="strategic-toast" role="status" aria-live="polite"></div>
+      <section id="bootPanel" class="boot-panel" role="status"><span class="eyebrow">SECURE UPLINK</span><h1>Take command.</h1><p>Connecting your account to the operations centre.</p><span class="spinner"></span></section>
+      <section id="lobbyPanel" class="lobby-panel" aria-labelledby="lobbyTitle" hidden></section>
+      <nav id="commandNav" class="command-nav" aria-label="Command sections" hidden></nav>
+      <section id="commandDrawer" class="command-drawer" aria-label="Command details" hidden></section>
+      <div id="matchClock" class="match-clock" hidden></div>
+      <section id="selectionPanel" class="selection-panel" aria-label="Selected forces" hidden></section>
+      <div id="connectionBanner" class="connection-banner" role="alert" hidden><span></span><button id="retryConnection">Reconnect</button></div>
+    </main>
+    <div id="toast" class="war-toast" role="status" aria-live="polite"></div>
+    <dialog id="commandDialog" class="command-dialog" aria-labelledby="dialogTitle"><div id="dialogBody"></div></dialog>
   </div>
-  <script src="vendor/globe.gl/globe.gl-2.46.1.min.js"></script>
-  <script type="module" src="war-simulation.js?v=20260830-development12"></script>
+  <script type="module" src="war-simulation.js"></script>
 </body>
 </html>

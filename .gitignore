@@ -1,0 +1,11 @@
+node_modules
+dist/
+work/
+.env
+.env.*
+!.env.example
+supabase/.temp/
+playwright-report/
+test-results/
+__pycache__/
+*.py[cod]

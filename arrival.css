@@ -1,0 +1,54 @@
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:300 700;font-display:swap;src:url('vendor/cormorant-garamond/cormorant-garamond-variable.ttf') format('truetype')}
+@font-face{font-family:Manrope;font-style:normal;font-weight:200 800;font-display:swap;src:url('vendor/manrope/manrope-latin-variable.woff2') format('woff2')}
+
+.arrival-screen{--arrival-gold:#cab383;--arrival-text:#f1eee6;--arrival-muted:#b6bcb5;position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;overflow:auto;padding:0 clamp(24px,5vw,80px);background:radial-gradient(ellipse at 50% 0,#15332b 0,transparent 65%),#090f0d;color:var(--arrival-text);font-family:Manrope,Arial,sans-serif}
+.arrival-screen .arrival-header{flex:0 0 72px;height:auto;border-bottom:1px solid #ffffff14;gap:20px}
+.arrival-screen .arrival-brand{gap:12px;font-size:12px;letter-spacing:.24em;color:var(--arrival-text)}
+.arrival-screen .arrival-brand>span{width:32px;height:32px;border-color:#cab38366;color:var(--arrival-gold);font-size:17px}
+.arrival-screen .arrival-header>p{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--arrival-muted)}
+.arrival-header>p>span{display:grid;place-items:center;width:18px;height:18px;border:1px solid #74958066;border-radius:50%;color:#aec6b7;font-size:10px}
+.arrival-screen .arrival-main{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(20px,3vh,32px);width:min(1160px,100%);margin:auto;padding:clamp(20px,4vh,40px) 0}
+.arrival-screen .arrival-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:0}
+.arrival-eyebrow{display:block;margin-bottom:10px;color:var(--arrival-gold);font-size:10px;letter-spacing:.22em;text-transform:uppercase}
+.arrival-screen .arrival-intro h1{margin:0;font:400 clamp(38px,4vw,56px)/1.06 'Cormorant Garamond',Georgia,serif;letter-spacing:-.035em;color:var(--arrival-text)}
+.arrival-screen .arrival-intro>div>p{margin:13px 0 0;max-width:560px;font-size:13px;line-height:1.5;color:var(--arrival-muted)}
+.arrival-step{flex:none;display:flex;align-items:center;gap:12px;margin:0 0 3px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--arrival-muted)}
+.arrival-step>span{padding:9px;border:1px solid #cab38350;color:var(--arrival-gold);border-radius:50%;font-size:11px;letter-spacing:0}
+.arrival-screen .arrival-paths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.arrival-screen .arrival-path{display:flex;flex-direction:column;position:relative;min-height:0;min-width:0;width:100%;padding:0;border:1px solid #ffffff20;border-radius:12px;background:#111a16;color:inherit;overflow:hidden;text-align:left;cursor:pointer;font:inherit;transition:border-color .2s,box-shadow .2s,transform .2s}
+.arrival-screen .arrival-path:hover{border-color:#cab38380;transform:translateY(-2px)}
+.arrival-screen .arrival-path.selected{border-color:var(--arrival-gold);background:#14271f;box-shadow:0 0 0 1px #cab38330,0 16px 32px #0003}
+.arrival-screen .arrival-path-art{display:block;flex:none;width:100%;height:clamp(120px,23vh,220px);min-height:0;background-image:url('assets/launch-journeys-v1.png');background-size:300% auto;background-repeat:no-repeat;background-position:0 50%}
+.arrival-screen .path-owner .arrival-path-art{background-image:url('assets/launch-journeys-v1.png');background-position:50% 50%}
+.arrival-screen .path-story .arrival-path-art{background-image:url('assets/launch-journeys-v1.png');background-position:100% 50%}
+.arrival-screen .arrival-path-art:after,.arrival-screen .selected .arrival-path-art:after{background:linear-gradient(0deg,#111a1633,transparent 60%)}
+.arrival-screen .arrival-path-art i{left:18px;top:auto;bottom:14px;transform:none;width:40px;height:40px;border:1px solid #e5d3ab55;border-radius:10px;background:#101b16cc;color:#efdfbe;backdrop-filter:blur(6px)}
+.arrival-screen .arrival-path-art svg{width:23px;height:23px;stroke-width:1.6}
+.arrival-screen .selected .arrival-path-art i{border-color:#cab38399;color:#efdfbe}
+.arrival-screen .arrival-path-copy{display:flex;flex:1;flex-direction:column;align-self:stretch;padding:20px 22px 22px;border:0;min-width:0}
+.arrival-screen .arrival-path-copy>.arrival-path-kicker{display:block;margin:0 0 9px;color:var(--arrival-gold);font-size:9px;line-height:1.4;letter-spacing:.13em;text-transform:uppercase}
+.arrival-screen .arrival-path-copy>strong{font:400 clamp(21px,1.9vw,27px)/1.15 'Cormorant Garamond',Georgia,serif;letter-spacing:-.02em}
+.arrival-screen .arrival-path-copy>em{display:block;margin:11px 0 18px;font-size:12px;line-height:1.6;color:var(--arrival-muted);font-style:normal;max-width:320px}
+.arrival-screen .arrival-path-copy>.arrival-features{display:flex;flex-wrap:wrap;gap:7px 13px;margin:0;margin-top:auto;padding-top:14px;border-top:1px solid #ffffff14;color:#c4cbc3}
+.arrival-screen .arrival-path-copy small{display:block;white-space:normal;padding:0;margin:0;font-size:9px;line-height:1.5;color:inherit}
+.arrival-screen .arrival-path-copy small:after{display:none}
+.arrival-screen .arrival-check{position:absolute;top:15px;right:15px;width:25px;height:25px;border:1px solid #f2eee66b;background:#0d171780;color:var(--arrival-text);font:12px Manrope,Arial,sans-serif;opacity:1;transform:none;backdrop-filter:blur(5px);transition:background .2s,border-color .2s}
+.arrival-screen .arrival-path:not(.selected) .arrival-check{font-size:0}
+.arrival-screen .selected .arrival-check{border-color:var(--arrival-gold);background:var(--arrival-gold);color:#102018}
+.arrival-screen .arrival-action{display:flex;justify-content:space-between;align-items:center;gap:28px;min-height:0;padding:22px 0 0;border-top:1px solid #ffffff18;text-align:left;text-transform:none;letter-spacing:normal}
+.arrival-screen .arrival-action>p{margin:0;max-width:620px;color:var(--arrival-gold);font-size:9px;line-height:1.4;letter-spacing:.15em;text-transform:uppercase}
+.arrival-screen .arrival-action p strong{display:block;margin:6px 0;color:var(--arrival-text);font:400 23px/1.2 'Cormorant Garamond',Georgia,serif;text-transform:none;letter-spacing:-.015em}
+.arrival-screen .arrival-action p span{display:block;margin:0;color:var(--arrival-muted);font-size:11px;line-height:1.5;letter-spacing:0;text-transform:none}
+.arrival-action-buttons{flex:none;display:flex;flex-direction:column;align-items:center;gap:10px}
+.arrival-screen #arrivalEnterBtn{display:flex;align-items:center;justify-content:center;width:260px;min-height:48px;height:48px;margin:0;padding:0 20px;border:1px solid #5e9376;border-radius:6px;background:#20583e;color:#fff;font:600 12px Manrope,Arial,sans-serif;letter-spacing:0;cursor:pointer;transition:background .2s,transform .2s}
+.arrival-screen #arrivalEnterBtn:hover:not(:disabled){background:#2a6a4d;transform:translateY(-1px)}
+.arrival-screen #arrivalEnterBtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;margin-left:16px}
+.arrival-screen #arrivalSkipBtn{min-height:24px;margin:0;padding:3px 8px;border:0;background:none;color:var(--arrival-muted);font:11px Manrope,Arial,sans-serif;cursor:pointer}
+.arrival-screen #arrivalSkipBtn:hover{color:var(--arrival-text);text-decoration:underline}
+.arrival-screen button:focus-visible{outline:2px solid #e2c997;outline-offset:4px;box-shadow:0 0 0 5px #090f0d}
+
+@media(min-width:801px) and (max-height:820px){.arrival-screen .arrival-header{flex-basis:60px}.arrival-screen .arrival-main{gap:20px;padding:20px 0}.arrival-screen .arrival-intro h1{font-size:44px}.arrival-screen .arrival-path-art{height:18vh}.arrival-screen .arrival-path-copy{padding:18px 20px}}
+@media(min-width:801px) and (max-height:700px){.arrival-screen .arrival-header{flex-basis:56px}.arrival-screen .arrival-main{gap:14px;padding:16px 0}.arrival-screen .arrival-intro h1{font-size:38px}.arrival-screen .arrival-intro>div>p{margin-top:8px}.arrival-eyebrow{margin-bottom:7px}.arrival-screen .arrival-path-art{height:clamp(64px,15vh,105px)}.arrival-screen .arrival-path-copy{padding:14px 18px}.arrival-screen .arrival-path-copy>em{margin:8px 0 12px;font-size:11px}.arrival-screen .arrival-path-copy>.arrival-features{padding-top:10px}.arrival-screen .arrival-action{padding-top:16px}}
+@media(max-width:800px){.arrival-screen{padding:0 20px}.arrival-screen .arrival-header{flex-basis:58px}.arrival-screen .arrival-header>p{display:none}.arrival-screen .arrival-main{justify-content:flex-start;gap:20px;padding:24px 0}.arrival-screen .arrival-intro{display:block}.arrival-screen .arrival-intro h1{font-size:clamp(32px,6vw,44px)}.arrival-screen .arrival-intro>div>p{font-size:12px;margin-top:10px}.arrival-step{display:none}.arrival-screen .arrival-paths{grid-template-columns:1fr;gap:12px}.arrival-screen .arrival-path{display:grid;grid-template-columns:114px minmax(0,1fr)}.arrival-screen .arrival-path-art{height:100%;min-height:154px;background-size:auto 100%}.arrival-screen .arrival-path-copy{padding:16px 18px}.arrival-screen .arrival-path-copy>.arrival-path-kicker{font-size:8px;margin-bottom:7px;padding-right:16px}.arrival-screen .arrival-path-copy>strong{font-size:23px}.arrival-screen .arrival-path-copy>em{font-size:11px;margin:9px 0 12px;max-width:none}.arrival-screen .arrival-path-copy>.arrival-features{gap:4px 10px;padding-top:9px}.arrival-screen .arrival-path-copy small{font-size:8px}.arrival-screen .arrival-path-art i{left:12px;bottom:12px;width:32px;height:32px;border-radius:8px}.arrival-screen .arrival-path-art svg{width:20px;height:20px}.arrival-screen .arrival-check{top:10px;right:10px;width:19px;height:19px;font-size:10px}.arrival-screen .arrival-action{align-items:stretch;flex-direction:column;gap:18px;padding-top:20px}.arrival-screen .arrival-action>p{font-size:9px}.arrival-screen .arrival-action p strong{font-size:23px}.arrival-screen .arrival-action p span{font-size:11px}.arrival-action-buttons{align-items:stretch;gap:8px}.arrival-screen #arrivalEnterBtn{width:100%;height:48px}.arrival-screen #arrivalSkipBtn{min-height:32px}}
+@media(max-width:380px){.arrival-screen{padding:0 16px}.arrival-screen .arrival-path{grid-template-columns:86px minmax(0,1fr)}.arrival-screen .arrival-path-copy{padding:15px}.arrival-screen .arrival-path-copy>strong{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.arrival-screen .arrival-path,.arrival-screen .arrival-check,.arrival-screen #arrivalEnterBtn{transition:none}.arrival-screen.is-leaving{animation:none}}

@@ -119,8 +119,10 @@ export function createBrisbanePlan(layout,airport,stand,model,runway,roundedPath
     outbound:smooth([...localOut,departureB.points[0],departureB.points[1],hold],outboundTurn),
     lineup:smooth([hold,...departureA.points.filter(p=>p[1]>hold[1]),[22,ry]],1.8),
     takeoff:[[22,ry],[end-10,ry]],climb:[[end-10,ry],[end+95,ry]],departureConnectorId:'B9',arrivalConnectorId:arrivalExit.id,arrivalApronConnectorId:arrivalB.id};
-  if(local&&!airport.routePreview&&!airport.buildRoutes)plan.routeAvailable=clearBrisbaneRoute(layout,airport,stand,model,plan,roundedPath);
-  if(local&&!airport.routePreview&&!airport.buildRoutes&&!plan.routeAvailable&&airport.routeTurnFactor===undefined){
+  // Build-time operations compilation and trusted renderer reconstruction use
+  // the same authored curves without repeating server eligibility geometry.
+  if(local&&!airport.routePreview&&!airport.buildRoutes&&!airport.operationRouteCompiled)plan.routeAvailable=clearBrisbaneRoute(layout,airport,stand,model,plan,roundedPath);
+  if(local&&!airport.routePreview&&!airport.buildRoutes&&!airport.operationRouteCompiled&&!plan.routeAvailable&&airport.routeTurnFactor===undefined){
     for(const factor of [.1,.2,.4,.6,.8,1]){const candidate=createBrisbanePlan(layout,{...airport,routeTurnFactor:factor},stand,model,runway,roundedPath);if(candidate.routeAvailable)return candidate;}
   }
   return plan;

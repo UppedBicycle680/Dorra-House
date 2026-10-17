@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111315">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://fbebytnhlanqdbbvxzwz.supabase.co; style-src 'self'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
+  <title>Dorra House — Administration</title>
+  <link rel="preload" href="vendor/club-journal/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="admin.css">
+  <script type="module" src="admin.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="index.html">DORRA HOUSE</a>
+    <nav aria-label="Administration"><a href="#dashboard">Dashboard</a><a href="#players">Players</a><a href="#reports">Reports</a><a href="#activity">Activity</a></nav>
+    <div class="account"><button id="accountButton" aria-expanded="false" aria-controls="accountMenu">Account</button><span id="accessClock" class="muted">Verifying access</span>
+      <div id="accountMenu" class="account-menu" hidden><p id="accountName"></p><a id="staffLink" href="#staff" hidden>Staff management</a><a id="onlineLink" href="#online" hidden>Online players</a><a id="messagesLink" href="#announcements" hidden>Messages</a><a href="index.html">Return to the House</a><button id="lockButton">Lock panel</button><button id="signOutButton">Sign out</button></div>
+    </div>
+  </header>
+  <main id="content" tabindex="-1" aria-live="polite"><div class="empty"><h1>Checking access</h1><p>Verifying your account with Dorra House.</p></div></main>
+  <div id="notice" class="notice" role="status" hidden></div>
+  <dialog id="actionDialog" aria-labelledby="dialogTitle"><div id="dialogContent"></div></dialog>
+</body>
+</html>

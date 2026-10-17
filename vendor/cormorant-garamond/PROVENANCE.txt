@@ -1,0 +1,5 @@
+Cormorant Garamond variable Roman font from the Google Fonts repository.
+Source: https://github.com/google/fonts/tree/main/ofl/cormorantgaramond
+File: CormorantGaramond[wght].ttf
+License: SIL Open Font License 1.1; see OFL.txt.
+Downloaded: 2026-10-08. Served locally for the Dorra House launch screen.

@@ -1,0 +1,7 @@
+import assert from 'node:assert/strict';
+import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from '../online-config.js';
+const site=process.env.DORRA_SITE_URL||'https://uppedbicycle680.github.io/Dorra-House/';
+const allowedOrigin='https://uppedbicycle680.github.io';
+async function secureFetch(url){for(let hop=0;hop<5;hop++){assert.equal(new URL(url).protocol,'https:');assert.equal(new URL(url).origin,allowedOrigin);const response=await fetch(url,{redirect:'manual'});if([301,302,303,307,308].includes(response.status)){url=new URL(response.headers.get('location'),url).href;continue;}assert.equal(response.status,200);return response;}throw new Error('Too many published redirects.');}
+for(const file of ['admin.html','admin.css','admin.js','admin-client.js','login.html']){const response=await secureFetch(new URL(file,site).href);const source=await response.text();assert.ok(source.length>100);if(file==='admin.html')assert.match(source,/Content-Security-Policy/);console.log(`Passed: HTTPS published ${file}`);}
+for(const authorization of [null,'Bearer invalid']){const response=await fetch(SUPABASE_URL+'/functions/v1/dorra-admin',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json',Origin:allowedOrigin,...(authorization?{Authorization:authorization}:{})},body:JSON.stringify({operation:'dashboard'})});assert.equal(response.status,401);console.log(`Passed: ${authorization?'invalid JWT':'anonymous'} admin access denied`);}

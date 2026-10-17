@@ -1,0 +1,36 @@
+{
+  "name": "dorra-house",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs airport-operations-regression.test.mjs airport-service-regression.test.mjs airport-traffic-operations-regression.test.mjs airport-operation-routing-regression.test.mjs",
+    "test:airport:layout": "node scripts/check-airport-layout.mjs",
+    "test:airport:browser": "node airport-browser-operations-regression.mjs",
+    "test:browser": "node --test tests/*.browser.mjs",
+    "test:war": "node --test tests/war*.test.mjs",
+    "test:war:ai": "node --test tests/war-ai*.test.mjs",
+    "test:war:balance": "node scripts/check-war-ai-balance.mjs",
+    "test:war:campaigns": "node scripts/check-war-ai-campaigns.mjs",
+    "check:war:online": "node scripts/check-war-online.mjs",
+    "check:war:solo": "node scripts/check-war-solo-campaigns.mjs",
+    "test:war:load": "node scripts/check-war-capacity.mjs",
+    "test:war:browser": "node --test tests/war*.browser.mjs",
+    "check": "node scripts/check.mjs",
+    "bundle:server": "node scripts/bundle-server.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.15",
+    "esbuild": "0.28.1",
+    "playwright": "1.63.0",
+    "sharp": "0.35.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

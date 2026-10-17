@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {baseURL,supabaseHost,responseHeaders,launchBrowser,serveSource} from './browser-helpers.mjs';
+test('authenticated player messages use literal text, dismiss once, and expire automatically',{timeout:120000},async()=>{
+ const browser=await launchBrowser(),context=await browser.newContext(),calls=[];
+ const id=crypto.randomUUID(),encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url'),user={id,aud:'authenticated',role:'authenticated',email:'notice@example.test'};
+ const session={user,access_token:`${encode({})}.${encode({sub:id,exp:Math.floor(Date.now()/1000)+3600})}.fixture`,refresh_token:'fixture',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer'};
+ await context.addInitScript(auth=>localStorage.setItem('dorra-online-auth',JSON.stringify(auth)),session);
+ let message={id:crypto.randomUUID(),title:'Owner message',message:'<img src=x onerror="window.injected=true">',expiresAt:new Date(Date.now()+60000).toISOString()};
+ const harness='<html><body><script type="module">import {startPlayerPulse} from "./player-notices.js"; window.stopPulse=startPlayerPulse({leaseId:"'+crypto.randomUUID()+'"});</script></body></html>';
+ await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(url.hostname!==supabaseHost)return serveSource(route,harness);if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:responseHeaders});if(url.pathname==='/auth/v1/user')return route.fulfill({status:200,headers:responseHeaders,body:JSON.stringify(user)});const body=request.postDataJSON();calls.push(body);return route.fulfill({status:200,headers:responseHeaders,body:JSON.stringify(body.operation==='pulse'?{messages:[message],serverNow:new Date().toISOString()}:{ok:true})});});
+ try{const page=await context.newPage();await page.goto(baseURL+'__vault-harness.html');await page.getByRole('heading',{name:'Owner message'}).waitFor();assert.equal(await page.locator('.online-announcement img').count(),0);assert.equal(await page.evaluate(()=>window.injected),undefined);await page.getByRole('button',{name:'Dismiss'}).click();await page.waitForFunction(()=>!document.querySelector('dialog[open]'));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.waitForTimeout(300);assert.equal(await page.locator('dialog[open]').count(),0);assert.equal(calls.filter(c=>c.operation==='dismiss').length,1);
+  message={id:crypto.randomUUID(),title:'Expires soon',message:'Temporary maintenance notice',expiresAt:new Date(Date.now()+1000).toISOString()};await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.getByRole('heading',{name:'Expires soon'}).waitFor();await page.waitForFunction(()=>!document.querySelector('dialog[open]'));assert.equal(await page.evaluate(()=>Object.values(localStorage).some(value=>value.includes('Temporary maintenance notice'))),false);
+ }finally{await browser.close();}
+});
