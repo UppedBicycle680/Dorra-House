@@ -222,13 +222,13 @@ test('desktop keyboard and drag selection plan a waypoint route before dispatch'
     await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
     await page.keyboard.press('r'); await page.waitForSelector('[data-action="research"]');
     await page.keyboard.press('Escape'); assert.equal(await page.locator('#commandDrawer').isVisible(), false);
-    const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox();
-    await page.keyboard.down('Shift'); await page.mouse.move(bounds.x + bounds.width / 2 - 30, bounds.y + bounds.height / 2 - 30); await page.mouse.down(); await page.mouse.move(bounds.x + bounds.width / 2 + 30, bounds.y + bounds.height / 2 + 30, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Shift');
+    const selectedPoint = await targetMapPoint(page, { lng: 150, lat: -30 }, { zoomSteps: 4 });
+    await page.keyboard.press('Escape');
+    await page.keyboard.down('Shift'); await page.mouse.move(selectedPoint.x - 30, selectedPoint.y - 30); await page.mouse.down(); await page.mouse.move(selectedPoint.x + 30, selectedPoint.y + 30, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Shift');
     await page.waitForSelector('#selectionPanel:not([hidden])');
     await page.locator('[data-action="route-mode"]').click();
-    const scale = Math.min(bounds.width / 360, bounds.height / 165) * 3.6;
-    await canvas.click({ position: { x: bounds.width / 2 + 10 * scale, y: bounds.height / 2 - 20 * scale } });
-    await canvas.click({ position: { x: bounds.width / 2 - 10 * scale, y: bounds.height / 2 + 5 * scale } });
+    await targetMapPoint(page, { lng: 160, lat: -10 }, { zoomSteps: 4 });
+    await targetMapPoint(page, { lng: 140, lat: -35 }, { zoomSteps: 4 });
     assert.match(await page.locator('.pending-order').textContent(), /via 1 waypoint/);
     assert.equal(state.calls.filter(call => call.action === 'order').length, 0);
     await page.locator('[data-action="confirm-order"]').click();
@@ -259,11 +259,10 @@ test('mobile requires confirmation before movement and blocks commands when the 
     await gesture.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: touchPoints(45) });
     await gesture.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await gesture.detach();
-    await canvas.click({ position: { x: bounds.width / 2, y: bounds.height / 2 } });
+    await targetMapPoint(page, { lng: 150, lat: -30 }, { zoomSteps: 4 });
     await page.waitForSelector('#selectionPanel:not([hidden])', { timeout: 5000 }).catch(async error => { await page.screenshot({ path: path.join(os.tmpdir(), 'dorra-war-mobile-debug.png') }); throw error; });
     await page.locator('[data-action="order-type"][data-id="move"]').click();
-    const scale = Math.min(bounds.width / 360, bounds.height / 165) * 3.6;
-    await canvas.click({ position: { x: bounds.width / 2 + 10 * scale, y: bounds.height / 2 - 20 * scale } });
+    await targetMapPoint(page, { lng: 160, lat: -10 }, { zoomSteps: 4 });
     await page.waitForSelector('[data-action="confirm-order"]');
     assert.equal(state.calls.filter(call => call.action === 'order').length, 0, 'Choosing a destination must not dispatch a mobile order');
     await page.screenshot({ path: path.join(os.tmpdir(), 'dorra-war-mobile.png') });
@@ -347,11 +346,7 @@ test('defensive interceptors expose relevant controls and invalid offensive targ
     assert.equal(await page.locator('[data-action="order-type"][data-id="intercept"]').isVisible(), true);
     assert.match(await page.locator('.command-guidance').textContent(), /Defensive interceptor/);
     await page.locator('[data-action="order-type"][data-id="intercept"]').click();
-    await page.locator('#worldCanvas').focus(); await page.keyboard.press('h');
-    for (let zoom = 0; zoom < 6; zoom++) await page.keyboard.press('+');
-    const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox(), scale = Math.min(bounds.width / 360, bounds.height / 165) * 1.3 ** 6;
-    await page.mouse.move(bounds.x + 100, bounds.y + 220); await page.mouse.down(); await page.mouse.move(bounds.x - 800, bounds.y - 400, { steps: 5 }); await page.mouse.up();
-    await canvas.click({ position: { x: bounds.width / 2 - 10 * scale, y: bounds.height / 2 - 45 * scale } });
+    await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 6 });
     await page.waitForSelector('[data-action="confirm-order"]');
     assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), true);
     assert.match(await page.locator('.order-feedback.blocked').textContent(), /your own or an allied province/);
@@ -386,8 +381,7 @@ test('stationary air defence can retarget a friendly province and shows its actu
     await page.locator('#formationDetails summary').click();
     assert.match(await page.locator('.formation-support').textContent(), /Missile defence ready Day 1 · 01:00/);
     await intercept.click();
-    const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox(), scale = Math.min(bounds.width / 360, bounds.height / 165) * 4;
-    await canvas.click({ position: { x: bounds.width / 2 + 10 * scale, y: bounds.height / 2 - 20 * scale } });
+    await targetMapPoint(page, { lng: 160, lat: -10 }, { zoomSteps: 4 });
     const confirm = page.locator('[data-action="confirm-order"]');
     assert.equal(await confirm.isDisabled(), false, 'Friendly territory is a valid defensive target');
     await confirm.click(); await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
@@ -411,8 +405,7 @@ test('maritime aircraft warn before an ineffective sortie against a detected lan
       await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
       await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
       await page.locator('[data-action="order-type"][data-id="attack"]').click();
-      const canvas = page.locator('#worldCanvas'), bounds = await canvas.boundingBox(), scale = Math.min(bounds.width / 360, bounds.height / 165) * 4;
-      await canvas.click({ position: { x: bounds.width / 2 + 20 * scale, y: bounds.height / 2 + 10 * scale } });
+      await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
       await page.waitForSelector('[data-action="confirm-order"]');
       assert.match(await page.locator('.order-feedback').textContent(), /has no land-strike capability/);
       assert.match(await page.locator('.order-feedback').textContent(), /against land formations will do no damage/);
@@ -442,15 +435,21 @@ test('production Wellington formation stays visible above the expanded 320px com
     const markerVisible = async () => {
       const bounds = await canvas.boundingBox(), panel = await page.locator('#selectionPanel').boundingBox();
       const { data, info } = await sharp(await canvas.screenshot()).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-      let pixels = 0;
+      let pixels = 0, left = info.width, right = -1, top = info.height, bottom = -1;
       const maxY = Math.max(0, Math.floor((panel.y - bounds.y - 12) * info.height / bounds.height));
-      for (let y = 0; y < maxY; y++) for (let x = 0; x < info.width; x++) { const offset = (y * info.width + x) * 4; if (Math.abs(data[offset] - 205) <= 1 && Math.abs(data[offset + 1] - 181) <= 1 && Math.abs(data[offset + 2] - 121) <= 1) pixels++; }
-      return pixels > 250;
+      // Photo counters cover their former solid gold fill. Inspect the actual
+      // selected outline, then verify its observed centre is natively hittable.
+      for (let y = 0; y < maxY; y++) for (let x = 0; x < info.width; x++) { const offset = (y * info.width + x) * 4; if (Math.abs(data[offset] - 255) <= 1 && Math.abs(data[offset + 1] - 237) <= 1 && Math.abs(data[offset + 2] - 188) <= 1) { pixels++; left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y); } }
+      return pixels && right - left >= 28 && bottom - top >= 20 ? { x: bounds.x + (left + right) / 2 * bounds.width / info.width, y: bounds.y + (top + bottom) / 2 * bounds.height / info.height } : null;
     };
     for (let attempt = 0; attempt < 10 && !await markerVisible(); attempt++) await page.evaluate(() => new Promise(requestAnimationFrame));
     await page.screenshot({ path: path.join(os.tmpdir(), 'dorra-war-wellington-320.png') });
-    assert.equal(await markerVisible(), true, 'The selected Wellington marker must be drawn in the unobscured map above the panel');
+    const marker = await markerVisible();
+    assert.ok(marker, 'The selected Wellington photo counter and outline must be drawn in the unobscured map above the panel');
     assert.match(await page.locator('.formation-details-body').textContent(), /Wellington/);
+    await canvas.focus(); await page.keyboard.press('Escape'); await page.touchscreen.tap(marker.x, marker.y);
+    await page.waitForSelector('#selectionPanel:not([hidden])');
+    assert.match(await page.locator('#selectionPanel h3').textContent(), /Combat engineers/, 'The observed Wellington counter remains selectable with a native tap');
     assert.deepEqual(errors, []); await context.close();
   } finally { await browser.close(); }
 });

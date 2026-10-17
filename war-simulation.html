@@ -8,6 +8,8 @@
   <title>Dorra | Strategic Command</title>
   <link rel="stylesheet" href="war-simulation.css">
   <link rel="stylesheet" href="war/experience.css">
+  <link rel="stylesheet" href="war/art.css">
+  <link rel="stylesheet" href="war/map-ui.css">
   <link rel="stylesheet" href="online-shell.css">
 </head>
 <body class="war-page">
@@ -23,12 +25,22 @@
     </header>
     <main class="war-workspace">
       <section class="world-map" aria-label="World command map">
-        <canvas id="worldCanvas" tabindex="0" role="application" aria-label="Interactive world map. Drag to pan, scroll or pinch to zoom. Select a nation or province. Shift drag selects units. Keyboard plus and minus zoom, H returns home."></canvas>
+        <canvas id="worldCanvas" tabindex="0" role="application" aria-label="Interactive world map. Drag or use arrow keys to pan, scroll or pinch to zoom. Tap stacked formations repeatedly to select their members. Shift drag selects your forces. Plus and minus zoom, H shows the world. The intelligence roster provides a keyboard-accessible unit list."></canvas>
         <div class="map-grain" aria-hidden="true"></div>
         <div id="mapLoading" class="map-loading"><span class="spinner"></span> Preparing world map</div>
         <div class="map-coordinates" id="mapCoordinates" aria-hidden="true">GLOBAL THEATRE / 180° W — 180° E</div>
         <div class="map-controls"><button id="mapZoomIn" aria-label="Zoom in">+</button><button id="mapZoomOut" aria-label="Zoom out">−</button><button id="mapHome" aria-label="Show whole world" title="Whole world (H)">⌖</button></div>
-        <div class="map-legend"><i class="friendly"></i> YOUR NATION <i class="hostile"></i> HOSTILE <i class="neutral"></i> NEUTRAL</div>
+        <div id="mapTools" class="map-tools" hidden>
+          <button id="mapLayersButton" class="map-layers-button" aria-expanded="false" aria-controls="mapLayersPanel"><span aria-hidden="true">▧</span> Map</button>
+          <section id="mapLayersPanel" class="map-layers-panel" aria-labelledby="mapLayersTitle" hidden>
+            <div class="map-layers-heading"><div><span class="eyebrow">TACTICAL DISPLAY</span><h2 id="mapLayersTitle">Map layers</h2></div><button id="mapLayersClose" class="close-button" aria-label="Close map layers">×</button></div>
+            <fieldset class="map-mode-options"><legend>Map view</legend><label><input type="radio" name="mapMode" value="political" checked><span>Political<small>National colours</small></span></label><label><input type="radio" name="mapMode" value="relations"><span>Relations<small>Friends and hostiles</small></span></label><label><input type="radio" name="mapMode" value="terrain"><span>Terrain<small>Plan your approach</small></span></label><label><input type="radio" name="mapMode" value="morale"><span>Morale<small>Known province morale</small></span></label></fieldset>
+            <fieldset class="map-detail-options"><legend>Show on map</legend><label><input id="mapCities" type="checkbox" checked><span>Cities, capitals & ports</span></label><label><input id="mapUnits" type="checkbox" checked><span>Formation images</span></label><label><input id="mapRanges" type="checkbox" checked><span>Selected unit range</span></label><label><input id="mapRoutes" type="checkbox" checked><span>Your movement routes</span></label></fieldset>
+            <div class="map-focus-actions"><button id="mapFocusNation" class="button secondary">Focus my nation</button><button id="mapFocusSelection" class="button secondary" disabled>Focus selected forces</button></div>
+            <p class="map-layer-note">Rings show your selected units' listed range. Visibility and compatible targets still matter.</p>
+          </section>
+        </div>
+        <div id="mapLegend" class="map-legend" aria-label="Map legend"></div>
         <div id="mapTooltip" class="map-tooltip" hidden></div>
       </section>
       <section id="bootPanel" class="boot-panel" role="status"><span class="eyebrow">SECURE UPLINK</span><h1>Take command.</h1><p>Connecting your account to the operations centre.</p><span class="spinner"></span></section>

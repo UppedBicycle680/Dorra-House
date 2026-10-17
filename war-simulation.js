@@ -15,12 +15,31 @@ let vault, client, map, toastTimer, polling, clockTimer, clockAnchor = null, ref
 function displayView() { if (!model.view || !clockAnchor || clockAnchor.id !== model.view.match.id || !['running', 'active'].includes(model.view.match.status)) return model.view; const elapsed = Math.max(0, client.serverNow - clockAnchor.receivedAt) / 1000; const limit = model.view.match.pace === 'fast' ? 30 * 86400 : 60 * 86400; return { ...model.view, match: { ...model.view.match, gameTime: Math.min(limit, clockAnchor.gameTime + elapsed * clockAnchor.speed) } }; }
 function toast(message, error = false) { clearTimeout(toastTimer); dom.toast.textContent = message; dom.toast.className = `war-toast show${error ? ' error' : ''}`; toastTimer = setTimeout(() => { dom.toast.className = 'war-toast'; }, error ? 6500 : 3500); }
 function scrollDrawerTo(target, nearest = false) {
-  const body = dom.drawer.querySelector('.drawer-body');
+  const body = innerWidth > 700 && target?.closest('[data-research-scroll]') || dom.drawer.querySelector('.drawer-body');
   if (!body || !target) return;
   const bounds = body.getBoundingClientRect(), item = target.getBoundingClientRect();
   const sticky = innerWidth <= 700 ? body.querySelector('.mobile-research-branch-picker')?.getBoundingClientRect().height || 0 : 0;
   if (nearest && item.top >= bounds.top + sticky + 10 && item.bottom <= bounds.bottom - 10) return;
   body.scrollTop = Math.max(0, body.scrollTop + item.top - bounds.top - sticky - 10);
+}
+function closeMapLayers(restoreFocus = false) {
+  $('#mapLayersPanel').hidden = true;
+  $('#mapLayersButton').setAttribute('aria-expanded', 'false');
+  if (restoreFocus) $('#mapLayersButton').focus({ preventScroll: true });
+}
+function renderMapTools() {
+  const visible = Boolean(model.view && model.tab === 'map');
+  $('#mapTools').hidden = !visible; $('#mapLegend').hidden = !visible;
+  dom.app.dataset.mapSelection = String(visible && model.selectedUnits.length > 0);
+  if (!visible) closeMapLayers();
+  $('#mapFocusSelection').disabled = !model.selectedUnits.length;
+  const layers = map.getLayers?.();
+  if (layers) {
+    document.querySelectorAll('[name="mapMode"]').forEach(input => { input.checked = input.value === layers.mode; });
+    for (const [id, key] of Object.entries({ mapCities: 'cities', mapUnits: 'units', mapRanges: 'ranges', mapRoutes: 'routes' })) $(`#${id}`).checked = layers[key];
+  }
+  const legend = map.getLegend?.();
+  if (legend) $('#mapLegend').innerHTML = `<strong>${e(legend.title)}</strong>${legend.entries.map(item => `<span><i style="background:${e(item.color)}"></i>${e(item.label)}</span>`).join('')}${legend.note ? `<small>${e(legend.note)}</small>` : ''}`;
 }
 function connection(status, error) { dom.banner.hidden = status === 'connected'; if (status !== 'connected') { dom.banner.querySelector('span').textContent = error?.message || 'Reconnecting to command…'; $('#retryConnection').textContent = status === 'ended' ? 'Reload & sign in' : 'Reconnect'; if (status === 'ended') { model.busy = true; render(); } } }
 function render() {
@@ -29,12 +48,19 @@ function render() {
   const restoreFocus = focused && dom.drawer.contains(focused) ? { action: focused.dataset.action, id: focused.dataset.id } : null;
   const active = Boolean(model.view);
   $('#goldBalance').innerHTML = goldBalance(model.gold);
+  const previousSection = dom.drawer.dataset.section;
   dom.drawer.dataset.section = model.tab;
   dom.lobby.hidden = active; dom.nav.hidden = !active; dom.clock.hidden = !active; dom.drawer.hidden = !active || model.tab === 'map';
   if (!active) { const scroll = dom.lobby.querySelector('.lobby-body')?.scrollTop || 0; dom.lobby.innerHTML = renderLobby(model); if (dom.lobby.querySelector('.lobby-body')) dom.lobby.querySelector('.lobby-body').scrollTop = scroll; dom.context.textContent = 'OPERATIONS CENTRE'; dom.resources.innerHTML = ''; dom.selection.hidden = true; }
   else {
     dom.context.textContent = model.view.match.name || 'ACTIVE OPERATION'; dom.resources.innerHTML = renderResources(model.view.player.resources); dom.nav.innerHTML = renderNav(model.tab); dom.clock.innerHTML = renderClock(displayView());
-    if (model.tab !== 'map') { const scroll = dom.drawer.querySelector('.drawer-body')?.scrollTop || 0; dom.drawer.innerHTML = renderDrawer(model); dom.drawer.querySelector('.drawer-body').scrollTop = scroll; }
+    if (model.tab !== 'map') {
+      const sameSection = previousSection === model.tab;
+      const scroll = sameSection ? dom.drawer.querySelector('.drawer-body')?.scrollTop || 0 : 0;
+      const nested = sameSection ? [...dom.drawer.querySelectorAll('[data-research-scroll]')].map(element => [element.dataset.researchScroll, element.scrollTop]) : [];
+      dom.drawer.innerHTML = renderDrawer(model); dom.drawer.querySelector('.drawer-body').scrollTop = scroll;
+      for (const [name, top] of nested) { const surface = dom.drawer.querySelector(`[data-research-scroll="${CSS.escape(name)}"]`); if (surface) surface.scrollTop = top; }
+    }
     dom.selection.innerHTML = renderSelection(model); dom.selection.hidden = !dom.selection.innerHTML || model.tab !== 'map';
   }
   document.querySelectorAll('[data-action]').forEach(button => {
@@ -44,6 +70,7 @@ function render() {
   if (restoreFocus && !dom.drawer.hidden) dom.drawer.querySelector(`[data-action="${CSS.escape(restoreFocus.action)}"]${restoreFocus.id ? `[data-id="${CSS.escape(restoreFocus.id)}"]` : ''}`)?.focus({ preventScroll: true });
   dom.app.setAttribute('aria-busy', String(model.busy));
   map.setView(model.view); map.setSelection({ country: active ? null : model.nationId, province: model.provinceId, units: model.selectedUnits }); map.setOrderPreview(model.pendingOrder); map.setTargeting(Boolean(model.orderType && model.selectedUnits.length));
+  renderMapTools();
 }
 function adopt(response) {
   if (response.gold && (!model.gold || Number(response.gold.version) >= Number(model.gold.version))) model.gold = { ...response.gold, history: response.gold.history || (response.gold.version === model.gold?.version ? model.gold.history : undefined) };
@@ -218,22 +245,36 @@ async function handleAction(button) {
   }
   if (action === 'research-node') {
     const platform = getPlatforms(model).find(row => row.id === id) || PLATFORMS.find(row => row.id === id);
-    model.researchId = id;
+    model.researchId = id; model.researchFilter = 'all';
     if (platform) model.branch = platform.branch;
     model.researchSearch = ''; render();
+    const dossier = dom.drawer.querySelector('[data-research-scroll="dossier"]'); if (dossier) dossier.scrollTop = 0;
     if (innerWidth <= 700) scrollDrawerTo(dom.drawer.querySelector('.research-inspector'));
     else scrollDrawerTo(dom.drawer.querySelector(`[data-node-id="${CSS.escape(id)}"]`), true);
     dom.drawer.querySelector(`[data-action="research-node"][data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
     return;
   }
   if (action === 'research-tree') { scrollDrawerTo(dom.drawer.querySelector('[data-research-board]')); return; }
+  if (action === 'research-filter') { if (['all', 'available', 'researching', 'complete', 'locked'].includes(id)) model.researchFilter = id; render(); scrollDrawerTo(dom.drawer.querySelector('.research-toolbar')); return; }
   if (action === 'research-foreign') { model.showForeignResearch = !model.showForeignResearch; render(); return; }
   if (action === 'research-facilities') { model.tab = 'industry'; model.provinceId = null; render(); return; }
+  if (action === 'research-mobilise') {
+    const platform = getPlatforms(model).find(row => row.id === id);
+    if (!platform || platform.buildable === false) return;
+    const facility = platform.facility || 'army-base', level = Math.max(1, Number(platform.level) || 1);
+    const bases = model.view.provinces.filter(province => province.ownerId === model.view.player.nationId && Number(province.facilities?.[facility] || 0) >= level);
+    const base = bases.find(province => province.id === model.provinceId) || bases.find(province => map.provinces.get(province.id)?.properties?.capital) || bases[0];
+    model.tab = 'industry'; model.provinceId = base?.id || null; model.provinceFeature = base ? map.provinces.get(base.id) : null;
+    model.productionBranch = platform.branch; model.productionSearch = platform.name; model.productionReady = false; model.provinceSearch = ''; model.provincePage = 0;
+    render();
+    if (!base) toast(`Choose an owned province and prepare ${titleCase(facility)} level ${level} to mobilise this equipment.`);
+    return;
+  }
   if (action === 'production-ready') { model.productionReady = !model.productionReady; render(); return; }
   if (action === 'industry-section') { scrollDrawerTo($('#industry-' + id)); return; }
   if (action === 'nation') return chooseNation(id);
   if (action === 'lobby-tab') { model.lobbyTab = id; render(); if (id === 'worlds') void refresh().catch(error => toast(error.message, true)); return; }
-  if (['opponent', 'pace', 'branch'].includes(action)) { model[action] = id; if (action === 'branch') { model.researchSearch = ''; model.researchId = null; } render(); return; }
+  if (['opponent', 'pace', 'branch'].includes(action)) { model[action] = id; if (action === 'branch') { model.researchSearch = ''; model.researchId = null; } render(); if (action === 'branch') { scrollDrawerTo(dom.drawer.querySelector('.research-toolbar')); const dossier = dom.drawer.querySelector('[data-research-scroll="dossier"]'); if (dossier) dossier.scrollTop = 0; } return; }
   if (action === 'tab') { model.tab = id; render(); return; }
   if (action === 'refresh') return refresh().catch(error => toast(error.message, true));
   if (action === 'create') {
@@ -307,16 +348,37 @@ function bind() {
     if (caret != null) input?.setSelectionRange(caret, caret);
   });
   dom.drawer.addEventListener('change', event => { if (event.target.id === 'productionBranch') { model.productionBranch = event.target.value; render(); $('#productionBranch')?.focus({ preventScroll: true }); } });
-  dom.drawer.addEventListener('change', event => { if (event.target.id === 'researchBranch') { model.branch = event.target.value; model.researchSearch = ''; model.researchId = null; render(); scrollDrawerTo(dom.drawer.querySelector('[data-research-board]')); $('#researchBranch')?.focus({ preventScroll: true }); } });
+  dom.drawer.addEventListener('change', event => { if (event.target.id === 'researchBranch') { model.branch = event.target.value; model.researchSearch = ''; model.researchId = null; render(); scrollDrawerTo(dom.drawer.querySelector('.research-toolbar')); $('#researchBranch')?.focus({ preventScroll: true }); } });
   dom.lobby.addEventListener('input', event => {
     if (event.target.id === 'nationSearch') { model.search = event.target.value; $('#nationList').innerHTML = renderNationList(model); }
     if (event.target.id === 'matchName') model.name = event.target.value;
   });
   dom.lobby.addEventListener('change', event => { const fields = { template: 'template', opponentNation: 'opponentNationId', aiDifficulty: 'aiDifficulty', visibility: 'visibility' }; if (fields[event.target.id]) { const id = event.target.id; model[fields[id]] = event.target.value; if (id !== 'visibility') { render(); document.getElementById(id)?.focus({ preventScroll: true }); } } });
   $('#mapZoomIn').onclick = () => map.zoom(1.4); $('#mapZoomOut').onclick = () => map.zoom(1 / 1.4); $('#mapHome').onclick = () => map.home();
+  $('#mapLayersButton').onclick = () => {
+    const open = $('#mapLayersPanel').hidden;
+    $('#mapLayersPanel').hidden = !open; $('#mapLayersButton').setAttribute('aria-expanded', String(open));
+    if (open) $('#mapLayersPanel').querySelector('[name="mapMode"]:checked')?.focus({ preventScroll: true });
+  };
+  $('#mapLayersClose').onclick = () => closeMapLayers(true);
+  $('#mapLayersPanel').addEventListener('change', event => {
+    const key = { mapCities: 'cities', mapUnits: 'units', mapRanges: 'ranges', mapRoutes: 'routes' }[event.target.id];
+    if (event.target.name === 'mapMode') map.setLayers({ mode: event.target.value });
+    else if (key) map.setLayers({ [key]: event.target.checked });
+    renderMapTools();
+  });
+  $('#mapFocusNation').onclick = () => { closeMapLayers(true); void map.focus(model.view?.player?.nationId || model.nationId); };
+  $('#mapFocusSelection').onclick = () => { closeMapLayers(true); if (model.selectedUnits[0]) void focusSelectedUnit(model.selectedUnits[0]); };
+  document.addEventListener('pointerdown', event => { if (!$('#mapLayersPanel').hidden && !event.target.closest('#mapTools')) closeMapLayers(); });
   $('#retryConnection').onclick = () => { if (client?.blocked || !booted) location.reload(); else void refresh().catch(error => toast(error.message, true)); };
-  $('#helpButton').onclick = () => showDialog({ title: 'The commander’s field guide', body: '<p>Build a national economy, research real equipment and control strategic provinces.</p><ul><li>Drag the map to pan. Scroll or pinch to zoom.</li><li>Select a province to construct facilities and produce units.</li><li>Select a formation, choose an order, then select and confirm its destination.</li><li>Shift-drag selects your formations on desktop.</li><li>Research has two parallel slots. Equipment requires appropriate facilities and national access.</li><li>Use diplomacy for peace, coalitions and foreign import licenses.</li><li>Solo worlds can pause. Multiplayer time continues while you are disconnected.</li></ul><p>Shortcuts: R research · I industry · D diplomacy · Escape close · + / − zoom · H whole world.</p>' });
-  document.addEventListener('keydown', event => { if (event.target.matches('input,select,textarea') || dom.dialog.open || event.ctrlKey || event.metaKey) return; if (event.key === 'Escape') { model.tab = 'map'; model.pendingOrder = null; model.orderType = null; model.selectedUnits = []; model.routeMode = false; render(); } if (event.target !== map.canvas) { if (event.key.toLowerCase() === 'h') map.home(); if (event.key === '+' || event.key === '=') map.zoom(1.3); if (event.key === '-') map.zoom(1 / 1.3); } if (model.view) { const tabs = { r: 'research', i: 'industry', d: 'diplomacy' }; if (tabs[event.key.toLowerCase()]) { model.tab = tabs[event.key.toLowerCase()]; render(); } } });
+  $('#helpButton').onclick = () => showDialog({ title: 'The commander’s field guide', body: '<p>Build a national economy, research real equipment and control strategic provinces.</p><ul><li>Drag the map to pan. Scroll or pinch to zoom. Arrow keys pan when the map is focused.</li><li>Open Map to switch between political ownership, diplomatic relations, terrain and reported morale, or toggle cities, counters, ranges and routes.</li><li>Select a province to construct facilities and produce units.</li><li>Repeated taps on a formation stack cycle through its members and overlapping contacts. You can also select your forces from Intel.</li><li>Select a formation, choose an order, then select and confirm its destination. Ranges and routes are shown for your selected forces.</li><li>Shift-drag selects your formations on desktop.</li><li>Research has two parallel slots. Filter by programme status or follow prerequisite links, then view mobilisation for unlocked equipment. Production still requires facilities, resources and national access.</li><li>Use diplomacy for peace, coalitions and foreign import licenses.</li><li>Solo worlds can pause. Multiplayer time continues while you are disconnected.</li></ul><p>Shortcuts: R research · I industry · D diplomacy · Escape close · + / − zoom · H whole world.</p>' });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !$('#mapLayersPanel').hidden) { closeMapLayers(true); event.preventDefault(); return; }
+    if (event.target.matches('input,select,textarea') || dom.dialog.open || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'Escape') { model.tab = 'map'; model.pendingOrder = null; model.orderType = null; model.selectedUnits = []; model.routeMode = false; render(); }
+    if (event.target !== map.canvas) { if (event.key.toLowerCase() === 'h') map.home(); if (event.key === '+' || event.key === '=') map.zoom(1.3); if (event.key === '-') map.zoom(1 / 1.3); }
+    if (model.view) { const tabs = { r: 'research', i: 'industry', d: 'diplomacy' }; if (tabs[event.key.toLowerCase()]) { model.tab = tabs[event.key.toLowerCase()]; render(); } }
+  });
   window.addEventListener('online', () => void refresh().catch(() => {}));
   window.addEventListener('offline', () => connection('offline', new Error('You are offline. Your world continues on the server.')));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh().catch(() => {}); });

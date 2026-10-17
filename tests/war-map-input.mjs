@@ -18,7 +18,9 @@ export async function targetMapPoint(page, { lng, lat }, { touch = page.viewport
   try {
     while (Math.abs(dx) > .01 || Math.abs(dy) > .01) {
       const stepX = Math.max(-60, Math.min(60, dx)), stepY = Math.max(-60, Math.min(60, dy));
-      const x = bounds.x + (touch ? Math.min(90, bounds.width * .25) : Math.max(180, bounds.width * .2)), y = bounds.y + top + (stepY < 0 ? 80 : 15);
+      // Start on the unobstructed map centre: the mobile Map button occupies
+      // the old left-edge gesture origin on narrow phones.
+      const x = bounds.x + (touch ? bounds.width * .5 : Math.max(180, bounds.width * .2)), y = bounds.y + top + (stepY < 0 ? 80 : 15);
       if (gesture) {
         await gesture.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
         await gesture.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + stepX, y: y + stepY, id: 1 }] });
