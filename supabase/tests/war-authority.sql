@@ -70,8 +70,11 @@ begin
  assert (select (resources->>'cash')::numeric from dorra_private.war_sides where match_id=mid and nation_id='WQA')>=(resources_before->>'cash')::numeric,'duplicate does not charge resources twice';
  begin perform public.dorra_war_command(actor,session_id,lease,'build',mid,'{"provinceId":"WQA-1","facility":"army-base"}',request_id);raise exception 'Expected REQUEST_REUSED';exception when others then assert sqlerrm='REQUEST_REUSED','reused request IDs cannot execute another intention';end;
  perform public.dorra_war_command(actor,session_id,lease,'research',mid,'{"platformId":"__war_doctrine"}',gen_random_uuid());
- -- Advance the server clock while keeping scheduler health intact.
- update dorra_private.war_matches set real_anchor=clock_timestamp()-interval '11 seconds',last_dispatch=clock_timestamp() where id=mid;
+ -- Advance past the actual paid jobs, never backwards to a fixed wall-clock
+ -- offset. A future anchor keeps concurrent test CPU load out of game time.
+ update dorra_private.war_matches m set game_anchor=greatest(dorra_private.war_now(m),
+  (select max(e.due)+1 from dorra_private.war_events e where e.match_id=mid and e.kind in('research','produce') and e.payload->>'nationId'='WQA')),
+  real_anchor=clock_timestamp()+interval '1 hour',last_dispatch=clock_timestamp() where m.id=mid;
  perform dorra_private.war_advance(mid,400);
  assert (select research ? '__war_doctrine' from dorra_private.war_sides where match_id=mid and nation_id='WQA'),'timed research completes once';
  assert not exists(select 1 from dorra_private.war_events where match_id=mid and kind='produce' and payload->>'nationId'='WQA'),'timed mobilization completes';
@@ -152,7 +155,11 @@ begin
  assert exists(select 1 from dorra_private.war_units where match_id=world_id and nation_id='WQB' and orders->>'type'='embark' and orders->>'targetProvinceId'='WQA-1'),'island rival follows a mapped maritime invasion route';
  assert exists(select 1 from dorra_private.war_events where match_id=world_id and kind='research' and payload->>'nationId'='WQB'),'named rival researches';
  assert exists(select 1 from dorra_private.war_events where match_id=world_id and kind='research' and payload->>'platformId'='__war_doctrine'),'prepared rival chooses its remaining initial doctrine';
- update dorra_private.war_matches set real_anchor=clock_timestamp()-interval '11 seconds',last_dispatch=clock_timestamp() where id=world_id;
+ -- Include the rival's actual scheduled decision as well as its research;
+ -- neither setup duration nor CPU contention can rewind this scenario clock.
+ update dorra_private.war_matches m set game_anchor=greatest(dorra_private.war_now(m),
+  (select max(e.due)+1 from dorra_private.war_events e where e.match_id=world_id and e.kind in('research','ai') and e.payload->>'nationId'='WQB')),
+  real_anchor=clock_timestamp()+interval '1 hour',last_dispatch=clock_timestamp() where m.id=world_id;
  perform dorra_private.war_advance(world_id,400);
  assert exists(select 1 from dorra_private.war_events where match_id=world_id and kind='build' and payload->>'nationId'='WQB'),'named rival upgrades infrastructure for researched arsenal tiers';
  -- Electronic attack reduces radar from 100 to 65 in the test area, preventing

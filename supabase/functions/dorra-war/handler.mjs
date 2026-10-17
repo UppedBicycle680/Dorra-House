@@ -1,7 +1,7 @@
 // Transport validation only. Match rules, clocks, visibility, resources and
 // rewards are implemented once, by dorra_war_command in PostgreSQL.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const actions = new Set(['list','create','join','start','view','order','research','build','produce','diplomacy','pause','resume','retire','reward']);
+const actions = new Set(['list','create','join','start','view','order','research','build','produce','diplomacy','pause','resume','retire','reward','gold-wallet','boost-quote','boost']);
 const origins = new Set(['https://uppedbicycle680.github.io','http://localhost:4173','http://127.0.0.1:4173','http://localhost:4180','http://127.0.0.1:4180']);
 const publicErrors = {
   AUTH_SESSION_ENDED:'Your sign-in session ended. Sign in again.', ACCOUNT_DISABLED:'This account is unavailable.',
@@ -43,6 +43,12 @@ const publicErrors = {
   ALLIANCE_REQUIRED:'Resource transfers require an alliance.', NO_DIPLOMATIC_OFFER:'There is no offer from that nation to answer.',
   MATCH_NOT_FINISHED:'Finish the match before claiming a reward.', REWARD_ALREADY_CLAIMED:'This match reward has already been claimed.',
   REWARD_INELIGIBLE:'This match is not eligible for a completion reward.', MATCH_CATCHING_UP:'The match is catching up. Retry this command shortly.',
+  INSUFFICIENT_GOLD:'Your account does not have enough Gold for this completion.',
+  BOOST_QUEUE_UNAVAILABLE:'This queue item has finished, changed or is no longer under your command.',
+  BOOST_QUOTE_UNAVAILABLE:'Request a current completion quote for your own queue item.',
+  BOOST_QUOTE_EXPIRED:'This quote expired. Request a new quote before spending Gold.',
+  BOOST_CONFIRM_REQUIRED:'Confirm the server quote before spending Gold.',
+  BOOST_ALREADY_COMPLETED:'This quoted queue item has already completed.',
   RESEARCH_ONLY:'This programme unlocks capabilities and cannot be mobilised as a formation.',
   NUCLEAR_UNAVAILABLE:'This nation cannot research or produce nuclear weapons.', INVALID_WAYPOINTS:'Choose up to eight valid waypoint provinces.'
 };
@@ -54,15 +60,18 @@ export function validateWarBody(body) {
   if (body.baseRevision!=null&&(!Number.isSafeInteger(body.baseRevision)||body.baseRevision<0)) fail('Invalid projection version.');
   if (!actions.has(body.action)) fail('Unknown war command.');
   if (!UUID.test(body.leaseId||'')) fail('A valid House gameplay lease is required.');
-  if (!['list','create'].includes(body.action) && !UUID.test(body.matchId||'')) fail('Choose a valid match.');
+  if (!['list','create','gold-wallet'].includes(body.action) && !UUID.test(body.matchId||'')) fail('Choose a valid match.');
   if (body.matchId!=null && !UUID.test(body.matchId)) fail('Invalid match identifier.');
-  if (!['list','view'].includes(body.action) && !UUID.test(body.requestId||'')) fail('A unique request ID is required.');
+  if (!['list','view','gold-wallet'].includes(body.action) && !UUID.test(body.requestId||'')) fail('A unique request ID is required.');
   if (body.requestId!=null && !UUID.test(body.requestId)) fail('Invalid request identifier.');
   const args=body.args??{};
   if (!args || typeof args!=='object' || Array.isArray(args)) fail('Use an argument object.');
   if (JSON.stringify(args).length>16000) fail('The command is too large.','PAYLOAD_TOO_LARGE',413);
-  const fields={list:['inviteCode','matchId'],view:[],create:['nationId','opponentNationId','template','opponent','pace','visibility','name','aiDifficulty'],join:['nationId','inviteCode'],start:[],pause:[],resume:[],retire:[],reward:[],research:['platformId'],produce:['provinceId','platformId'],build:['provinceId','facility'],diplomacy:['nationId','type','resources','platformId'],order:['unitIds','type','targetProvinceId','targetUnitId','waypoints']};
+  const fields={list:['inviteCode','matchId'],view:[],create:['nationId','opponentNationId','template','opponent','pace','visibility','name','aiDifficulty'],join:['nationId','inviteCode'],start:[],pause:[],resume:[],retire:[],reward:[],'gold-wallet':[],'boost-quote':['queueId'],boost:['quoteId','confirmed'],research:['platformId'],produce:['provinceId','platformId'],build:['provinceId','facility'],diplomacy:['nationId','type','resources','platformId'],order:['unitIds','type','targetProvinceId','targetUnitId','waypoints']};
   if(Object.keys(args).some(key=>!fields[body.action].includes(key)))fail('Only command intentions are accepted.');
+  if(body.action==='gold-wallet'&&body.matchId!=null)fail('The Gold wallet belongs to your account.');
+  if(body.action==='boost-quote'&&(typeof args.queueId!=='string'||!(/^[1-9][0-9]{0,18}$/).test(args.queueId)||BigInt(args.queueId)>9223372036854775807n))fail('Choose a valid queue item.');
+  if(body.action==='boost'&&(!UUID.test(args.quoteId||'')||args.confirmed!==true))fail('Confirm the server quote before spending Gold.','BOOST_CONFIRM_REQUIRED');
   if(args.inviteCode!=null&&!UUID.test(args.inviteCode))fail('Use a valid operation invite code.');
   if(args.matchId!=null&&!UUID.test(args.matchId))fail('Choose a valid operation.');
   if (body.action==='create') {
@@ -100,7 +109,7 @@ export function createWarHandler({getUser,rpc,project}) {
       let claims;try{claims=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));}catch{fail('Invalid sign-in token.','UNAUTHORIZED',401);}
       if(!UUID.test(claims.session_id||''))fail('Your sign-in session ended.','AUTH_SESSION_ENDED',401);
       const input=await boundedJson(request);
-      const response=await rpc('dorra_war_command',{p_user_id:user.id,p_auth_session_id:claims.session_id,p_lease_id:input.leaseId,p_action:input.action,p_match_id:input.matchId??null,p_args:input.args,p_request_id:['list','view'].includes(input.action)?null:input.requestId??null});
+      const response=await rpc('dorra_war_command',{p_user_id:user.id,p_auth_session_id:claims.session_id,p_lease_id:input.leaseId,p_action:input.action,p_match_id:input.matchId??null,p_args:input.args,p_request_id:['list','view','gold-wallet'].includes(input.action)?null:input.requestId??null});
       if(response.error) {
         const code=Object.keys(publicErrors).find(key=>response.error.message?.includes(key));
         if(code)fail(publicErrors[code],code,code==='RATE_LIMIT'?429:code==='AUTH_SESSION_ENDED'?401:['ACCOUNT_DISABLED','MATCH_FORBIDDEN'].includes(code)?403:409);

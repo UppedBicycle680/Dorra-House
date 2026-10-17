@@ -53,7 +53,8 @@ begin
  assert exists(select 1 from dorra_private.war_units where match_id=paused_id),'paused units survive regardless of age';
  assert exists(select 1 from dorra_private.war_provinces where match_id=paused_id),'paused province progress survives';
  assert exists(select 1 from dorra_private.war_reports where match_id=paused_id),'paused reports survive';
- assert position('419430400' in pg_get_functiondef('public.dorra_war_command(uuid,uuid,uuid,text,uuid,jsonb,uuid)'::regprocedure))>0,'new-world storage guard reserves Free capacity';
+ assert position('419430400' in pg_get_functiondef('dorra_private.war_command_without_gold(uuid,uuid,uuid,text,uuid,jsonb,uuid)'::regprocedure))>0
+  and position('dorra_private.war_command_without_gold' in pg_get_functiondef('public.dorra_war_command(uuid,uuid,uuid,text,uuid,jsonb,uuid)'::regprocedure))>0,'delegated new-world storage guard reserves Free capacity';
  raise notice 'War runtime and retention regression tests passed';
 end $$;
 rollback;

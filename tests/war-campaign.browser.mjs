@@ -24,6 +24,8 @@ async function selectProvince(h, id) {
   await h.press(`[data-action="province"][data-id="${id}"]`);
 }
 
+async function selectResearchBranch(h, id) { const picker = h.page.locator('#researchBranch'); if (await picker.isVisible()) await picker.selectOption(id); else await h.press('[data-action="branch"][data-id="' + id + '"]'); }
+
 test('desktop and native-touch solo campaigns complete through real gateway, PostgreSQL combat, victory and reward', { timeout: 240000 }, async t => {
   const db = await campaignDatabase(), browser = await launchBrowser();
   try {
@@ -41,7 +43,7 @@ test('desktop and native-touch solo campaigns complete through real gateway, Pos
         assert.equal(state.view.match.aiDifficulty, 'recruit');
         await h.press('[data-action="start"]'); await page.waitForSelector('[data-action="pause"]');
 
-        await h.press('[data-action="tab"][data-id="research"]'); await h.press('[data-action="branch"][data-id="industry"]');
+        await h.press('[data-action="tab"][data-id="research"]'); await selectResearchBranch(h, 'industry');
         await h.press('[data-action="research"][data-id="combined-arms-doctrine"]');
         await page.waitForFunction(() => document.querySelectorAll('.queue-card').length > 0);
         if (run.nation === 'FR') {
@@ -55,7 +57,7 @@ test('desktop and native-touch solo campaigns complete through real gateway, Pos
           assert.equal(await page.locator('.province-list button').count(), 1, 'Search reaches the real French capital beyond the former first sixty rows');
         }
         await selectProvince(h, capital);
-        assert.equal(await page.locator('.province-heading h3').textContent(), (await province(capital, run.nation)).name);
+        assert.equal(await page.locator('.province-command-title h3').textContent(), (await province(capital, run.nation)).name);
         await h.press('[data-action="build"][data-id="army-base"]');
         await h.press('[data-action="produce"][data-id="infantry-company"]');
         await h.press('[data-action="tab"][data-id="diplomacy"]');
@@ -71,12 +73,12 @@ test('desktop and native-touch solo campaigns complete through real gateway, Pos
           // Develop and pay for actual national fire support and armour rather
           // than sending an unsupported baseline assault into the capital.
           await selectProvince(h, capital); await h.press('[data-action="build"][data-id="army-base"]');
-          await h.press('[data-action="tab"][data-id="research"]'); await h.press('[data-action="branch"][data-id="artillery-air-defense"]');
+          await h.press('[data-action="tab"][data-id="research"]'); await selectResearchBranch(h, 'artillery-air-defense');
           await h.press('[data-action="research"][data-id="caesar"]'); await h.advance(6 * 3600);
           await selectProvince(h, capital); await h.press('[data-action="produce"][data-id="caesar"]');
           await h.advance(15 * 3600);
           if (!state.view.player.research.includes('leclerc')) {
-            await h.press('[data-action="tab"][data-id="research"]'); await h.press('[data-action="branch"][data-id="armor"]');
+            await h.press('[data-action="tab"][data-id="research"]'); await selectResearchBranch(h, 'armor');
             await h.press('[data-action="research"][data-id="leclerc"]'); await h.advance(6 * 3600);
           }
           await selectProvince(h, capital); await h.press('[data-action="produce"][data-id="leclerc"]'); await h.advance(4 * 3600);
@@ -110,7 +112,7 @@ test('desktop and native-touch solo campaigns complete through real gateway, Pos
         assert.equal(await savedBalance(), expectedBalance, 'Only the actual finished-match reward changes the House wallet');
         await page.reload(); await page.waitForSelector('#commandNav:not([hidden])');
         await h.press('[data-action="tab"][data-id="operation"]');
-        assert.match(await page.locator('[data-action="reward"]').textContent(), /House reward settled/);
+        assert.match(await page.locator('[data-action="reward"]').textContent(), /Rewards settled/);
         assert.equal(await page.locator('[data-action="reward"]').isDisabled(), true);
         assert.equal(await savedBalance(), expectedBalance, 'Reloading a completed campaign cannot settle its reward twice');
         assert.equal(await page.locator('body').evaluate(element => element.scrollWidth <= innerWidth), true);

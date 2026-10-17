@@ -35,6 +35,12 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
    const initial=await acquire(actor);assert.equal(initial.snapshot.balance,1000);
   }
   const [a,b]=actors;pass('Two registered accounts acquire protected House gameplay leases');
+  stage='Account Gold wallets';
+  for(const actor of actors){
+   const wallet=(await war(actor,'gold-wallet')).gold;assert.equal(wallet.balance,0);assert.equal(wallet.version,0);assert.equal(wallet.purchasesAvailable,false);assert.equal(wallet.pricingVersion,'queue-v1');assert.equal(wallet.goldPerGameHour,10);assert.deepEqual(wallet.history,[]);
+  }
+  await rejected(a,'gold-wallet',{userId:b.id},null,['INVALID_COMMAND']);
+  pass('Both accounts start with zero private Gold, no purchases or ledger credits, and cannot request another wallet');
   stage='Solo operation';let value=await war(a,'create',{nationId:'AU',opponentNationId:'NZ',template:'duel',opponent:'ai',aiDifficulty:'recruit',pace:'fast',visibility:'public',name:'War QA Solo'});
   const solo=value.view.match.id;worlds.add(solo);report.soloMatchId=solo;assert.equal(value.view.player.nationId,'AU');assert.equal(value.view.match.status,'lobby');assert.equal(value.view.match.aiDifficulty,'recruit');assert.equal(value.view.match.opponentNationId,'NZ');assert.ok(value.view.units.length>0);
   assert.ok(value.view.catalog.platforms.some(p=>p.sourceUrl),'Source-backed national arsenal');
@@ -56,8 +62,20 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
   const replay=await war(a,'produce',{provinceId:base.id,platformId:platform.id},solo,{requestId});assert.equal(replay.replayed,true);assert.equal(replay.view.player.productionQueue.length,produced.view.player.productionQueue.length);
   const programme=view.catalog.platforms.find(p=>p.id==='combined-arms-doctrine');
   if(programme&&!view.player.research.includes(programme.id))await war(a,'research',{platformId:programme.id},solo);
-  await war(a,'build',{provinceId:base.id,facility:'army-base'},solo);
+  const built=await war(a,'build',{provinceId:base.id,facility:'army-base'},solo);
   pass('Production retries replay once; timed research and facility upgrades use server costs');
+  stage='Server Gold quote and unfunded confirmation';
+  const queue=built.view.player.buildQueue.find(item=>item.provinceId===base.id&&item.facility==='army-base');assert.ok(queue);assert.match(queue.id,/^[1-9][0-9]*$/);assert.equal(typeof queue.id,'string');
+  const quoted=await war(a,'boost-quote',{queueId:queue.id},solo),quote=quoted.quote;
+  assert.equal(quote.queueId,queue.id);assert.equal(quote.kind,'build');assert.equal(quote.pricingVersion,'queue-v1');assert.ok(quote.label&&quote.quoteId);assert.ok(quote.remainingGameSeconds>0);
+  assert.equal(quote.goldCost,Math.max(1,Math.ceil(quote.remainingGameSeconds/3600*quoted.gold.goldPerGameHour)));assert.ok(quote.goldCost>0);
+  assert.equal(quoted.gold.balance,0);assert.ok(!Object.hasOwn(quoted.gold,'history'),'Quote replies keep only the compact Gold summary');
+  await rejected(a,'boost',{quoteId:quote.quoteId,confirmed:true},solo,['INSUFFICIENT_GOLD']);
+  const unboosted=(await war(a,'view',{},solo)).view;
+  assert.ok(unboosted.player.buildQueue.some(item=>item.id===queue.id&&item.due===queue.due),'Rejected spending cannot consume or accelerate the paid queue');
+  assert.equal(unboosted.provinces.find(item=>item.id===base.id).facilities['army-base'],built.view.provinces.find(item=>item.id===base.id).facilities['army-base']);
+  const emptyWallet=(await war(a,'gold-wallet')).gold;assert.equal(emptyWallet.balance,0);assert.equal(emptyWallet.version,0);assert.deepEqual(emptyWallet.history,[]);
+  pass('Server-priced queue quotes require explicit confirmation and insufficient Gold neither completes work nor creates financial receipts');
   stage='Solo pause and resume';const paused=(await war(a,'pause',{},solo)).view;assert.equal(paused.match.status,'paused');assert.equal(paused.match.aiDifficulty,'recruit');
   await new Promise(resolve=>setTimeout(resolve,1000));const stationary=(await war(a,'view',{},solo)).view;assert.equal(stationary.match.gameTime,paused.match.gameTime);
   await war(a,'resume',{},solo);await war(a,'retire',{},solo);worlds.delete(solo);pass('Paused solo time remains fixed and resume restores the same world');
@@ -73,27 +91,64 @@ export async function checkWarOnline({fetchImpl=fetch,browser=false,source=false
   const own=bv.units.find(u=>u.nationId==='NZ');assert.ok(own);await rejected(a,'order',{type:'split',unitIds:[own.id]},duel,['UNIT_NOT_OWNED']);
   await rejected(a,'pause',{},duel,['SOLO_PAUSE_ONLY']);
   assert.ok(!av.units.some(u=>u.nationId==='NZ'),'Distant enemy formations remain fogged');pass('Two accounts command distinct nations; foreign orders and multiplayer pause are rejected');
+  stage='Foreign Gold queue and quote isolation';
+  const duelBase=av.provinces.find(item=>item.ownerId==='AU'&&item.facilities?.['army-base']);assert.ok(duelBase);
+  const duelBuilt=await war(a,'build',{provinceId:duelBase.id,facility:'army-base'},duel);
+  const ownQueue=duelBuilt.view.player.buildQueue.find(item=>item.provinceId===duelBase.id&&item.facility==='army-base');assert.ok(ownQueue);assert.equal(typeof ownQueue.id,'string');
+  await rejected(b,'boost-quote',{queueId:ownQueue.id},duel,['BOOST_QUEUE_UNAVAILABLE']);
+  const ownQuote=(await war(a,'boost-quote',{queueId:ownQueue.id},duel)).quote;assert.equal(ownQuote.queueId,ownQueue.id);
+  await rejected(b,'boost',{quoteId:ownQuote.quoteId,confirmed:true},duel,['BOOST_QUOTE_UNAVAILABLE']);
+  assert.ok((await war(a,'view',{},duel)).view.player.buildQueue.some(item=>item.id===ownQueue.id),'A foreign attempt cannot consume an owned queue');
+  for(const actor of actors){const wallet=(await war(actor,'gold-wallet')).gold;assert.equal(wallet.balance,0);assert.equal(wallet.version,0);assert.deepEqual(wallet.history,[]);}
+  pass('Match members cannot quote another nation’s queue or spend its Gold quote, and rejected attempts leave both ledgers empty');
   stage='Lease takeover and independent economies';const previous=a.lease;a.lease=randomUUID();const restored=await acquire(a);assert.equal(restored.snapshot.balance,1000,'War spending never changes House cash');
-  const old={...a,lease:previous};await rejected(old,'view',{},duel,['SESSION_REPLACED']);assert.equal((await war(a,'view',{},duel)).view.match.id,duel);
+  const old={...a,lease:previous};await rejected(old,'view',{},duel,['SESSION_REPLACED']);await rejected(old,'gold-wallet',{},null,['SESSION_REPLACED']);assert.equal((await war(a,'view',{},duel)).view.match.id,duel);
   const direct=await http(SUPABASE_URL+'/rest/v1/rpc/dorra_war_command',{actor:a,body:{p_user_id:a.id,p_auth_session_id:randomUUID(),p_lease_id:a.lease,p_action:'list'}});assert.ok(!direct.ok,'Private storage RPC rejects player role');
   pass('Device takeover preserves matches, revokes old leases, and cannot access storage RPCs');
   if(browser){
    stage=source?'Real-backend browser source verification':'Published desktop and mobile verification';
    const {chromium}=await import('playwright');browserInstance=await chromium.launch({headless:true,...(process.env.DORRA_CHROMIUM_PATH?{executablePath:process.env.DORRA_CHROMIUM_PATH}:{}),args:['--no-sandbox']});
    for(const [actor,viewport,label]of [[a,{width:1440,height:900},'desktop'],[b,{width:320,height:740},'mobile']]){
-    const context=await browserInstance.newContext({viewport});await context.addInitScript(session=>localStorage.setItem('dorra-online-auth',JSON.stringify(session)),actor.session);
+    const context=await browserInstance.newContext({viewport,hasTouch:label==='mobile',isMobile:label==='mobile'});await context.addInitScript(session=>localStorage.setItem('dorra-online-auth',JSON.stringify(session)),actor.session);
     if(source){const {serveSource}=await import('../tests/browser-helpers.mjs');await context.route(origin+'/Dorra-House/**',serveSource);}
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
     page.on('request',request=>{if([endpoint,API_URL].includes(request.url())&&request.method()==='POST'){try{const body=request.postDataJSON();if(typeof body.leaseId==='string')actor.lease=body.leaseId;}catch{}}});
     await page.goto((process.env.DORRA_SITE_URL||origin+'/Dorra-House/')+'war-simulation.html?match='+duel,{waitUntil:'domcontentloaded'});
     await page.locator('#commandNav').waitFor({state:'visible',timeout:60000});await page.locator('#resourceBar').waitFor({state:'visible'});
     await page.locator('[data-action="tab"][data-id="research"]').click();await page.getByRole('heading',{name:'Research programmes'}).waitFor({state:'visible'});
-    assert.ok(await page.locator('.branch-tabs button').count()>=8);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    const branches=page.locator('.research-branches [data-action="branch"]'),modernResearch=await branches.count()>0;
+    if(modernResearch){
+     assert.equal(await branches.count(),8);
+     if(label==='mobile'){
+      const picker=page.locator('#researchBranch');await picker.waitFor({state:'visible'});assert.equal(await picker.locator('option').count(),8);
+      await picker.selectOption('industry');assert.equal(await picker.inputValue(),'industry');
+      assert.equal(await page.locator('.research-branches [data-action="branch"][data-id="industry"]').getAttribute('aria-pressed'),'true');
+      await picker.selectOption('infantry');
+     }else{
+      await page.locator('.research-branches [data-action="branch"][data-id="industry"]').click();
+      assert.equal(await page.locator('.research-branches [data-action="branch"][data-id="industry"]').getAttribute('aria-pressed'),'true');
+      await page.locator('.research-branches [data-action="branch"][data-id="infantry"]').click();
+     }
+     assert.equal(await page.locator('.research-branches [data-action="branch"][data-id="infantry"]').getAttribute('aria-pressed'),'true');
+    }else assert.ok(await page.locator('.branch-tabs button').count()>=8,'The previously published research controls remain supported during deployment');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    if(modernResearch){
+     const goldButton=page.locator('#goldBalance [data-action="gold-wallet"]');await goldButton.waitFor({state:'visible'});assert.equal((await goldButton.locator('strong').textContent()).trim(),'0');
+     const walletResponse=page.waitForResponse(response=>response.url()===endpoint&&response.request().method()==='POST'&&response.request().postDataJSON()?.action==='gold-wallet');
+     await goldButton.click();const walletHttp=await walletResponse;assert.ok(walletHttp.ok());const wallet=(await walletHttp.json()).gold;
+     assert.equal(wallet.balance,0);assert.equal(wallet.purchasesAvailable,false);assert.deepEqual(wallet.history,[]);
+     await page.waitForFunction(()=>document.querySelector('#commandDialog')?.open&&document.querySelector('#dialogTitle')?.textContent==='Your Gold wallet');
+     assert.equal((await page.locator('#dialogBody .wallet-hero strong').textContent()).trim(),'0');assert.equal(await page.locator('#dialogBody .wallet-history > div').count(),0);
+     assert.match(await page.locator('#dialogBody').textContent(),/Gold cannot be purchased or exchanged for money/);
+     assert.equal(await page.locator('#commandDialog').getByRole('button',{name:/buy|purchase|checkout/i}).count(),0);
+     await page.locator('#dialogCancel').click();await page.waitForFunction(()=>!document.querySelector('#commandDialog')?.open);
+    }
     await page.locator('[data-action="tab"][data-id="intelligence"]').click();await page.locator('.force-row').first().click();
     await page.locator('#formationDetails summary').click();assert.match(await page.locator('.formation-support').textContent(),/Supply|Entrenchment/);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     await mkdir('work',{recursive:true});await page.screenshot({path:'work/war-live-'+label+'.png'});assert.deepEqual(errors,[]);
-    pass(label+' opens the actual 1v1, displays research and private formation readiness, and fits its viewport without JavaScript errors');
+    pass(label+' opens the actual 1v1, displays '+(modernResearch?'native research controls, a private zero-Gold wallet with no purchases, and ':'research and ')+'private formation readiness, and fits its viewport without JavaScript errors');
+    await context.close();
    }
   }
   report.ok=true;

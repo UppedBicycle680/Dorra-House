@@ -27,6 +27,7 @@ export function createAdminHandler({getUser,rpc,ipHash,setPassword,passwordBindi
       if(input.operation==='dismiss')return reply(await call('dorra_player_dismiss',{p_message:input.args.messageId}));
       if(input.operation==='status')return reply(await call('dorra_admin_status'));
       if(input.operation==='owner-open')return reply(await call('dorra_owner_open'));
+      if(input.operation==='gold-grant')return reply(await call('dorra_admin_gold_grant',{p_target:input.args.targetId,p_amount:input.args.amount,p_reason:input.args.reason,p_request:input.requestId}));
       if(input.operation==='lock'){await call('dorra_admin_lock');return reply({locked:true});}
       if(input.operation==='unlock'){
         const attempt=await call('dorra_admin_attempt',{p_ip:await ipHash(request)});
