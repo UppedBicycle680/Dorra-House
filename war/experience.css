@@ -1,0 +1,183 @@
+/* Equipment-focused command surfaces. The political map remains the playfield. */
+.war-page { --panel-raised: #1d2b31; --panel-deep: #101c23; --text-soft: #acbebf; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.role-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.unit-art { position: relative; background-color: #263238; overflow: hidden; }
+.unit-art::before { content: ''; position: absolute; width: 100%; aspect-ratio: 1; top: 50%; left: 0; transform: translateY(-50%); background-image: url('../assets/war/art/role-atlas.png'); background-size: 400% 200%; background-position: inherit; background-repeat: no-repeat; }
+.unit-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg,#111d25bb,transparent 58%); pointer-events: none; }
+.unit-art > .role-icon { position: absolute; bottom: 10px; left: 12px; z-index: 1; color: #f3e5bd; filter: drop-shadow(0 2px 3px #000); }
+.art-infantry { background-position: 0 0; }
+.art-armor { background-position: 33.333333% 0; }
+.art-artillery-air-defense { background-position: 66.666667% 0; }
+.art-aviation { background-position: 100% 0; }
+.art-naval { background-position: 0 100%; }
+.art-missiles { background-position: 33.333333% 100%; }
+.art-intelligence-support { background-position: 66.666667% 100%; }
+.art-industry { background-position: 100% 100%; }
+.inline-link { border: 0; background: none; padding: 8px 0; color: var(--gold-light); text-align: left; font-size: 11px; line-height: 1.5; cursor: pointer; }
+.inline-link:hover { color: #f5dfaa; text-decoration: underline; }
+.war-page button:focus-visible,.war-page a:focus-visible,.war-page input:focus-visible,.war-page select:focus-visible { outline: 2px solid #e9cf8d; outline-offset: 3px; }
+.war-page .close-button { min-width: 44px; min-height: 44px; font-size: 25px; display: grid; place-content: center; }
+.command-header { gap: 18px; }
+.gold-balance { flex-shrink: 0; }
+.gold-wallet-button { display: flex; align-items: center; gap: 9px; border: 1px solid #d4bb7833; background: #cfb77c08; padding: 7px 11px; min-height: 44px; border-radius: 4px; text-align: left; }
+.gold-wallet-button small { display: block; color: #d2ba7d; font-size: 8px; letter-spacing: 1.4px; }
+.gold-wallet-button strong { font-size: 13px; color: #f0d9a2; font-variant-numeric: tabular-nums; }
+.gold-emblem { display: inline-grid; place-content: center; border: 1px solid #d8bd73; box-shadow: inset 0 0 0 3px #18242a,inset 0 0 0 4px #b59b5c; width: 29px; height: 29px; border-radius: 50%; color: #edce80; font-family: Georgia,serif; font-size: 17px; }
+.gold-more { color: #d7bf83; font-size: 16px; }
+.command-drawer[data-section="research"] { width: min(1090px,calc(100% - 150px)); max-width: none; background: #132129; }
+.command-drawer[data-section="industry"] { width: min(700px,calc(100% - 150px)); max-width: none; }
+.command-drawer[data-section="research"] .drawer-body { padding: 0; }
+.command-drawer[data-section="research"] .drawer-header { background: #17262e; padding-bottom: 17px; }
+.research-overview { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 24px 15px; }
+.research-overview p { font-size: 12px; margin: 6px 0 0; color: var(--text-soft); max-width: 480px; }
+.research-slot-count { text-align: right; flex-shrink: 0; }
+.research-slot-count strong { color: #f1dfac; font-size: 28px; font-weight: 500; }
+.research-slot-count strong span { font-size: 17px; color: #81989e; }
+.research-slot-count small { display: block; font-size: 8px; letter-spacing: 1.2px; color: #9bb0b2; }
+.active-research-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 0 24px 22px; border-bottom: 1px solid var(--line); }
+.queue-visual { display: flex; gap: 12px; align-items: center; padding: 12px; min-width: 0; background: #1b2a31; border: 1px solid #aab8b21a; border-radius: 4px; margin: 0; }
+.queue-art { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 3px; }
+.queue-art::after { background: #0b151b26; }
+.queue-art > .role-icon { display: none; }
+.queue-content { flex: 1; min-width: 0; }
+.queue-content strong { font-size: 12px; display: block; overflow-wrap: anywhere; }
+.queue-content > span { font-size: 10px; color: #a3b8b9; display: block; margin-top: 5px; }
+.queue-bar { height: 3px; margin-top: 10px; background: #ffffff0b; }
+.queue-bar i { display: block; height: 100%; background: #cbb273; }
+.queue-bar.indeterminate i { width: 25%; opacity: .65; }
+.boost-button { color: #e8ca82; background: #c5a9600d; border: 1px solid #cdb27640; border-radius: 3px; padding: 9px; font-size: 10px; min-height: 44px; white-space: nowrap; }
+.boost-button > span { font-size: 15px; }
+.boost-button:disabled { opacity: .45; }
+.research-open-slot,.queue-empty { display: flex; align-items: center; gap: 11px; min-height: 73px; border: 1px dashed #a2b0a72b; border-radius: 4px; padding: 14px; color: #9eafb0; }
+.research-open-slot > span { font-size: 27px; color: #c5ae73; }
+.research-open-slot strong { font-size: 11px; font-weight: 500; display: block; color: #bac9c8; }
+.research-open-slot small { font-size: 10px; display: block; margin-top: 5px; }
+.queue-empty { font-size: 11px; min-height: 52px; }
+.research-workbench { display: grid; grid-template-columns: 150px minmax(0,1fr) 265px; }
+.mobile-research-branch-picker { display: none; }
+.mobile-tree-back { display: none; }
+.research-branches { display: flex; flex-direction: column; gap: 3px; padding: 16px 8px; background: #0f1d24; border-right: 1px solid var(--line); }
+.research-branches button { display: flex; align-items: center; gap: 9px; border: 1px solid transparent; background: transparent; border-radius: 3px; min-height: 63px; padding: 10px 8px; text-align: left; font-size: 11px; line-height: 1.45; color: #a6b9bb; }
+.research-branches button > span { min-width: 0; }
+.research-branches button small { display: block; font-size: 8px; color: #7e959c; margin-top: 5px; }
+.research-branches button.active { background: #cfb77c0c; border-color: #cfb77c3d; color: #e6cf98; }
+.research-branches button.active small { color: #b6aa8e; }
+.research-main { padding: 21px 19px; min-width: 0; }
+.research-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 17px; }
+.research-toolbar h3 { margin: 0; font-size: 18px; font-weight: 500; }
+.research-toolbar p { margin: 5px 0 0; color: #91a6ac; font-size: 10px; line-height: 1.5; }
+.research-toolbar .inline-link { max-width: 100px; font-size: 10px; padding: 0; }
+.research-main .search-field { margin: 0 0 13px; min-height: 42px; font-size: 11px; }
+.research-tree-legend { display: flex; gap: 9px 12px; flex-wrap: wrap; font-size: 9px; color: #a9bbbd; margin-bottom: 19px; }
+.research-tree-legend span { display: flex; align-items: center; gap: 5px; }
+.research-tree-legend i { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #60747d; }
+.research-tree-legend i.complete { background: #72b7a1; }.research-tree-legend i.available { background: #d5bd80; }.research-tree-legend i.researching { background: #84b1cf; }
+.research-tier-board { display: grid; gap: 24px; }
+.research-tier { min-width: 0; }
+.research-tier > h4 { margin: 0 0 10px; display: flex; align-items: center; gap: 12px; }
+.research-tier > h4 span { color: #d2bd8b; font-size: 10px; font-weight: 500; letter-spacing: 1.2px; }
+.research-tier > h4 small { font-size: 9px; font-weight: 400; color: #7e969c; }
+.research-tier > h4::after { content: ''; height: 1px; background: #a8b3a522; flex: 1; }
+.research-tier-nodes { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.research-node.equipment-card { border: 1px solid #52606a55; background: #1c2a32; padding: 0; border-radius: 4px; overflow: hidden; margin: 0; transition: border-color .15s,background .15s; }
+.research-node.selected { border-color: #e2c77b; box-shadow: 0 0 0 1px #d4b56a26; }
+.research-node.state-complete { border-top-color: #71ad98; }.research-node.state-available { border-top-color: #d6b970; }.research-node.state-researching { border-top-color: #80b1d0; }
+.research-select { display: block; border: 0; padding: 0; width: 100%; text-align: left; background: transparent; color: inherit; }
+.research-art { height: 85px; }
+.research-art > .role-icon { width: 20px; height: 20px; }
+.research-node-copy { display: block; padding: 11px 12px 4px; }
+.node-state { font-size: 8px; color: #a4b5b5; letter-spacing: .2px; display: flex; gap: 5px; }
+.node-state i { font-style: normal; }.state-complete .node-state { color: #91c5ad; }.state-available .node-state { color: #e0c58a; }.state-researching .node-state { color: #a0c6dc; }
+.research-node h3 { font-size: 12px; line-height: 1.4; margin: 8px 0 4px; font-weight: 550; }
+.node-role { font-size: 9px; color: #a2b3b5; display: block; line-height: 1.5; }
+.node-dependencies { padding: 5px 12px 10px; min-height: 31px; color: #7c959c; font-size: 8px; line-height: 1.5; }
+.node-dependencies button { color: #a4b6b8; padding: 3px 0; text-align: left; font-size: 9px; line-height: 1.6; border: 0; background: none; min-height: 26px; }
+.node-dependencies button.met { color: #8db9a6; }
+.research-node-footer { border-top: 1px solid #ffffff09; padding: 9px 11px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.research-node-footer > span { font-size: 9px; color: #a7b7b8; }
+.research-node-footer .button { min-height: 36px; font-size: 9px; padding: 7px 9px; }
+.research-tree-note { color: #819ba2; font-size: 10px; line-height: 1.7; margin-top: 22px; }
+.research-inspector { min-width: 0; border-left: 1px solid var(--line); background: #17262d; }
+.inspector-art { height: 170px; }.inspector-art > .role-icon { width: 31px; height: 31px; bottom: 15px; left: 18px; }
+.inspector-content { padding: 20px 17px; }
+.inspector-content > .eyebrow { font-size: 8px; letter-spacing: 1px; }
+.inspector-content > h3 { margin: 8px 0 12px; font-size: 22px; line-height: 1.2; font-weight: 500; }
+.unit-role-label { color: #cbb985; font-size: 10px; line-height: 1.5; display: flex; align-items: center; gap: 7px; }
+.inspector-content .unit-role-label { margin-top: 18px; }
+.inspector-content p { color: #adc0c1; font-size: 11px; line-height: 1.75; }
+.arsenal-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 16px; margin: 18px 0; }
+.arsenal-stats dt { color: #829ca3; font-size: 9px; line-height: 1.4; }
+.arsenal-stats dd { margin: 4px 0 0; font-size: 16px; color: #e6e9df; font-variant-numeric: tabular-nums; }
+.arsenal-stats dd small { font-size: 8px; color: #91a7ab; margin-left: 4px; }
+.role-counters { border-block: 1px solid var(--line); padding: 10px 0; margin: 15px 0; }
+.role-counters h4,.inspector-content > h4 { color: #d2c295; font-size: 10px; margin: 12px 0 8px; font-weight: 500; }
+.role-counters p { font-size: 10px; margin: 5px 0; }
+.research-requirements { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 9px; }
+.research-requirements li { display: flex; align-items: baseline; gap: 8px; font-size: 10px; line-height: 1.7; color: #a6b8bb; }
+.research-requirements .met > span:first-child { color: #7db69e; }.research-requirements .unmet > span:first-child { color: #dfbe75; }
+.research-requirements .inline-link { min-height: 30px; padding: 2px; font-size: 9px; }
+.inspector-cost { padding: 15px 0; margin-top: 10px; border-top: 1px solid var(--line); }.inspector-cost .field-label { font-size: 8px; }
+.inspector-cost .cost-line { font-size: 11px; gap: 10px; }.cost-line i { font-style: normal; color: #cab171; }
+.inspector-content > .button { margin-top: 9px; min-height: 44px; }
+.art-disclosure,.inspector-content .art-disclosure { font-size: 9px; color: #78949d; line-height: 1.7; margin-top: 18px; }
+.source-link { font-size: 10px; color: #b5ac90; }
+.province-command-title { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 17px 0 8px; }
+.province-command-title h3 { font-size: 27px; margin: 7px 0; font-weight: 500; }
+.province-morale { text-align: right; color: #9cc4ac; }.province-morale strong { font-size: 21px; font-weight: 500; }.province-morale small { display: block; font-size: 8px; color: #95aeb0; letter-spacing: 1px; margin-top: 4px; }
+.province-summary,.section-intro { font-size: 11px; line-height: 1.7; color: #a0b6b9; }
+.industry-jump-nav { display: flex; gap: 5px; border-bottom: 1px solid var(--line); margin: 20px 0; padding-bottom: 12px; }
+.industry-jump-nav button { border: 1px solid #b2bfa62e; background: #ffffff03; padding: 10px 13px; font-size: 11px; color: #cfceba; min-height: 44px; border-radius: 3px; }
+.industry-jump-nav button span { color: #b7a471; margin-left: 4px; }
+.industry-queues { display: grid; gap: 9px; }.industry-queues .section-label { margin: 4px 0; }
+#industry-mobilisation,#industry-infrastructure,#industry-queues { scroll-margin-top: 10px; }
+.production-filters { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; margin: 15px 0 9px; }.production-filters select { min-height: 44px; font-size: 12px; }
+.filter-button { padding: 8px 13px; background: transparent; border: 1px solid #c8bd9a35; border-radius: 3px; font-size: 11px; color: #b4c1bc; }.filter-button.active { border-color: var(--gold); color: var(--gold-light); background: #cfb77c0a; }
+.arsenal-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-top: 16px; }
+.arsenal-card.equipment-card { padding: 0; background: #1a2a32; border: 1px solid #a9b1a724; border-radius: 4px; overflow: hidden; margin: 0; }
+.arsenal-art { height: 118px; }.arsenal-card-content { padding: 15px; }.arsenal-card .equipment-top { flex-direction: column; gap: 10px; align-items: flex-start; }
+.arsenal-card h3 { margin-top: 5px; font-size: 16px; font-weight: 500; line-height: 1.35; }.arsenal-card .unit-role-label { font-size: 9px; }
+.arsenal-card p { font-size: 11px; line-height: 1.7; }.arsenal-card .arsenal-stats { margin-block: 14px; gap: 10px; }.arsenal-card .arsenal-stats dd { font-size: 14px; }
+.arsenal-card .equipment-bottom { display: block; }.arsenal-card .cost-line { font-size: 10px; gap: 8px; }.arsenal-card .equipment-bottom .button { width: 100%; margin-top: 12px; min-height: 44px; font-size: 11px; }.arsenal-card .inline-link { font-size: 10px; min-height: 38px; }
+.infrastructure-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }.infrastructure-grid .facility-row { padding: 15px; border: 1px solid #aab6ac22; border-radius: 3px; background: #1b2930; }.infrastructure-grid .facility-row h3 { font-size: 13px; }.infrastructure-grid .facility-row p { font-size: 11px; line-height: 1.7; }.infrastructure-grid .equipment-bottom { display: block; }.infrastructure-grid .equipment-bottom .button { width: 100%; min-height: 44px; margin-top: 13px; }
+.selection-art { width: 71px; height: 71px; flex: 0 0 71px; border-radius: 3px; margin-right: 2px; }.selection-art > .role-icon { width: 19px; height: 19px; bottom: 5px; left: 6px; }.selection-top > div:not(.unit-art) { flex: 1; }
+.formation-details-body { max-height: none; overflow: visible; }.formation-details summary { min-height: 44px; }.unit-actions button { min-height: 44px; }.selection-panel .inline-link { min-height: 40px; }
+.dossier-art { height: 220px; margin: 17px 0 20px; border-radius: 4px; }.command-dialog .arsenal-stats { grid-template-columns: repeat(3,minmax(0,1fr)); }.command-dialog .role-counters p { color: #b1c3c2; }
+.command-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; }.command-dialog h2 { line-height: 1.25; }.command-dialog .button { min-height: 44px; }
+.dialog-dismiss { position: absolute; right: 9px; top: 8px; }
+.command-dialog #dialogTitle { padding-right: 24px; }
+.wallet-hero { display: flex; align-items: center; gap: 17px; margin: 22px 0; padding: 22px; background: #c9ad6710; border: 1px solid #c9ad672a; border-radius: 4px; }.wallet-hero .gold-emblem { width: 52px; height: 52px; font-size: 27px; }.wallet-hero strong { font-size: 37px; font-weight: 500; color: #ead09b; }.wallet-hero small { display: block; font-size: 9px; letter-spacing: 1.5px; color: #b7b296; }
+.wallet-history > div > span { min-width: 0; overflow-wrap: anywhere; }
+.research-node h3,.arsenal-card h3 { overflow-wrap: anywhere; }
+.wallet-rules { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 10px; }.wallet-rules h3,.wallet-history-title { font-size: 14px; font-weight: 500; color: #d4c293; }.wallet-rules p { font-size: 12px; line-height: 1.8; }.wallet-history-title { margin-top: 25px; }.wallet-history > div { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }.wallet-history strong { font-size: 11px; font-weight: 500; }.wallet-history small { display: block; color: #829ba2; font-size: 10px; margin-top: 4px; }.wallet-history b { white-space: nowrap; font-size: 12px; color: #d4bb87; }.wallet-history b.credit { color: #91bfaa; }
+.boost-dossier { display: flex; align-items: center; gap: 14px; padding: 17px; background: #c8b77b0b; border: 1px solid #c8b77b22; margin: 20px 0; }.boost-dossier p { font-size: 11px; margin: 5px 0 0; }.boost-price { display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid var(--line); padding: 10px 0 17px; font-size: 12px; }.boost-price strong { font-size: 23px; font-weight: 500; color: #ead09b; }
+.lobby-art-banner { height: 90px; margin: -34px -29px 24px; background-image: linear-gradient(0deg,#162128,#16212800 90%),url('../assets/war/art/role-atlas.png'); background-size: 100% 100%,200% 200%; background-position: center,0 0; opacity: .85; }
+@media(min-width:1400px) { .research-tier-nodes { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(min-width:701px) and (max-width:1150px) { .command-context { display: none; }.command-header { gap: 12px; }.research-workbench { grid-template-columns: 132px minmax(0,1fr); }.research-inspector { grid-column: 2; border-top: 1px solid var(--line); border-left: 0; display: grid; grid-template-columns: 180px 1fr; }.inspector-art { height: 100%; max-height: 300px; }.research-tier-nodes { grid-template-columns: repeat(2,minmax(0,1fr)); }.active-research-grid { grid-template-columns: 1fr; }.infrastructure-grid { grid-template-columns: 1fr; } }
+@media(max-width:700px) {
+  .command-header { gap: 9px; }.command-brand > span:last-child { font-size: 13px; }.command-brand small { font-size: 6px; letter-spacing: 1.5px; }.command-brand { gap: 7px; }.brand-mark { font-size: 26px; }
+  .gold-balance { margin-left: auto; }.gold-wallet-button { min-height: 36px; padding: 4px 7px; gap: 5px; }.gold-wallet-button .gold-emblem { width: 22px; height: 22px; font-size: 12px; }.gold-wallet-button small { font-size: 6px; letter-spacing: .6px; }.gold-wallet-button strong { font-size: 11px; }.gold-more { display: none; }.house-link { font-size: 9px; }.command-header .icon-button { width: 32px; min-width: 32px; height: 36px; }
+  .resource-bar { gap: 13px; justify-content: space-between; }.resource small { font-size: 6px; }.resource strong { font-size: 10px; }
+  .command-drawer[data-section="research"],.command-drawer[data-section="industry"] { left: 0; right: 0; width: auto; max-height: calc(100dvh - 178px); bottom: 64px; }
+  .command-drawer[data-section="research"] .drawer-header { padding: 17px 18px 13px; }.drawer-header { align-items: center; }.drawer-header h2 { font-size: 20px; }
+  .research-overview { display: none; }
+  .mobile-research-branch-picker { display: block; position: sticky; top: 0; z-index: 3; padding: 10px 17px; background: #192b33; border-bottom: 1px solid var(--line); }
+  .mobile-research-branch-picker > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .mobile-research-branch-picker .field-label { margin: 0; font-size: 8px; letter-spacing: 1.1px; }
+  .mobile-research-branch-picker span { font-size: 10px; color: #b2bdad; }
+  .mobile-research-branch-picker select { min-height: 44px; font-size: 12px; }
+  .active-research-grid { padding: 12px 17px; grid-template-columns: 1fr; gap: 8px; }.research-open-slot { display: none; }.queue-visual { gap: 9px; padding: 11px; }.queue-art { width: 38px; height: 38px; flex-basis: 38px; }.queue-content strong { font-size: 11px; }.queue-content > span { font-size: 9px; }.boost-button { padding: 8px; font-size: 9px; }
+  .research-workbench { display: flex; flex-direction: column; }.research-branches { display: none; }
+  .research-main { padding: 14px 17px; }.research-toolbar h3 { font-size: 18px; }.research-toolbar .inline-link { min-height: 44px; font-size: 10px; }.research-main .search-field { min-height: 44px; font-size: 12px; }.research-tier-nodes { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }.research-art { height: 85px; }.research-node-copy { padding: 10px 9px 4px; }.research-node h3 { font-size: 12px; }.node-state { font-size: 8px; line-height: 1.5; }.node-role { font-size: 9px; }.node-dependencies { padding-inline: 9px; font-size: 9px; }.node-dependencies button { min-height: 44px; font-size: 10px; }.research-node-footer { flex-direction: column; align-items: stretch; padding: 9px; }.research-node-footer > span { font-size: 9px; }.research-node-footer .button { min-height: 44px; font-size: 10px; width: 100%; }
+  .research-inspector { border-left: 0; border-top: 1px solid var(--line); }.inspector-art { height: 175px; }.inspector-content { padding: 20px; }.inspector-content > h3 { font-size: 25px; }.inspector-content p { font-size: 12px; }.research-requirements li { font-size: 12px; }.research-requirements .inline-link { min-height: 44px; font-size: 11px; }.research-tree-note { font-size: 10px; }
+  .province-command-title h3 { font-size: 24px; }.industry-jump-nav { gap: 6px; }.industry-jump-nav button { padding: 10px; font-size: 10px; }.industry-queues .queue-art { display: none; }.arsenal-grid { grid-template-columns: 1fr; gap: 15px; }.arsenal-art { height: 143px; }.arsenal-card h3 { font-size: 20px; }.arsenal-card-content { padding: 16px; }.arsenal-card .equipment-top { flex-direction: row; flex-wrap: wrap; gap: 10px; }.arsenal-card .unit-role-label { font-size: 10px; }.arsenal-card .arsenal-stats { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }.arsenal-stats dd small { display: block; margin: 2px 0 0; }.arsenal-card .cost-line { font-size: 11px; }.arsenal-card p { font-size: 12px; }.arsenal-card .inline-link { min-height: 44px; font-size: 11px; }.infrastructure-grid { grid-template-columns: 1fr; }
+  .selection-art { width: 52px; height: 66px; flex-basis: 52px; }.selection-top { gap: 10px; }.selection-top .close-button { margin-right: -8px; }.selection-panel { max-height: min(58dvh,500px); padding: 13px; }.selection-top h3 { font-size: 13px; }.formation-details-body { max-height: none; overflow: visible; }.formation-stat-grid { gap: 10px; }.formation-stat-grid dt { font-size: 10px; }.formation-stat-grid dd { font-size: 15px; }.unit-actions button { min-height: 44px; font-size: 10px; }.formation-details summary { min-height: 44px; font-size: 11px; }
+  .war-toast { top: 112px; bottom: auto; left: auto; right: 12px; width: max-content; max-width: 140px; box-sizing: border-box; transform: translateY(15px); z-index: 25; font-size: 11px; box-shadow: 0 5px 20px #0008; }
+  .war-toast.show { transform: translateY(0); }
+  [data-research-board],.research-node,.research-inspector { scroll-margin-top: 94px; }
+  .mobile-tree-back { display: block; min-height: 44px; padding: 10px 18px; margin: 0; background: #1b2c34; width: 100%; text-align: left; }
+  .command-dialog { padding: 21px; width: calc(100% - 26px); max-height: calc(100dvh - 32px); }.command-dialog h2 { font-size: 23px; }.command-dialog .arsenal-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }.dossier-art { height: 180px; }.dialog-actions { flex-wrap: wrap; }.dialog-actions .button { flex: 1; min-width: 100px; }.wallet-hero { padding: 15px; }.wallet-rules p { font-size: 12px; }.wallet-history strong { font-size: 11px; }
+  .lobby-art-banner { height: 82px; margin: -27px -22px 19px; }
+}
+@media(max-width:350px) { .command-header { gap: 7px; }.command-brand > span:last-child { font-size: 11px; }.command-brand small { font-size: 5px; }.house-link { font-size: 8px; }.gold-wallet-button { padding-inline: 5px; }.resource-bar { gap: 8px; }.research-tier-nodes { grid-template-columns: 1fr; }.research-art { height: 128px; }.research-node-footer { flex-direction: row; align-items: center; }.research-node-footer .button { width: auto; }.research-branches { padding-inline: 12px; }.research-branches button { font-size: 9px; }.arsenal-card .arsenal-stats { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(prefers-reduced-motion:reduce) { .research-node.equipment-card { transition: none; } }

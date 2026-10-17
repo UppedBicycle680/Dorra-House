@@ -2,7 +2,8 @@ import { createVaultClient } from './vault-client.js';
 import { supabase } from './auth-client.js';
 import { createWarClient } from './war/client.mjs';
 import { CommandMap } from './war/map.mjs';
-import { BRANCHES } from './war/catalog.mjs';
+import { BRANCHES, PLATFORMS } from './war/catalog.mjs';
+import { goldBalance, walletContents, artwork, platformDetails } from './war/experience.mjs';
 import { validateOrder, hostileOrderContact } from './war/command-info.mjs';
 import { escapeHTML as e, renderLobby, renderNationList, renderProvinceChoices, renderResources, renderNav, renderDrawer, renderSelection, renderClock, getPlatforms, titleCase } from './war/ui.mjs';
 
@@ -13,10 +14,22 @@ const hintRevisions = new Map();
 let vault, client, map, toastTimer, polling, clockTimer, clockAnchor = null, refreshPending, refreshAgain = false, booted = false;
 function displayView() { if (!model.view || !clockAnchor || clockAnchor.id !== model.view.match.id || !['running', 'active'].includes(model.view.match.status)) return model.view; const elapsed = Math.max(0, client.serverNow - clockAnchor.receivedAt) / 1000; const limit = model.view.match.pace === 'fast' ? 30 * 86400 : 60 * 86400; return { ...model.view, match: { ...model.view.match, gameTime: Math.min(limit, clockAnchor.gameTime + elapsed * clockAnchor.speed) } }; }
 function toast(message, error = false) { clearTimeout(toastTimer); dom.toast.textContent = message; dom.toast.className = `war-toast show${error ? ' error' : ''}`; toastTimer = setTimeout(() => { dom.toast.className = 'war-toast'; }, error ? 6500 : 3500); }
+function scrollDrawerTo(target, nearest = false) {
+  const body = dom.drawer.querySelector('.drawer-body');
+  if (!body || !target) return;
+  const bounds = body.getBoundingClientRect(), item = target.getBoundingClientRect();
+  const sticky = innerWidth <= 700 ? body.querySelector('.mobile-research-branch-picker')?.getBoundingClientRect().height || 0 : 0;
+  if (nearest && item.top >= bounds.top + sticky + 10 && item.bottom <= bounds.bottom - 10) return;
+  body.scrollTop = Math.max(0, body.scrollTop + item.top - bounds.top - sticky - 10);
+}
 function connection(status, error) { dom.banner.hidden = status === 'connected'; if (status !== 'connected') { dom.banner.querySelector('span').textContent = error?.message || 'Reconnecting to command…'; $('#retryConnection').textContent = status === 'ended' ? 'Reload & sign in' : 'Reconnect'; if (status === 'ended') { model.busy = true; render(); } } }
 function render() {
   if (!booted) return;
+  const focused = document.activeElement?.closest('[data-action]');
+  const restoreFocus = focused && dom.drawer.contains(focused) ? { action: focused.dataset.action, id: focused.dataset.id } : null;
   const active = Boolean(model.view);
+  $('#goldBalance').innerHTML = goldBalance(model.gold);
+  dom.drawer.dataset.section = model.tab;
   dom.lobby.hidden = active; dom.nav.hidden = !active; dom.clock.hidden = !active; dom.drawer.hidden = !active || model.tab === 'map';
   if (!active) { const scroll = dom.lobby.querySelector('.lobby-body')?.scrollTop || 0; dom.lobby.innerHTML = renderLobby(model); if (dom.lobby.querySelector('.lobby-body')) dom.lobby.querySelector('.lobby-body').scrollTop = scroll; dom.context.textContent = 'OPERATIONS CENTRE'; dom.resources.innerHTML = ''; dom.selection.hidden = true; }
   else {
@@ -28,10 +41,12 @@ function render() {
     if (model.busy && ['create', 'join-match', 'open-match', 'start', 'pause', 'resume', 'reward', 'retire', 'research', 'produce', 'build', 'diplomacy', 'import-license', 'transfer-resources', 'confirm-order', 'direct-order'].includes(button.dataset.action)) button.disabled = true;
     if (model.view && !['running', 'active'].includes(model.view.match.status) && ['research', 'produce', 'build', 'diplomacy', 'import-license', 'transfer-resources', 'confirm-order', 'direct-order', 'order-type', 'route-mode'].includes(button.dataset.action)) button.disabled = true;
   });
+  if (restoreFocus && !dom.drawer.hidden) dom.drawer.querySelector(`[data-action="${CSS.escape(restoreFocus.action)}"]${restoreFocus.id ? `[data-id="${CSS.escape(restoreFocus.id)}"]` : ''}`)?.focus({ preventScroll: true });
   dom.app.setAttribute('aria-busy', String(model.busy));
   map.setView(model.view); map.setSelection({ country: active ? null : model.nationId, province: model.provinceId, units: model.selectedUnits }); map.setOrderPreview(model.pendingOrder); map.setTargeting(Boolean(model.orderType && model.selectedUnits.length));
 }
 function adopt(response) {
+  if (response.gold && (!model.gold || Number(response.gold.version) >= Number(model.gold.version))) model.gold = { ...response.gold, history: response.gold.history || (response.gold.version === model.gold?.version ? model.gold.history : undefined) };
   if (response.matches) model.worlds = response.matches;
   if (response.view) {
     const old = model.view;
@@ -129,10 +144,13 @@ function mapSelect(hit) {
 }
 function showDialog({ eyebrow = 'STRATEGIC COMMAND', title, body, confirm = 'Confirm', danger = false, onConfirm }) {
   const content = $('#dialogBody');
-  content.innerHTML = `<span class="eyebrow">${e(eyebrow)}</span><h2 id="dialogTitle">${e(title)}</h2>${body}<div class="dialog-actions"><button class="button secondary" id="dialogCancel">${onConfirm ? 'Cancel' : 'Close'}</button>${onConfirm ? `<button class="button${danger ? ' danger' : ''}" id="dialogConfirm">${e(confirm)}</button>` : ''}</div>`;
+  content.innerHTML = `<button class="close-button dialog-dismiss" id="dialogDismiss" aria-label="Dismiss dialog">×</button><span class="eyebrow">${e(eyebrow)}</span><h2 id="dialogTitle" tabindex="-1" autofocus>${e(title)}</h2>${body}<div class="dialog-actions"><button class="button secondary" id="dialogCancel">${onConfirm ? 'Cancel' : 'Close'}</button>${onConfirm ? `<button class="button${danger ? ' danger' : ''}" id="dialogConfirm">${e(confirm)}</button>` : ''}</div>`;
+  $('#dialogDismiss').onclick = () => dom.dialog.close();
   $('#dialogCancel').onclick = () => dom.dialog.close();
-  if (onConfirm) { const confirmButton = $('#dialogConfirm'); confirmButton.onclick = async () => { confirmButton.disabled = true; try { const result = await onConfirm(); if (result !== false) dom.dialog.close(); } catch (error) { toast(error.message, true); } finally { confirmButton.disabled = false; } }; }
+  if (onConfirm) { const confirmButton = $('#dialogConfirm'); confirmButton.onclick = async () => { confirmButton.disabled = true; try { const result = await onConfirm(); if (result !== false) dom.dialog.close(); } catch (error) { toast(error.message, true); } finally { confirmButton.disabled = confirmButton.dataset.requireFresh === 'true'; } }; }
   if (!dom.dialog.open) dom.dialog.showModal();
+  dom.dialog.scrollTop = 0;
+  $('#dialogTitle').focus({ preventScroll: true });
 }
 async function openMatch(id) {
   if (model.busy) return;
@@ -145,9 +163,51 @@ function leave() { model.view = null; model.selectedUnits = []; model.provinceId
 
 async function handleAction(button) {
   const { action, id } = button.dataset;
+  if (action === 'gold-wallet') {
+    if (model.busy || client.blocked) return;
+    try { const response = await client.command('gold-wallet'); adopt(response); showDialog({ eyebrow: 'ACCOUNT RESERVE', title: 'Your Gold wallet', body: walletContents(model.gold) }); }
+    catch (error) { toast(error.message, true); }
+    return;
+  }
+  if (action === 'boost-quote') {
+    const matchId = model.view?.match.id;
+    if (!matchId || model.busy) return;
+    const response = await mutate('boost-quote', { queueId: id });
+    const quote = response?.quote || response?.result?.quote;
+    if (!quote || model.view?.match.id !== matchId) return;
+    const balance = Number(model.gold?.balance) || 0, sufficient = balance >= quote.goldCost;
+    showDialog({ eyebrow: 'GOLD SPEED-UP', title: 'Finish this order now?', body: `<div class="boost-dossier"><span class="gold-emblem" aria-hidden="true">G</span><div><strong>${e(quote.label || 'Queued order')}</strong><p>${e(quote.remainingGameSeconds >= 3600 ? (quote.remainingGameSeconds / 3600).toFixed(1) + 'h' : Math.ceil(quote.remainingGameSeconds / 60) + 'm')} game time remaining</p></div></div><div class="boost-price"><span>Maximum cost</span><strong>${e(quote.goldCost)} Gold</strong></div><p>Complete this one order instantly. Its original war-resource cost has already been paid. The server may charge less as time passes, never more than this quote.</p><p class="fine-print">Wallet: ${e(balance)} Gold · Quote valid for one minute.</p>${!sufficient ? '<p class="order-feedback blocked">Insufficient Gold. Earn eligible match victories or receive an administrator award.</p>' : ''}<p id="boostDialogError" class="order-feedback blocked" role="alert" hidden></p>`, confirm: `Spend up to ${quote.goldCost} Gold`, onConfirm: async () => {
+      if (model.view?.match.id !== matchId) return true;
+      const result = await mutate('boost', { quoteId: quote.quoteId, confirmed: true }, 'Speed-up completed. Your Gold wallet has been updated.');
+      if (!result) { await refresh().catch(() => {}); $('#dialogConfirm').dataset.requireFresh = 'true'; const error = $('#boostDialogError'); if (error) { error.hidden = false; error.textContent = 'The speed-up was not accepted. Your queue and wallet have refreshed. Close this panel and request a fresh quote to review the current balance and queue.'; } }
+      return Boolean(result);
+    } });
+    $('#dialogConfirm').disabled = !sufficient;
+    return;
+  }
+  if (action === 'equipment-details') {
+    const platform = getPlatforms(model).find(row => row.id === id);
+    if (platform) showDialog({ eyebrow: 'EQUIPMENT DOSSIER', title: platform.name, body: `${artwork(platform, 'dossier-art', false)}${platformDetails(platform)}<p class="fine-print">Representative unit-family artwork. All ratings and combat effects are Dorra game values.</p>` });
+    return;
+  }
+  if (action === 'research-node') {
+    const platform = getPlatforms(model).find(row => row.id === id) || PLATFORMS.find(row => row.id === id);
+    model.researchId = id;
+    if (platform) model.branch = platform.branch;
+    model.researchSearch = ''; render();
+    if (innerWidth <= 700) scrollDrawerTo(dom.drawer.querySelector('.research-inspector'));
+    else scrollDrawerTo(dom.drawer.querySelector(`[data-node-id="${CSS.escape(id)}"]`), true);
+    dom.drawer.querySelector(`[data-action="research-node"][data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+    return;
+  }
+  if (action === 'research-tree') { scrollDrawerTo(dom.drawer.querySelector('[data-research-board]')); return; }
+  if (action === 'research-foreign') { model.showForeignResearch = !model.showForeignResearch; render(); return; }
+  if (action === 'research-facilities') { model.tab = 'industry'; model.provinceId = null; render(); return; }
+  if (action === 'production-ready') { model.productionReady = !model.productionReady; render(); return; }
+  if (action === 'industry-section') { scrollDrawerTo($('#industry-' + id)); return; }
   if (action === 'nation') return chooseNation(id);
   if (action === 'lobby-tab') { model.lobbyTab = id; render(); if (id === 'worlds') void refresh().catch(error => toast(error.message, true)); return; }
-  if (['opponent', 'pace', 'branch'].includes(action)) { model[action] = id; render(); return; }
+  if (['opponent', 'pace', 'branch'].includes(action)) { model[action] = id; if (action === 'branch') { model.researchSearch = ''; model.researchId = null; } render(); return; }
   if (action === 'tab') { model.tab = id; render(); return; }
   if (action === 'refresh') return refresh().catch(error => toast(error.message, true));
   if (action === 'create') {
@@ -169,7 +229,7 @@ async function handleAction(button) {
   if (action === 'province-page') { model.provincePage = Number(id) || 0; render(); return; }
   if (action === 'province') { model.provinceId = id; model.provinceFeature = map.provinces.get(id); render(); return; }
   if (action === 'select-unit') { selectUnits([id]); await focusSelectedUnit(id); return; }
-  if (action === 'research') return mutate('research', { platformId: id }, 'Research programme accepted.');
+  if (action === 'research' || action === 'research-start') return mutate('research', { platformId: id }, 'Research programme accepted.');
   if (action === 'build') return mutate('build', { provinceId: model.provinceId, facility: id }, 'Construction order accepted.');
   if (action === 'produce') return mutate('produce', { provinceId: model.provinceId, platformId: id }, 'Production order accepted.');
   if (action === 'order-type') { model.orderType = id; model.pendingOrder = null; render(); return; }
@@ -212,6 +272,16 @@ function bind() {
   document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (button && !button.disabled) void handleAction(button).catch(error => toast(error.message, true)); });
   document.addEventListener('toggle', event => { if (event.target.id === 'formationDetails') { const wasOpen = model.unitDetailsOpen; model.unitDetailsOpen = event.target.open; if (!wasOpen && event.target.open && innerWidth <= 700 && model.selectedUnits.length === 1) void focusSelectedUnit(model.selectedUnits[0]); } }, true);
   dom.drawer.addEventListener('input', event => { if (event.target.id === 'provinceSearch') { model.provinceSearch = event.target.value; model.provincePage = 0; $('#ownedProvinceChoices').innerHTML = renderProvinceChoices(model); } });
+  dom.drawer.addEventListener('input', event => {
+    const field = { researchSearch: 'researchSearch', productionSearch: 'productionSearch' }[event.target.id];
+    if (!field) return;
+    const id = event.target.id, caret = event.target.selectionStart;
+    model[field] = event.target.value; render();
+    const input = document.getElementById(id); input?.focus({ preventScroll: true });
+    if (caret != null) input?.setSelectionRange(caret, caret);
+  });
+  dom.drawer.addEventListener('change', event => { if (event.target.id === 'productionBranch') { model.productionBranch = event.target.value; render(); $('#productionBranch')?.focus({ preventScroll: true }); } });
+  dom.drawer.addEventListener('change', event => { if (event.target.id === 'researchBranch') { model.branch = event.target.value; model.researchSearch = ''; model.researchId = null; render(); scrollDrawerTo(dom.drawer.querySelector('[data-research-board]')); $('#researchBranch')?.focus({ preventScroll: true }); } });
   dom.lobby.addEventListener('input', event => {
     if (event.target.id === 'nationSearch') { model.search = event.target.value; $('#nationList').innerHTML = renderNationList(model); }
     if (event.target.id === 'matchName') model.name = event.target.value;
@@ -236,7 +306,7 @@ async function initialize() {
   const { data: { session } } = await supabase.auth.getSession(); model.userId = session?.user.id;
   client = createWarClient({ vault, onStatus: connection, onHint: hint => { if (hint.reconnect) { void refresh().catch(() => {}); return; } if (hint.matchId !== model.view?.match.id || hint.revision <= (hintRevisions.get(hint.matchId) ?? -1)) return; hintRevisions.set(hint.matchId, hint.revision); void refresh().catch(() => {}); } });
   await geography;
-  const response = await client.command('list', model.inviteCode ? { inviteCode: model.inviteCode } : {}); model.worlds = response.matches || [];
+  const response = await client.command('list', model.inviteCode ? { inviteCode: model.inviteCode } : {}); model.worlds = response.matches || []; if (response.gold) model.gold = response.gold;
   booted = true; dom.boot.hidden = true; dom.app.setAttribute('aria-busy', 'false'); render();
   const requested = new URL(location.href).searchParams.get('match');
   if (requested) {

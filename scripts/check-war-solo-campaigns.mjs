@@ -128,7 +128,7 @@ async function campaign(config) {
     await tab('operation'); await click('[data-action="pause"]', 'pause'); const pausedAt = view.match.gameTime;
     await sleep(1000); await click('[data-action="resume"]', 'resume'); assert.equal(view.match.status, 'running');
     result.checks.push('Solo pause and resume use the actual server');
-    stage = 'research'; await tab('research'); await click('[data-action="branch"][data-id="industry"]');
+    stage = 'research'; await tab('research'); if (await page.locator('#researchBranch').isVisible()) await page.locator('#researchBranch').selectOption('industry'); else await click('[data-action="branch"][data-id="industry"]');
     const doctrine = page.locator('[data-action="research"][data-id="combined-arms-doctrine"]');
     if (await doctrine.isEnabled()) await click('[data-action="research"][data-id="combined-arms-doctrine"]', 'research');
     await industry();

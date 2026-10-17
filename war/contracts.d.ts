@@ -12,6 +12,9 @@ export type WarIntent =
   | {action:'list'; args:{inviteCode?:string;matchId?:string}}
   | {action:'join';args:{nationId:string;inviteCode?:string}}
   | {action:'view'|'start'|'pause'|'resume'|'retire'|'reward';args:Record<string,never>}
+  | {action:'gold-wallet';args:Record<string,never>}
+  | {action:'boost-quote';args:{queueId:string}}
+  | {action:'boost';args:{quoteId:string;confirmed:true}}
   | {action:'research';args:{platformId:string}}
   | {action:'produce';args:{provinceId:string;platformId:string}}
   | {action:'build';args:{provinceId:string;facility:string}}
@@ -28,4 +31,9 @@ export interface PlayerView {
 }
 /** Membership-filtered entity changes; a base mismatch requires a fresh view. */
 export interface WarDelta {matchId:string;baseRevision:number;revision:number;fields?:Partial<Pick<PlayerView,'match'|'player'|'nations'|'reports'|'diplomacy'|'catalog'|'victory'>>;units:{upsert:PlayerView['units'];remove:string[]};provinces:{upsert:PlayerView['provinces'];remove:string[]}}
-export interface WarResponse {protocolVersion:1;view?:PlayerView;delta?:WarDelta;replayed?:boolean;result?:unknown}
+export interface GoldWallet {
+  balance:number; version:number; purchasesAvailable:false; pricingVersion:string; goldPerGameHour:number;
+  history?:{id:string;kind:'admin-award'|'victory-reward'|'boost';amount:number;balanceAfter:number;reason:string;createdAt:string;matchId:string|null}[];
+}
+export interface BoostQuote {quoteId:string;queueId:string;kind:'research'|'produce'|'build';label:string;goldCost:number;remainingGameSeconds:number;expiresAt:string;pricingVersion:string}
+export interface WarResponse {protocolVersion:1;view?:PlayerView;delta?:WarDelta;replayed?:boolean;gold?:GoldWallet;quote?:BoostQuote;result?:unknown}
