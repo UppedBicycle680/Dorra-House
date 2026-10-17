@@ -181,3 +181,176 @@
 }
 @media(max-width:350px) { .command-header { gap: 7px; }.command-brand > span:last-child { font-size: 11px; }.command-brand small { font-size: 5px; }.house-link { font-size: 8px; }.gold-wallet-button { padding-inline: 5px; }.resource-bar { gap: 8px; }.research-tier-nodes { grid-template-columns: 1fr; }.research-art { height: 128px; }.research-node-footer { flex-direction: row; align-items: center; }.research-node-footer .button { width: auto; }.research-branches { padding-inline: 12px; }.research-branches button { font-size: 9px; }.arsenal-card .arsenal-stats { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(prefers-reduced-motion:reduce) { .research-node.equipment-card { transition: none; } }
+
+/* Research keeps the decision, its genuine dependencies and the live queue distinct. */
+.research-shell { display: flex; flex-direction: column; min-height: 0; }
+.research-session { flex: 0 0 auto; border-bottom: 1px solid var(--line); background: #14232b; }
+.research-session .research-overview { padding: 12px 17px 10px; gap: 12px; }
+.research-session .research-overview p { font-size: 11px; margin-top: 4px; max-width: none; }
+.research-session .research-slot-count strong { font-size: 23px; }
+.research-session .research-slot-count small { font-size: 7px; }
+.research-session .active-research-grid { padding: 0 17px 12px; gap: 8px; border: 0; }
+.research-session .queue-visual { padding: 9px 10px; gap: 9px; min-height: 64px; }
+.research-session .queue-art { width: 37px; height: 37px; flex-basis: 37px; }
+.research-session .queue-content strong { font-size: 11px; }
+.research-session .queue-content > span { font-size: 9px; }
+.research-session .queue-bar { margin-top: 7px; }
+.research-session .research-open-slot,.research-session .queue-empty { min-height: 64px; padding: 10px; }
+.research-session .research-open-slot small { font-size: 9px; }
+.research-branches { padding: 8px 7px; gap: 3px; }
+.research-branches button { min-height: 49px; padding: 7px; gap: 8px; font-size: 10px; }
+.research-branches button small { font-size: 8px; margin-top: 3px; }
+.research-branches .role-icon { width: 20px; height: 20px; }
+.research-main { padding: 17px; }
+.research-toolbar { margin-bottom: 12px; }
+.research-toolbar h3 { font-size: 19px; }
+.research-toolbar p { margin-top: 4px; }
+.research-toolbar .inline-link { min-height: 44px; }
+.research-main .search-field { margin-bottom: 10px; }
+.research-state-filters { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+.research-state-filters button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 7px 10px; color: #a8babc; font-size: 10px; white-space: nowrap; }
+.research-state-filters button span { font-size: 9px; color: #79939b; font-variant-numeric: tabular-nums; }
+.research-state-filters button.active { color: #edd8a4; border-color: #cfb77c80; background: #cfb77c12; }
+.research-state-filters button.active span { color: #d8c492; }
+.research-foundations { margin: 0 0 18px; border-left: 2px solid #a7b9a32e; padding-left: 12px; }
+.research-foundations > .field-label { font-size: 8px; margin-bottom: 8px; color: #98adb0; }
+.research-foundations > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.programme-link { display: flex; align-items: center; gap: 9px; text-align: left; border: 1px solid #95a7a72e; border-radius: 3px; background: #122029; padding: 8px 10px; min-height: 44px; color: #adbec1; }
+.programme-link > span:nth-child(2) { flex: 1; min-width: 0; }
+.programme-link strong { display: block; font-size: 10px; font-weight: 500; overflow-wrap: anywhere; }
+.programme-link small { display: block; font-size: 8px; color: #78959d; margin-top: 3px; }
+.programme-link > span:last-child { margin-left: 4px; font-size: 12px; color: #cdb980; }
+.programme-link.met > span:first-child { color: #84baa2; }
+.foundation-direction { display: flex; align-items: center; gap: 9px; margin-top: 8px; color: #809b9f; font-size: 9px; }
+.foundation-direction > span { color: #cab680; font-size: 17px; }
+.research-tier-board { gap: 20px; }
+.research-tier > h4 { margin-bottom: 11px; }
+.research-tier-nodes { align-items: start; }
+.research-node h3 { font-size: 13px; }
+.research-node .node-readiness { margin: 0; padding: 0 11px 10px; font-size: 9px; line-height: 1.6; color: #99acb0; }
+.research-node.state-available .node-readiness { color: #c7b887; }
+.research-node.state-locked .node-readiness { color: #bdab84; }
+.node-dependencies { padding-bottom: 6px; }
+.node-dependencies button { min-height: 32px; }
+.research-node-footer .button { min-height: 40px; }
+.research-inspector { background: #18272f; }
+.dossier-hero .inspector-art { height: 116px; }
+.dossier-identity { padding: 15px 17px 0; }
+.dossier-identity > .eyebrow { font-size: 8px; letter-spacing: 1px; }
+.dossier-identity h3 { margin: 7px 0 9px; font-size: 23px; line-height: 1.2; font-weight: 500; overflow-wrap: anywhere; }
+.dossier-identity .unit-role-label { font-size: 10px; margin-bottom: 9px; }
+.dossier-identity .role-icon { width: 19px; height: 19px; }
+.dossier-identity > .tag { display: inline-block; white-space: normal; }
+.research-inspector .inspector-content { padding: 12px 17px 20px; }
+.inspector-content .programme-summary { font-size: 11px; line-height: 1.65; margin-bottom: 13px; }
+.research-decision { padding: 12px; border: 1px solid #cfb77c2b; background: #cfb77c05; border-radius: 4px; }
+.research-decision > .field-label { font-size: 8px; }
+.research-decision .cost-line { font-size: 11px; gap: 8px; }
+.research-decision > p { font-size: 10px; margin: 7px 0; }
+.research-decision .button { min-height: 44px; margin-top: 9px; }
+.research-decision .decision-state { display: block; color: #a2b8c7; font-size: 11px; }
+.research-decision .decision-state.complete { color: #8cbea6; }
+.research-decision > .requirement-note { margin-bottom: 0; }
+.inspector-content .research-outcome { margin: 15px 0; font-size: 10px; color: #9db1b5; }
+.research-path { border-block: 1px solid var(--line); padding: 0 0 12px; margin: 16px 0; }
+.research-path > h4 { font-size: 10px; font-weight: 500; color: #d7c492; margin: 12px 0; }
+.research-path-stage { display: grid; gap: 6px; }
+.research-path-stage > .field-label { font-size: 8px; margin: 0; }
+.research-path-arrow { display: block; padding: 3px 0 4px 15px; color: #b9a66e; font-size: 18px; }
+.research-path-current { display: flex; align-items: center; gap: 10px; background: #cfb77c09; border: 1px solid #cfb77c34; padding: 10px; border-radius: 3px; }
+.research-path-current .role-icon { color: #d0b674; }
+.research-path-current small { display: block; color: #a3b5b3; font-size: 7px; letter-spacing: 1px; }
+.research-path-current strong { display: block; font-size: 11px; font-weight: 500; color: #e4d3a5; margin-top: 4px; }
+.inspector-content .path-foundation { font-size: 9px; color: #819ba2; margin: 8px 0 0; }
+.research-rating-details { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-top: 14px; }
+.research-rating-details > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; color: #bdc9c5; font-size: 10px; cursor: pointer; }
+.research-rating-details > summary::before { content: '+'; color: #d6bd80; font-size: 18px; }
+.research-rating-details[open] > summary::before { content: '−'; }
+.research-rating-details .arsenal-stats { margin: 12px 0; }
+.research-rating-details .role-counters { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.research-inspector-empty { padding: 22px 17px; }
+.research-inspector-empty > strong { font-size: 12px; font-weight: 500; color: #becac6; }
+.research-inspector-empty > p { margin-top: 9px; font-size: 11px; color: #8aa0a5; }
+@media(min-width:701px) {
+  .command-drawer[data-section="research"] .drawer-body { display: flex; overflow: hidden; }
+  .research-shell { flex: 1; overflow: hidden; }
+  .research-session .active-research-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .research-workbench { flex: 1; min-height: 0; overflow: hidden; grid-template-columns: 144px minmax(0,1fr) 300px; grid-template-rows: minmax(0,1fr); }
+  .research-branches,.research-main,.research-inspector { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #435b64 transparent; }
+  .research-branches { overflow-x: hidden; }
+  .research-inspector { grid-column: auto; display: block; border-top: 0; border-left: 1px solid var(--line); scroll-padding-top: 12px; }
+}
+@media(min-width:701px) and (max-width:1100px) {
+  .research-workbench { grid-template-columns: 126px minmax(0,1fr) 260px; }
+  .research-branches button { padding-inline: 5px; font-size: 9px; gap: 6px; }
+  .research-tier-nodes { grid-template-columns: 1fr; }
+  .research-main { padding: 13px; }
+  .research-toolbar h3 { font-size: 16px; }
+  .research-toolbar { flex-direction: column; }
+  .research-toolbar .inline-link { max-width: none; }
+}
+@media(max-width:700px) {
+  .research-shell { min-height: 100%; }
+  .research-session .research-overview { display: none; }
+  .research-session .active-research-grid { display: flex; overflow-x: auto; padding: 10px 16px; gap: 8px; scrollbar-width: thin; }
+  .research-session .queue-visual { flex: 0 0 calc(100% - 12px); }
+  .research-session .queue-empty { min-height: 35px; padding: 6px 0; border: 0; font-size: 10px; }
+  .research-session .research-open-slot { display: none; }
+  .research-workbench { min-height: auto; overflow: visible; }
+  .research-main,.research-inspector { overflow: visible; }
+  .research-main { padding: 14px 16px; }
+  .research-toolbar { margin-bottom: 10px; }
+  .research-toolbar h3 { font-size: 18px; }
+  .research-main .search-field { font-size: 12px; }
+  .research-state-filters { flex-wrap: nowrap; overflow-x: auto; margin-right: -4px; margin-bottom: 13px; padding: 2px 4px 5px 2px; scrollbar-width: thin; }
+  .research-state-filters button { min-height: 44px; flex-shrink: 0; padding: 8px 10px; }
+  .research-foundations { margin-bottom: 15px; padding-left: 10px; }
+  .research-foundations > div { display: grid; }
+  .programme-link { min-height: 44px; }
+  .research-tier-nodes { gap: 9px; }
+  .research-node .node-readiness { font-size: 9px; padding-inline: 9px; }
+  .node-dependencies button { min-height: 44px; }
+  .research-node-footer .button { min-height: 44px; }
+  .dossier-hero { display: grid; grid-template-columns: 85px minmax(0,1fr); gap: 12px; align-items: center; padding: 16px; }
+  .dossier-hero .inspector-art { width: 85px; height: 100px; border-radius: 3px; }
+  .dossier-hero .inspector-art > .role-icon { width: 22px; height: 22px; left: 9px; bottom: 9px; }
+  .dossier-identity { padding: 0; }
+  .dossier-identity h3 { font-size: 23px; margin: 6px 0 8px; }
+  .dossier-identity .unit-role-label { font-size: 10px; gap: 5px; }
+  .research-inspector .inspector-content { padding: 0 16px 22px; }
+  .research-inspector .research-decision { padding: 12px; }
+  .research-inspector .research-decision > p { font-size: 11px; }
+  .research-inspector .research-decision .cost-line { font-size: 12px; }
+  .inspector-content .research-outcome { font-size: 11px; }
+  .research-inspector .research-requirements li { font-size: 11px; }
+  .research-rating-details > summary { font-size: 11px; }
+  .research-rating-details .arsenal-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(min-width:701px) and (max-height:600px) {
+  .command-nav { top: 8px; bottom: 8px; gap: 2px; padding: 4px; max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }
+  .command-nav button { min-height: 44px; height: 44px; flex: 0 0 44px; gap: 3px; }
+  .command-nav button .nav-icon { width: 16px; height: 16px; }
+  .command-drawer[data-section="research"] { top: 8px; bottom: 8px; width: calc(100% - 118px); }
+  .command-drawer[data-section="research"] .drawer-header { flex: 0 0 52px; height: 52px; min-height: 52px; padding: 4px 12px; }
+  .command-drawer[data-section="research"] .drawer-header h2 { font-size: 17px; line-height: 1.2; margin-top: 3px; }
+  .command-drawer[data-section="research"] .drawer-header .eyebrow { font-size: 7px; }
+  .research-session .research-overview { display: none; }
+  .research-session .active-research-grid { padding: 5px 10px; gap: 6px; }
+  .research-session .queue-visual,.research-session .research-open-slot,.research-session .queue-empty { min-height: 54px; padding: 4px 8px; gap: 6px; }
+  .research-session .queue-art { width: 30px; height: 30px; flex-basis: 30px; }
+  .research-session .queue-content strong { font-size: 10px; }
+  .research-session .queue-content > span { font-size: 8px; margin-top: 3px; }
+  .research-session .queue-bar { display: none; }
+  .research-session .boost-button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; min-height: 44px; font-size: 9px; }
+  .research-session .boost-button > span { font-size: 13px; }
+  .research-branches button { min-height: 44px; }
+  .research-main { padding: 10px; }
+  .research-state-filters button { min-height: 44px; }
+  .dossier-hero { display: grid; grid-template-columns: 64px minmax(0,1fr); align-items: center; gap: 8px; padding: 10px; }
+  .dossier-hero .inspector-art { width: 64px; height: 64px; }
+  .dossier-identity { padding: 0; }
+  .dossier-identity > .eyebrow { font-size: 7px; }
+  .dossier-identity h3 { font-size: 18px; margin: 4px 0 6px; }
+  .dossier-identity .unit-role-label { font-size: 9px; margin-bottom: 5px; }
+  .research-inspector .inspector-content { padding: 10px 12px 16px; }
+}

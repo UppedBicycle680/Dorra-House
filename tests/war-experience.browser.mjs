@@ -18,9 +18,10 @@ async function branch(h, id) {
 
 async function scrollDrawerTo(h, selector) {
   await h.page.locator(selector).evaluate(element => {
-    const surface = element.closest('.drawer-body');
+    const surface = innerWidth > 700 ? element.closest('[data-research-scroll]') || element.closest('.drawer-body') : element.closest('.drawer-body');
     const sticky = innerWidth <= 700 ? surface.querySelector('.mobile-research-branch-picker')?.getBoundingClientRect().height || 0 : 0;
-    surface.scrollTop += element.getBoundingClientRect().top - surface.getBoundingClientRect().top - sticky;
+    if (surface === element) surface.scrollTop = 0;
+    else surface.scrollTop += element.getBoundingClientRect().top - surface.getBoundingClientRect().top - sticky;
   });
 }
 
@@ -122,7 +123,11 @@ test('research, mobilisation, unit dossiers and Gold remain usable on desktop an
           await h.press('[data-node-id="leclerc"] .research-select');
           if (viewport.width > 700) await scrollDrawerTo(h, '.research-inspector');
           await snapshot(h, viewport, 'research-dossier', report);
-          await scrollDrawerTo(h, '.research-requirements');
+          assert.match(await page.locator('.research-outcome').textContent(), /unlock persists|researched for your national arsenal/i, 'A completed starter programme explains its existing unlock');
+          assert.match(await page.locator('.research-outcome').textContent(), /Army base level 3/, 'The completed programme separates its actual mobilisation facility gate');
+          assert.equal(await page.locator('.research-decision [data-action="research-start"]').count(), 0, 'Completed programmes cannot spend resources on research again');
+          assert.match(await page.locator('.research-path').textContent(), /Combined arms doctrine/i, 'The actual prerequisite path remains inspectable after a starter unlock');
+          await scrollDrawerTo(h, '.research-outcome');
           await snapshot(h, viewport, 'research-requirements', report);
           if (viewport.width <= 700) {
             await h.press('[data-action="research-tree"]');

@@ -1,0 +1,25 @@
+/* One specialist atlas adds sixteen distinct role families to the original eight. */
+.unit-art[class*="art-family-"]::before { background-position: inherit; }
+.art-family-mechanized::before,
+.art-family-rocket-artillery::before,.art-family-air-defence::before,.art-family-attack-helicopter::before,
+.art-family-drone::before,.art-family-maritime-aircraft::before,.art-family-transport-aircraft::before,.art-family-aew::before,
+.art-family-submarine::before,.art-family-destroyer::before,.art-family-carrier::before,.art-family-bomber::before,
+.art-family-engineers::before,.art-family-logistics::before,.art-family-electronic-warfare::before,.art-family-asw-helicopter::before {
+  background-image: url('../assets/war/art/role-specialists.png'); background-size: 400% 400%;
+}
+.art-family-mechanized { background-position: 0 0; }
+.art-family-rocket-artillery { background-position: 33.333333% 0; }
+.art-family-air-defence { background-position: 66.666667% 0; }
+.art-family-attack-helicopter { background-position: 100% 0; }
+.art-family-drone { background-position: 0 33.333333%; }
+.art-family-maritime-aircraft { background-position: 33.333333% 33.333333%; }
+.art-family-transport-aircraft { background-position: 66.666667% 33.333333%; }
+.art-family-aew { background-position: 100% 33.333333%; }
+.art-family-submarine { background-position: 0 66.666667%; }
+.art-family-destroyer { background-position: 33.333333% 66.666667%; }
+.art-family-carrier { background-position: 66.666667% 66.666667%; }
+.art-family-bomber { background-position: 100% 66.666667%; }
+.art-family-engineers { background-position: 0 100%; }
+.art-family-logistics { background-position: 33.333333% 100%; }
+.art-family-electronic-warfare { background-position: 66.666667% 100%; }
+.art-family-asw-helicopter { background-position: 100% 100%; }
