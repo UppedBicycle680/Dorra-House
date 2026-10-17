@@ -54,7 +54,7 @@ async function campaign(config) {
   };
   try {
     session = await http(SUPABASE_URL + '/auth/v1/signup', { email: 'war.qa.' + suffix + '@example.com', password: 'Aa1!' + randomBytes(30).toString('base64url'), data: { username } });
-    if (session.user?.id) { report.accounts.push({ id: session.user.id, username }); await save(); }
+    if (session.user?.id) { result.userId = session.user.id; report.accounts.push({ id: session.user.id, username }); await save(); }
     assert.ok(session.access_token && session.user?.id);
     context = await browser.newContext({ viewport: config.viewport, hasTouch: config.label === 'mobile', isMobile: config.label === 'mobile' });
     await context.addInitScript(value => localStorage.setItem('dorra-online-auth', JSON.stringify(value)), session);
@@ -76,6 +76,9 @@ async function campaign(config) {
         if (response.ok()) install(value);
         else if (value.code === 'MATCH_NOT_RUNNING') result.terminalRaces = (result.terminalRaces || 0) + 1;
         else if (value.code === 'MATCH_CATCHING_UP') result.catchupRetries = (result.catchupRetries || 0) + 1;
+        // click() must prove a fresh friendly projection and reviewable move
+        // before accepting this capture race; every other rejection still fails.
+        else if (value.code === 'DECLARE_WAR_FIRST' && response.request().postDataJSON().action === 'order' && ['attack', 'bombard'].includes(response.request().postDataJSON().args?.type)) { /* Verified below. */ }
         else result.errors.push(value.code || 'WAR_REQUEST_REJECTED');
       }).catch(error => result.errors.push(error.message));
     });
@@ -99,6 +102,22 @@ async function campaign(config) {
             await settle(); await page.reload(); await page.locator('#commandNav:not([hidden])').waitFor(); await settle();
             assert.equal(view.match.status, 'finished', 'A rejected late action is acceptable only after a verified natural conclusion');
             return false;
+          }
+          const rejected = response.request().postDataJSON();
+          if (value.code === 'DECLARE_WAR_FIRST' && action === 'order' && ['attack', 'bombard'].includes(rejected.args.type)) {
+            await settle();
+            if (view.match.status === 'finished') return false;
+            assert.equal(view.match.status, 'running');
+            assert.equal(view.provinces.find(row => row.id === rejected.args.targetProvinceId)?.ownerId, config.nation, 'Capture recovery requires verified friendly ownership');
+            assert.match(await page.locator('.pending-order > p').textContent(), /^Move →/, 'The UI offers a reinforcement move for another explicit confirmation');
+            assert.match(await page.locator('#toast').textContent(), /now friendly/i);
+            result.captureRaces = (result.captureRaces || 0) + 1;
+            await click(selector, action);
+            const confirmed = result.commands.filter(row => row.action === 'order').at(-1);
+            assert.equal(confirmed.args.type, 'move');
+            assert.equal(confirmed.args.targetProvinceId, rejected.args.targetProvinceId);
+            assert.notEqual(confirmed.requestId, rejected.requestId, 'The revised intention uses its own explicit confirmation');
+            return true;
           }
           assert.fail(value.code || 'Rejected gameplay action');
         }
@@ -129,6 +148,7 @@ async function campaign(config) {
     await sleep(1000); await click('[data-action="resume"]', 'resume'); assert.equal(view.match.status, 'running');
     result.checks.push('Solo pause and resume use the actual server');
     stage = 'research'; await tab('research'); if (await page.locator('#researchBranch').isVisible()) await page.locator('#researchBranch').selectOption('industry'); else await click('[data-action="branch"][data-id="industry"]');
+    await page.screenshot({ path: 'work/war-solo-' + config.label + '-research.png' });
     const doctrine = page.locator('[data-action="research"][data-id="combined-arms-doctrine"]');
     if (await doctrine.isEnabled()) await click('[data-action="research"][data-id="combined-arms-doctrine"]', 'research');
     await industry();

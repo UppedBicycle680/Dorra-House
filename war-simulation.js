@@ -73,6 +73,7 @@ async function refresh() {
 async function mutate(action, args = {}, success) {
   if (model.busy || client.blocked) return null;
   const matchId = model.view?.match.id;
+  const pendingIntent = action === 'order' ? model.pendingOrder : null;
   model.busy = true; render();
   try {
     const response = await client.command(action, args, matchId);
@@ -81,6 +82,31 @@ async function mutate(action, args = {}, success) {
     if (success) toast(success);
     return response;
   } catch (error) {
+    if (error.code === 'DECLARE_WAR_FIRST' && action === 'order' && ['attack', 'bombard'].includes(args.type) && matchId && model.view?.match.id === matchId && !client.blocked) {
+      try {
+        // A rejected order rolls back its tick, including a capture. Let the
+        // ordinary server pulse settle it before offering a new intention.
+        for (const delay of [0, 1000, 2000, 4000]) {
+          if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          if (model.view?.match.id !== matchId || client.blocked || !pendingIntent || model.pendingOrder !== pendingIntent) return null;
+          const response = await client.command('view', {}, matchId);
+          if (model.view?.match.id !== matchId || client.blocked || model.pendingOrder !== pendingIntent) return null;
+          adopt(response);
+          if (model.pendingOrder !== pendingIntent || model.view.match.status === 'finished') return null;
+          const view = model.view, province = view.provinces?.find(row => row.id === args.targetProvinceId);
+          const ownUnits = args.unitIds?.length && args.unitIds.every(id => view.units.some(unit => unit.id === id && unit.nationId === view.player.nationId));
+          const hostileContact = hostileOrderContact({ ...model, selectedUnits: args.unitIds || [] }, args.targetProvinceId, args.targetUnitId ? [args.targetUnitId] : []);
+          if (['running', 'active'].includes(view.match.status) && province?.ownerId === view.player.nationId && ownUnits && !hostileContact) {
+            const targetName = model.pendingOrder.targetName;
+            model.pendingOrder = { unitIds: [...args.unitIds], type: 'move', targetProvinceId: args.targetProvinceId, targetName: targetName || model.provinceIndex?.get(args.targetProvinceId)?.properties?.name || province.name || province.id, ...(args.waypoints?.length ? { waypoints: [...args.waypoints] } : {}) };
+            model.orderType = 'move'; model.selectedUnits = [...args.unitIds]; model.routeMode = Boolean(args.waypoints?.length); model.tab = 'map';
+            toast('This province is now friendly. Review and confirm the reinforcement move.');
+            return null;
+          }
+          if (!['running', 'active'].includes(view.match.status)) break;
+        }
+      } catch { /* Keep the original rejection when a fresh view is unavailable. */ }
+    }
     if (error.code === 'MATCH_NOT_RUNNING' && matchId) {
       // The final tick may finish a campaign after the player opens a control.
       // A rejected command rolls its tick back; allow the regular server pulse

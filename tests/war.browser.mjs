@@ -47,6 +47,18 @@ async function harness(browser, viewport, { realGeography = false, worlds = [], 
         if (!state.view.player.researchQueue.length) state.view.player.researchQueue.push({ id: 'research-1', platformId: body.args.platformId, due: 7200 });
         if (state.dropResearch) { state.dropResearch = false; return route.abort('failed'); }
       }
+      if (body.action === 'order' && state.rejectOrderOnce) {
+        const rejection = state.rejectOrderOnce; state.rejectOrderOnce = null;
+        state.orderRecovery = { views: 0, update: rejection.onView };
+        // The browser still holds its pre-confirmation JSON. Only the next
+        // filtered read reveals the capture/contact change on the server.
+        rejection.update?.(state.view); state.view.match.revision++;
+        return reply({ error: rejection.message, code: rejection.code }, 409);
+      }
+      if (body.action === 'view' && state.orderRecovery) {
+        state.orderRecovery.views++;
+        state.orderRecovery.update?.(state.view, state.orderRecovery.views);
+      }
       if (body.action === 'order' && state.finishOnOrder) {
         state.recoveryViews = 0;
         state.pendingStatus = state.finishOnOrder;
@@ -558,5 +570,167 @@ test('artillery uses area fire in hostile territory and a compatible detected co
       assert.deepEqual(state.calls.find(call => call.action === 'order').args, { unitIds: ['unit-1'], type: 'bombard', targetProvinceId: 'NZ-1', ...(!hostileProvince ? { targetUnitId: 'hostile-infantry' } : {}) });
       assert.deepEqual(errors, []); await context.close();
     }
+  } finally { await browser.close(); }
+});
+
+test('an attack rejected after capture becomes a reviewed reinforcement move on desktop and mobile', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 740 }]) {
+      const { context, page, state, errors } = await harness(browser, viewport, { configureView(view) {
+        view.nations.find(nation => nation.id === 'NZ').relation = 'war';
+        view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+      } });
+      try {
+        const press = async selector => viewport.width <= 700 ? page.locator(selector).tap() : page.locator(selector).click();
+        await press('[data-action="create"]'); await page.waitForSelector('[data-action="start"]');
+        await press('[data-action="start"]'); await page.waitForSelector('[data-action="pause"]');
+        await press('[data-action="tab"][data-id="intelligence"]'); await press('[data-action="select-unit"][data-id="unit-1"]');
+        await press('[data-action="order-type"][data-id="attack"]'); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+        assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), false);
+        const resources = structuredClone(state.view.player.resources);
+        state.rejectOrderOnce = { code: 'DECLARE_WAR_FIRST', message: 'Declare war before attacking this nation.', update(view) { view.provinces.find(province => province.id === 'NZ-1').ownerId = 'AU'; } };
+        await press('[data-action="confirm-order"]');
+        await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+        const firstOrder = state.calls.findIndex(call => call.action === 'order');
+        assert.equal(state.calls.slice(firstOrder + 1).filter(call => call.action === 'view').length, 1, 'Recovery reads the current filtered ownership once');
+        assert.equal(state.calls.filter(call => call.action === 'order').length, 1, 'Recovery must not automatically spend another movement order');
+        assert.deepEqual(state.calls[firstOrder].args, { unitIds: ['unit-1'], type: 'attack', targetProvinceId: 'NZ-1' });
+        assert.match(await page.locator('.pending-order').textContent(), /Move →/);
+        assert.match(await page.locator('#toast').textContent(), /now friendly.*Review and confirm the reinforcement move/);
+        assert.match(await page.locator('#selectionPanel h3').textContent(), /1st Infantry Company/);
+        assert.equal(await page.locator('#selectionPanel').isVisible(), true);
+        assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), false);
+        assert.deepEqual(state.view.player.resources, resources);
+        assert.equal(state.calls.filter(call => call.action === 'diplomacy').length, 0);
+        await page.screenshot({ path: path.join(os.tmpdir(), `dorra-war-capture-review-${viewport.width}.png`) });
+        await press('[data-action="confirm-order"]');
+        await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
+        const orders = state.calls.filter(call => call.action === 'order');
+        assert.equal(orders.length, 2);
+        assert.notEqual(orders[0].requestId, orders[1].requestId, 'Explicitly confirmed reinforcement is a new intent');
+        assert.deepEqual(orders[1].args, { unitIds: ['unit-1'], type: 'move', targetProvinceId: 'NZ-1' });
+        await page.screenshot({ path: path.join(os.tmpdir(), `dorra-war-capture-recovery-${viewport.width}.png`) });
+        assert.deepEqual(errors, []);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});
+
+test('rejected bombardment clears a vanished contact only after a friendly-target review', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    for (const contactRemains of [false, true]) {
+      const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+        Object.assign(view.units[0], { name: 'CAESAR', platformId: 'caesar', order: {} });
+        view.catalog.platforms.push(PLATFORMS.find(platform => platform.id === 'caesar'));
+        view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+        view.provinces.find(province => province.id === 'NZ-1').ownerId = 'AU';
+        view.units.push({ ...view.units[0], id: 'hostile-contact', name: 'Detected infantry', platformId: 'infantry-company', nationId: 'NZ', provinceId: 'NZ-1' });
+      } });
+      try {
+        await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+        await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+        await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+        await page.locator('[data-action="order-type"][data-id="bombard"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+        const confirm = page.locator('[data-action="confirm-order"]'); await confirm.waitFor(); assert.equal(await confirm.isDisabled(), false);
+        state.rejectOrderOnce = { code: 'DECLARE_WAR_FIRST', message: 'Declare war before attacking this nation.', update(view) { if (!contactRemains) view.units = view.units.filter(unit => unit.id !== 'hostile-contact'); } };
+        await confirm.click(); await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+        const firstOrder = state.calls.findIndex(call => call.action === 'order');
+        assert.equal(state.calls.slice(firstOrder + 1).filter(call => call.action === 'view').length, contactRemains ? 4 : 1);
+        assert.deepEqual(state.calls[firstOrder].args, { unitIds: ['unit-1'], type: 'bombard', targetProvinceId: 'NZ-1', targetUnitId: 'hostile-contact' });
+        assert.equal(state.calls.filter(call => call.action === 'order').length, 1);
+        assert.equal(state.calls.filter(call => call.action === 'diplomacy').length, 0);
+        assert.match(await page.locator('#selectionPanel h3').textContent(), /CAESAR/);
+        if (contactRemains) {
+          assert.match(await page.locator('.pending-order').textContent(), /Bombard →/);
+          assert.match(await page.locator('#toast').textContent(), /Declare war before attacking/);
+        } else {
+          assert.match(await page.locator('.pending-order').textContent(), /Move →/);
+          assert.match(await page.locator('#toast').textContent(), /now friendly.*Review and confirm/);
+          await page.locator('[data-action="confirm-order"]').click(); await page.waitForFunction(() => !document.querySelector('[data-action="confirm-order"]'));
+          assert.deepEqual(state.calls.filter(call => call.action === 'order')[1].args, { unitIds: ['unit-1'], type: 'move', targetProvinceId: 'NZ-1' }, 'The reviewed move drops the obsolete hostile contact');
+        }
+        assert.deepEqual(errors, []);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});
+
+test('a genuine neutral-target declaration rejection stays blocked and never declares war automatically', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+      view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+    } });
+    try {
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="attack"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+      state.rejectOrderOnce = { code: 'DECLARE_WAR_FIRST', message: 'Declare war before attacking this nation.', update(view) { view.nations.find(nation => nation.id === 'NZ').relation = 'peace'; view.diplomacy = [{ nationId: 'NZ', relation: 'peace' }]; } };
+      await page.locator('[data-action="confirm-order"]').click(); await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+      const firstOrder = state.calls.findIndex(call => call.action === 'order');
+      assert.equal(state.calls.slice(firstOrder + 1).filter(call => call.action === 'view').length, 4, 'An unchanged foreign target gets bounded reads before the original error remains');
+      assert.equal(state.view.provinces.find(province => province.id === 'NZ-1').ownerId, 'NZ');
+      assert.match(await page.locator('.pending-order').textContent(), /Attack →/);
+      assert.match(await page.locator('#toast').textContent(), /Declare war before attacking/);
+      assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), true);
+      assert.equal(state.calls.filter(call => call.action === 'order').length, 1);
+      assert.equal(state.calls.filter(call => call.action === 'diplomacy').length, 0);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('capture recovery waits for a later filtered view and still requires a new confirmation', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+      view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+    } });
+    try {
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="attack"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+      state.rejectOrderOnce = { code: 'DECLARE_WAR_FIRST', message: 'Declare war before attacking this nation.', onView(view, reads) { if (reads >= 2) view.provinces.find(province => province.id === 'NZ-1').ownerId = 'AU'; } };
+      await page.locator('[data-action="confirm-order"]').click(); await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+      assert.equal(state.orderRecovery.views, 2, 'The first filtered read can precede the ordinary capture pulse');
+      assert.match(await page.locator('.pending-order').textContent(), /Move →/);
+      assert.match(await page.locator('#toast').textContent(), /now friendly.*Review and confirm/);
+      assert.equal(await page.locator('[data-action="confirm-order"]').isDisabled(), false);
+      assert.equal(state.calls.filter(call => call.action === 'order').length, 1, 'Settling the capture never dispatches a replacement order');
+      assert.equal(state.calls.filter(call => call.action === 'diplomacy').length, 0);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('Escape during capture recovery cancels the intent instead of restoring the pending attack', { timeout: 120000 }, async () => {
+  const browser = await launchBrowser();
+  try {
+    const { context, page, state, errors } = await harness(browser, { width: 1440, height: 900 }, { configureView(view) {
+      view.nations.find(nation => nation.id === 'NZ').relation = 'war'; view.diplomacy = [{ nationId: 'NZ', relation: 'war' }];
+    } });
+    try {
+      await page.locator('[data-action="create"]').click(); await page.waitForSelector('[data-action="start"]');
+      await page.locator('[data-action="start"]').click(); await page.waitForSelector('[data-action="pause"]');
+      await page.locator('[data-action="tab"][data-id="intelligence"]').click(); await page.locator('[data-action="select-unit"][data-id="unit-1"]').click();
+      await page.locator('[data-action="order-type"][data-id="attack"]').click(); await targetMapPoint(page, { lng: 170, lat: -40 }, { zoomSteps: 4 });
+      state.rejectOrderOnce = { code: 'DECLARE_WAR_FIRST', message: 'Declare war before attacking this nation.', onView(view, reads) { if (reads >= 2) view.provinces.find(province => province.id === 'NZ-1').ownerId = 'AU'; } };
+      const firstRead = page.waitForResponse(response => response.url().endsWith('/dorra-war') && response.request().postDataJSON()?.action === 'view');
+      await page.locator('[data-action="confirm-order"]').click(); await firstRead;
+      assert.equal(await page.locator('#warApp').getAttribute('aria-busy'), 'true');
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.querySelector('#warApp').getAttribute('aria-busy') === 'false');
+      assert.equal(state.orderRecovery.views, 1, 'Canceled recovery stops before reading again');
+      assert.equal(await page.locator('[data-action="confirm-order"]').count(), 0);
+      assert.equal(await page.locator('#selectionPanel').isVisible(), false);
+      assert.equal(state.calls.filter(call => call.action === 'order').length, 1);
+      assert.equal(state.calls.filter(call => call.action === 'diplomacy').length, 0);
+      assert.doesNotMatch(await page.locator('#toast').textContent(), /Review and confirm the reinforcement/);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
   } finally { await browser.close(); }
 });
